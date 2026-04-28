@@ -1,0 +1,110 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4">
+        <div class="col-auto">
+            <h2 class="mb-0">User Management</h2>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div id="usersTable">
+                
+                <div class="p-4 row align-items-center justify-content-between g-3">
+                    <div class="col-12 col-md-auto">
+                        <div class="search-box">
+                            <form class="position-relative">
+                                <input class="form-control search-input search" 
+                                       type="search" 
+                                       name="q" 
+                                       placeholder="Search users..." 
+                                       hx-get="{% url 'user_list' %}" 
+                                       hx-trigger="keyup changed delay:500ms" 
+                                       hx-target="#user-table-body" 
+                                       aria-label="Search" />
+                                <span class="fas fa-search search-box-icon"></span>
+                            </form>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-auto">
+                        <button class="btn btn-primary w-100" type="button" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                            <span class="fas fa-plus me-2"></span>Add New User
+                        </button>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-hover fs-9 mb-0">
+                        <thead class="bg-body-tertiary">
+                            <tr>
+                                <th class="ps-4 py-3">Username</th>
+                                <th class="py-3">Email</th>
+                                <th class="py-3">Role</th>
+                                <th class="py-3">Status</th>
+                                <th class="text-end pe-4 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        
+                        <tbody class="list" id="user-table-body">
+                           {% include 'core/partials/user_table_rows.html' %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion
+                </h5>
+                <button class="btn btn-close p-1" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-body-tertiary mb-0">
+                    Are you sure you want to remove <strong id="delete-username-placeholder">this user</strong>? 
+                    <br>This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer border-0 pt-0">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteUserForm" method="post" action="">
+                    {% csrf_token %}
+                    <button class="btn btn-danger" type="submit">Yes, Delete User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include 'core/partials/modal_create_user.html' %}
+
+<script>
+    var deleteModal = document.getElementById('deleteUserModal');
+    if (deleteModal) {
+        deleteModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            
+            // Get Attributes
+            var username = button.getAttribute('data-username');
+            var deleteUrl = button.getAttribute('data-delete-url'); // <--- Using the robust URL
+            
+            // Update Modal Content
+            var modalTitle = deleteModal.querySelector('#delete-username-placeholder');
+            modalTitle.textContent = username;
+            
+            // Update Form Action
+            var form = deleteModal.querySelector('#deleteUserForm');
+            form.action = deleteUrl;
+        });
+    }
+</script>
+
+{% endblock %}

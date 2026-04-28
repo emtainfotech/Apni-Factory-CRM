@@ -1,0 +1,63 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+    <nav class="mb-3" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'customer_list' %}">Customers</a></li>
+            <li class="breadcrumb-item active">Bulk Upload</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6 col-md-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary border-bottom text-center py-4">
+                    <h4 class="mb-1">Import Customers</h4>
+                    <p class="text-body-secondary mb-0">Upload a CSV or Excel file to add customers in bulk.</p>
+                </div>
+                
+                <div class="card-body p-4">
+                    <div class="alert alert-subtle-info mb-4">
+                        <div class="d-flex">
+                            <span class="fas fa-info-circle fs-3 me-3"></span>
+                            <div>
+                                <h5 class="alert-heading fw-bold mb-1">Instructions</h5>
+                                <ul class="mb-0 ps-3 fs-9">
+                                    <li><strong>Mandatory Fields:</strong> First Name, Phone Number.</li>
+                                    <li>Supported formats: <strong>.csv, .xlsx</strong></li>
+                                    <li>Phone numbers will be cleaned automatically (e.g., +91 removed).</li>
+                                    <li>Duplicate phone numbers will be skipped.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4 text-center">
+                        <p class="mb-2 fs-9 text-body-tertiary">Not sure about the format?</p>
+                        <a href="{% url 'download_sample_file' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-download me-2"></i>Download Sample Template
+                        </a>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <form method="post" enctype="multipart/form-data" class="dropzone-form">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label" for="customFile">Select File</label>
+                            <input type="file" class="form-control form-control-lg" id="customFile" name="file" accept=".csv, .xlsx" required>
+                        </div>
+
+                        <div class="d-grid gap-2 mt-4">
+                            <button class="btn btn-primary" type="submit">
+                                <i class="fas fa-cloud-upload-alt me-2"></i>Upload & Process
+                            </button>
+                            <a href="{% url 'customer_list' %}" class="btn btn-phoenix-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
