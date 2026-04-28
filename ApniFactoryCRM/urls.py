@@ -18,7 +18,10 @@ from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
 
+from core.views import health_check
+
 urlpatterns = [
+    path('health/', health_check, name='health_check'),
     path('', lambda request: redirect('dashboard_admin', permanent=False)),
     path('authentication/', include('authentication.urls')),
     path('core/', include('core.urls')),
