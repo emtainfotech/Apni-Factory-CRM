@@ -1,0 +1,5 @@
+node_modules/
+myenv/
+static/
+staticfiles/
+__pycache__/
