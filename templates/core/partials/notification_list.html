@@ -1,0 +1,54 @@
+{% for note in notifications %}
+    <div class="px-2 px-sm-3 py-3 notification-card position-relative {% if not note.is_read %}bg-body-highlight{% else %}opacity-75{% endif %} border-bottom"
+         {% if forloop.last and notifications.has_next %}
+            hx-get="{% url 'get_notifications' %}?page={{ notifications.next_page_number }}"
+            hx-trigger="intersect root:#notification-container threshold:0.5"
+            hx-swap="afterend"
+         {% endif %}
+    >
+        <div class="d-flex align-items-center justify-content-between position-relative">
+            <div class="d-flex">
+                <div class="avatar avatar-m status-online me-3">
+                    <div class="avatar-name rounded-circle bg-primary-subtle text-primary">
+                        <span>{{ note.recipient.username|slice:":1"|upper }}</span>
+                    </div>
+                </div>
+                
+                <div class="flex-1 me-sm-3">
+                    <h4 class="fs-9 text-body-emphasis">{{ note.recipient.username }}</h4>
+                    <p class="fs-9 text-body-highlight mb-2 mb-sm-3 fw-normal">
+                        {{ note.message }}
+                    </p>
+                    <p class="text-body-secondary fs-9 mb-0">
+                        <span class="me-1 fas fa-clock"></span>
+                        <span class="fw-bold">{{ note.created_at|date:"h:i A" }} </span>
+                        {{ note.created_at|date:"M d" }}
+                    </p>
+                </div>
+            </div>
+            
+            <div class="dropdown notification-dropdown">
+                <button class="btn fs-10 btn-sm dropdown-toggle dropdown-caret-none transition-none" 
+                        type="button" 
+                        data-bs-toggle="dropdown" 
+                        data-bs-boundary="window" 
+                        aria-haspopup="true" 
+                        aria-expanded="false">
+                    <span class="fas fa-ellipsis-h fs-10 text-body"></span>
+                </button>
+                <div class="dropdown-menu py-2">
+                    {% if note.url %}
+                        <a class="dropdown-item" href="{{ note.url }}">View Details</a>
+                    {% endif %}
+                    <a class="dropdown-item" href="#">Mark as unread</a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% empty %}
+    {% if notifications.number == 1 %}
+    <div class="p-5 text-center text-body-tertiary">
+        <p>No notifications found.</p>
+    </div>
+    {% endif %}
+{% endfor %}

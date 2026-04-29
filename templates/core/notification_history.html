@@ -1,0 +1,92 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+    <nav class="mb-3" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Home</a></li>
+            <li class="breadcrumb-item active">Notifications</li>
+        </ol>
+    </nav>
+    <h2 class="mb-5">Notifications</h2>
+    
+    <div class="mx-n4 mx-lg-n6 mb-5 border-bottom">
+        {% for note in notifications %}
+        
+        <div class="d-flex align-items-center justify-content-between py-3 px-lg-6 px-4 notification-card border-top {% if not note.is_read %}unread{% else %}read{% endif %}">
+            <div class="d-flex">
+                <div class="avatar avatar-xl me-3">
+                    <div class="avatar-name rounded-circle bg-primary-subtle text-primary fs-3">
+                        {{ note.recipient.username|slice:":1"|upper }}
+                    </div>
+                </div>
+                <div class="me-3 flex-1 mt-2">
+                    <h4 class="fs-9 text-body-emphasis">{{ note.recipient.username }}</h4>
+                    <p class="fs-9 text-body-highlight">
+                        <span class='me-1'>💬</span>
+                        {{ note.message }}
+                        </p>
+                    <p class="text-body-secondary fs-9 mb-0">
+                        <span class="me-1 fas fa-clock"></span>
+                        <span class="fw-bold">{{ note.created_at|date:"h:i A" }} </span>
+                        {{ note.created_at|date:"F j, Y" }}
+                    </p>
+                </div>
+            </div>
+            
+            <div class="dropdown">
+                <button class="btn fs-10 btn-sm dropdown-toggle dropdown-caret-none transition-none notification-dropdown-toggle" 
+                        type="button" 
+                        data-bs-toggle="dropdown" 
+                        data-boundary="window" 
+                        aria-haspopup="true" 
+                        aria-expanded="false" 
+                        data-bs-reference="parent">
+                    <span class="fas fa-ellipsis-h fs-10 text-body"></span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end py-2">
+                    {% if note.url %}
+                        <a class="dropdown-item" href="{{ note.url }}">View Details</a>
+                    {% endif %}
+                    <a class="dropdown-item" href="#!">Mark as unread</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="p-5 text-center text-body-tertiary">
+            <h4>No notifications found.</h4>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if notifications.has_other_pages %}
+    <div class="d-flex justify-content-center mt-3 mb-5">
+        <nav aria-label="Page navigation">
+            <ul class="pagination">
+                {% if notifications.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ notifications.previous_page_number }}">Previous</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if notifications.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ notifications.next_page_number }}">Next</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">Next</span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+    
+{% endblock %}

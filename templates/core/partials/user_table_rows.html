@@ -1,0 +1,60 @@
+{% for user in page_obj %}
+<tr class="align-middle">
+    <td class="ps-4">
+        <div class="d-flex align-items-center">
+            <a class="fw-bold text-body-emphasis text-decoration-none" href="{% url 'user_detail' user.id %}">
+                <div class="avatar avatar-m me-2">
+                    <div class="avatar-name rounded-circle"><span>{{ user.username|slice:":1"|upper }}</span></div>
+                </div>
+                {{ user.username }}
+            </a>
+        </div>
+    </td>
+    
+    <td>{{ user.email }}</td>
+    <td><span class="badge badge-phoenix badge-phoenix-info">{{ user.get_role_display }}</span></td>
+    
+    <td>
+        {% if user.is_active %}
+            <span class="badge badge-phoenix badge-phoenix-success"><i class="fas fa-check me-1"></i>Active</span>
+        {% else %}
+            <span class="badge badge-phoenix badge-phoenix-warning"><i class="fas fa-clock me-1"></i>Pending</span>
+        {% endif %}
+    </td>
+
+    <td class="text-end pe-4">
+        <div class="btn-group">
+            <a href="{% url 'user_detail' user.id %}" class="btn btn-sm btn-phoenix-secondary" title="View Profile">
+                <i class="fas fa-eye"></i>
+            </a>
+            
+            <button class="btn btn-sm btn-phoenix-danger" 
+                    type="button" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#deleteUserModal"
+                    data-username="{{ user.username }}"
+                    data-delete-url="{% url 'delete_user' user.id %}">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr><td colspan="5" class="text-center py-4 text-muted">No users found.</td></tr>
+{% endfor %}
+
+{% if page_obj.has_other_pages %}
+<tr class="bg-light">
+    <td colspan="5" class="py-2 text-center">
+         <div class="btn-group btn-group-sm">
+            {% if page_obj.has_previous %}
+                <button class="btn btn-outline-secondary" hx-get="{% url 'user_list' %}?page={{ page_obj.previous_page_number }}" hx-target="#user-table-body">Prev</button>
+            {% endif %}
+            <button class="btn btn-outline-secondary disabled">Page {{ page_obj.number }}</button>
+            {% if page_obj.has_next %}
+                <button class="btn btn-outline-secondary" hx-get="{% url 'user_list' %}?page={{ page_obj.next_page_number }}" hx-target="#user-table-body">Next</button>
+            {% endif %}
+         </div>
+    </td>
+</tr>
+{% endif %}

@@ -1,0 +1,271 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<link href="https://cdn.jsdelivr.net/npm/choices.js/public/assets/styles/choices.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+
+<style>
+    /* Fix for Choices.js inside Bootstrap */
+    .choices__inner {
+        min-height: 45px;
+        background-color: var(--phoenix-input-bg);
+        border-color: var(--phoenix-border-color);
+        color: var(--phoenix-body-color);
+    }
+    .choices__list--dropdown {
+        z-index: 1050; /* Ensure dropdown appears above other elements */
+    }
+</style>
+
+    <nav class="mb-3" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'customer_list' %}">Customers</a></li>
+            <li class="breadcrumb-item active">Add New Customer</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-xl-9">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                <h4 class="mb-3">Personal Details</h4>
+                <div class="row g-3 mb-5">
+                    <div class="col-sm-6 col-md-4"><div class="form-floating">{{ form.first_name }}<label>First Name</label></div></div>
+                    <div class="col-sm-6 col-md-4"><div class="form-floating">{{ form.last_name }}<label>Last Name</label></div></div>
+                    <div class="col-sm-6 col-md-4"><div class="form-floating">{{ form.gender }}<label>Gender</label></div></div>
+                    <div class="col-sm-6 col-md-4"><div class="form-floating">{{ form.email }}<label>Email</label></div></div>
+                    <div class="col-sm-6 col-md-4"><div class="form-floating">{{ form.phone_number }}<label>Phone</label></div></div>
+                    <div class="col-sm-6 col-md-4"><div class="form-floating">{{ form.date_of_birth }}<label>Date of Birth</label></div></div>
+                </div>
+
+                <h4 class="mb-3">Business Information</h4>
+                <div class="row g-3 mb-5">
+                    <div class="col-sm-6 col-md-3"><div class="form-floating">{{ form.customer_type }}<label>Type</label></div></div>
+                    <div class="col-sm-6 col-md-5"><div class="form-floating">{{ form.company_name }}<label>Company</label></div></div>
+                    <div class="col-sm-6 col-md-2"><div class="form-floating">{{ form.gst_number }}<label>GST</label></div></div>
+                    <div class="col-sm-6 col-md-2"><div class="form-floating">{{ form.pan_number }}<label>PAN</label></div></div>
+                </div>
+
+                <h4 class="mb-3">Location & Address</h4>
+                <div class="row g-3 mb-5">
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label text-body-highlight">Country</label>
+                        {{ form.country }}
+                    </div>
+
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label text-body-highlight">State</label>
+                        <select class="form-select" id="id_state" name="state">
+                            <option value="">Select State</option>
+                            <option value="Madhya Pradesh">Madhya Pradesh</option>
+                            <option value="Maharashtra">Maharashtra</option>
+                            <option value="Delhi">Delhi</option>
+                            <option value="Rajasthan">Rajasthan</option>
+                            <option value="Uttar Pradesh">Uttar Pradesh</option>
+                            <option value="Karnataka">Karnataka</option>
+                            <option value="Gujarat">Gujarat</option>
+                            <option value="Tamil Nadu">Tamil Nadu</option>
+                            <option value="West Bengal">West Bengal</option>
+                            <option value="Andhra Pradesh">Andhra Pradesh</option>
+                            <option value="Punjab">Punjab</option>
+                            <option value="Haryana">Haryana</option>
+                            <option value="Bihar">Bihar</option>
+                            <option value="Odisha">Odisha</option>
+                            <option value="Chhattisgarh">Chhattisgarh</option>
+                            <option value="Kerala">Kerala</option>
+                            <option value="Jharkhand">Jharkhand</option>
+                            <option value="Assam">Assam</option>
+                            <option value="Telangana">Telangana</option>
+                            <option value="Himachal Pradesh">Himachal Pradesh</option>
+                            <option value="Uttarakhand">Uttarakhand</option>
+                            <option value="Goa">Goa</option>
+                            <option value="Tripura">Tripura</option>
+                            <option value="Meghalaya">Meghalaya</option>
+                            <option value="Manipur">Manipur</option>
+                            <option value="Nagaland">Nagaland</option>
+                            <option value="Mizoram">Mizoram</option>
+                            <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                            <option value="Sikkim">Sikkim</option>
+                            <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                            <option value="Chandigarh">Chandigarh</option>
+                            <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                            <option value="Lakshadweep">Lakshadweep</option>
+
+                        </select>
+                    </div>
+
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label text-body-highlight">City</label>
+                        <select class="form-select" id="id_city" name="city">
+                            <option value="">Select State first</option>
+                        </select>
+                    </div>
+
+                    <div class="col-sm-6 col-md-3">
+                        <label class="form-label text-body-highlight">Pincode</label>
+                        <div class="position-relative">
+                            <select class="form-select" id="id_pincode" name="pincode">
+                                <option value="">Type or Select...</option>
+                            </select>
+                            <div id="pincode-spinner" class="spinner-border spinner-border-sm text-primary position-absolute top-50 end-0 translate-middle-y me-4 d-none" style="z-index: 20;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="mb-3">Other Information</h4>
+                <div class="row g-3 mb-5">
+                    <div class="col-sm-6 col-md-6"><div class="form-floating">{{ form.source }}<label>Source</label></div></div>
+                    <div class="col-sm-6 col-md-6"><div class="form-floating">{{ form.tags }}<label>Tags</label></div></div>
+                    <div class="col-12"><div class="form-floating">{{ form.notes }}<label>Notes</label></div></div>
+                </div>
+
+                <div class="col-12 d-flex justify-content-end mb-5">
+                    <a href="{% url 'customer_list' %}" class="btn btn-phoenix-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save Customer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function(){
+    
+    // --- CHOICES INIT ---
+    const stateChoices = new Choices('#id_state', { searchEnabled: true, shouldSort: false, itemSelectText: '' });
+    const cityChoices = new Choices('#id_city', { searchEnabled: true, itemSelectText: '', placeholderValue: 'Select State first' });
+    const pincodeChoices = new Choices('#id_pincode', {
+        searchEnabled: true,
+        addItems: true, // Allow typing
+        editItems: true,
+        placeholderValue: 'Type or Select...',
+        noResultsText: 'Type to add custom pincode',
+        itemSelectText: '',
+    });
+
+    // --- FLAGS TO PREVENT LOOPS ---
+    let isAutoFilling = false;
+
+    // --- 1. STATE CHANGED ---
+    document.getElementById('id_state').addEventListener('change', function(e) {
+        // If we are auto-filling from Pincode, DO NOT reset everything
+        if (isAutoFilling) return;
+
+        const stateName = e.target.value;
+        
+        cityChoices.clearStore();
+        cityChoices.setChoices([{ value: '', label: 'Loading...', disabled: true, selected: true }], 'value', 'label', true);
+        
+        // Reset Pincode only if manually changing state
+        pincodeChoices.clearStore();
+
+        if(stateName){
+            fetchCities(stateName);
+        } else {
+            cityChoices.disable();
+        }
+    });
+
+    // --- 2. CITY CHANGED ---
+    document.getElementById('id_city').addEventListener('change', function(e) {
+        if (isAutoFilling) return;
+
+        const cityName = e.target.value;
+        if(cityName) {
+            fetchPincodes(cityName);
+        }
+    });
+
+    // --- 3. PINCODE TYPED (REVERSE LOOKUP) ---
+    // We bind to the 'search' event which triggers when user types
+    document.getElementById('id_pincode').addEventListener('search', function(event) {
+        const value = event.detail.value;
+        const currentCity = cityChoices.getValue(true);
+
+        // Only trigger if 6 digits AND City is empty (to avoid loops)
+        if (value.length === 6 && /^\d+$/.test(value) && (!currentCity)) {
+            performReverseLookup(value);
+        }
+    });
+
+    // --- HELPER FUNCTIONS ---
+
+    function fetchCities(stateName, preSelectCity = null) {
+        fetch(`/core/api/cities/?state=${encodeURIComponent(stateName)}`)
+            .then(r => r.json())
+            .then(data => {
+                const cityOptions = data.cities.map(c => ({ value: c.value, label: c.label }));
+                cityChoices.setChoices(cityOptions, 'value', 'label', true);
+                
+                if (preSelectCity) {
+                    // Check if city exists in list, if not add it
+                    const exists = cityOptions.some(c => c.value === preSelectCity);
+                    if (!exists) {
+                        cityChoices.setChoices([{ value: preSelectCity, label: preSelectCity }], 'value', 'label', false);
+                    }
+                    cityChoices.setChoiceByValue(preSelectCity);
+                    
+                    // After setting city, load pincodes but keep current pincode selected
+                    // We don't fetch pincodes here to avoid overwriting the user's typed input
+                }
+            })
+            .catch(err => console.error(err));
+    }
+
+    function fetchPincodes(cityName) {
+        pincodeChoices.setChoices([{ value: '', label: 'Fetching...', disabled: true, selected: true }], 'value', 'label', true);
+        
+        fetch(`/core/api/city-pincodes/?city=${encodeURIComponent(cityName)}`)
+            .then(r => r.json())
+            .then(data => {
+                const uniqueSet = new Set();
+                const cleanOptions = [];
+
+                if(data.pincodes && data.pincodes.length > 0) {
+                    data.pincodes.forEach(item => {
+                        const val = String(item.value).trim();
+                        // STRICT CLIENT-SIDE DEDUPLICATION
+                        if(!uniqueSet.has(val)) {
+                            uniqueSet.add(val);
+                            cleanOptions.push({ value: val, label: val });
+                        }
+                    });
+                } else {
+                    cleanOptions.push({ value: '', label: 'No Pincodes found (Type manually)', disabled: true });
+                }
+                
+                pincodeChoices.setChoices(cleanOptions, 'value', 'label', true);
+            })
+            .catch(() => pincodeChoices.setChoices([{ value: '', label: 'Type manually' }], 'value', 'label', true));
+    }
+
+    function performReverseLookup(pincode) {
+        const spinner = document.getElementById('pincode-spinner');
+        spinner.classList.remove('d-none');
+        isAutoFilling = true; // LOCK LISTENERS
+
+        fetch(`/core/api/pincode-details/?pincode=${pincode}`)
+            .then(r => r.json())
+            .then(data => {
+                if(!data.error) {
+                    // 1. Set State
+                    stateChoices.setChoiceByValue(data.state);
+                    
+                    // 2. Fetch Cities & Set City
+                    // We pass data.city to be pre-selected
+                    fetchCities(data.state, data.city);
+                    
+                    // 3. Ensure Pincode remains set
+                    // (Choices.js might lose focus, so we re-set it)
+                    pincodeChoices.setChoices([{ value: pincode, label: pincode, selected: true }], 'value', 'label', false);
+                }
+            })
+            .finally(() => {
+                spinner.classList.add('d-none');
+                // Unlock listeners after a short delay to allow UI to settle
+                setTimeout(() => { isAutoFilling = false; }, 1000);
+            });
+    }
+});
+</script>
+{% endblock %}
