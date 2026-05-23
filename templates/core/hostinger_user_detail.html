@@ -1,0 +1,232 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col-auto">
+            <a href="{% url 'hostinger_user_list' %}" class="btn btn-sm btn-phoenix-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+        <div class="col">
+            <h2 class="mb-0">External User Profile: {{ h_user.name }}</h2>
+        </div>
+    </div>
+
+    <div class="row g-5">
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Basic Information</h5>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Email</label>
+                        <p class="mb-0">{{ h_user.email }}</p>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Verified At</label>
+                        <p class="mb-0">{{ h_user.email_verified_at|default:"-" }}</p>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Created At</label>
+                        <p class="mb-0">{{ h_user.created_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Updated At</label>
+                        <p class="mb-0">{{ h_user.updated_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Activity Summary</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Companies <span class="badge bg-primary rounded-pill">{{ companies.count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Orders <span class="badge bg-success rounded-pill">{{ orders.count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Products <span class="badge bg-info rounded-pill">{{ products.count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Tickets <span class="badge bg-warning rounded-pill">{{ tickets.count }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-8">
+            <!-- Tabs for related data -->
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary p-0">
+                    <ul class="nav nav-tabs border-0" id="hostingerUserTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active py-3 px-4" id="companies-tab" data-bs-toggle="tab" data-bs-target="#companies" type="button" role="tab">Companies</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-3 px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab">Orders</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-3 px-4" id="wallet-tab" data-bs-toggle="tab" data-bs-target="#wallet" type="button" role="tab">Wallet & Credits</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-3 px-4" id="more-tab" data-bs-toggle="tab" data-bs-target="#more" type="button" role="tab">More Info</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="hostingerUserTabsContent">
+                        <!-- Companies Tab -->
+                        <div class="tab-pane fade show active" id="companies" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Mobile</th>
+                                            <th>City/State</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for company in companies %}
+                                        <tr>
+                                            <td>{{ company.name }}</td>
+                                            <td>{{ company.email }}</td>
+                                            <td>{{ company.mobile }}</td>
+                                            <td>{{ company.city }}, {{ company.state }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="4" class="text-center py-3 text-muted">No companies found.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Orders Tab -->
+                        <div class="tab-pane fade" id="orders" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Order No</th>
+                                            <th>Grand Total</th>
+                                            <th>Created At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr>
+                                            <td>{{ order.orderno }}</td>
+                                            <td>₹{{ order.grandtotal }}</td>
+                                            <td>{{ order.created_at|date:"Y-m-d" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="3" class="text-center py-3 text-muted">No orders found.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Wallet & Credits Tab -->
+                        <div class="tab-pane fade" id="wallet" role="tabpanel">
+                            <h6 class="mb-3">Wallet History</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Msg</th>
+                                            <th>Credit</th>
+                                            <th>Debit</th>
+                                            <th>Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in wallet %}
+                                        <tr>
+                                            <td>{{ entry.created_at|date:"Y-m-d" }}</td>
+                                            <td>{{ entry.msg }}</td>
+                                            <td class="text-success">{{ entry.credit }}</td>
+                                            <td class="text-danger">{{ entry.debit }}</td>
+                                            <td>{{ entry.balance }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-3 text-muted">No wallet history.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <h6 class="mb-3">Credits History</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Msg</th>
+                                            <th>Credit</th>
+                                            <th>Debit</th>
+                                            <th>Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in credits %}
+                                        <tr>
+                                            <td>{{ entry.created_at|date:"Y-m-d" }}</td>
+                                            <td>{{ entry.msg }}</td>
+                                            <td class="text-success">{{ entry.credit }}</td>
+                                            <td class="text-danger">{{ entry.debit }}</td>
+                                            <td>{{ entry.balance }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-3 text-muted">No credit history.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- More Info Tab -->
+                        <div class="tab-pane fade" id="more" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <h6>Bank Details</h6>
+                                    <ul class="list-unstyled fs-9">
+                                        {% for bank in bank_details %}
+                                        <li class="mb-2 p-2 bg-light rounded">
+                                            <strong>{{ bank.bankname }}</strong> ({{ bank.accountholder }})<br>
+                                            A/C: {{ bank.accountno }} | IFSC: {{ bank.ifsc }}
+                                        </li>
+                                        {% empty %}
+                                        <li class="text-muted">No bank details.</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Support Tickets</h6>
+                                    <ul class="list-unstyled fs-9">
+                                        {% for ticket in tickets %}
+                                        <li class="mb-2 p-2 bg-light rounded">
+                                            <strong>{{ ticket.topic }}</strong> <span class="badge bg-secondary float-end">{{ ticket.status }}</span><br>
+                                            {{ ticket.msg|truncatechars:50 }}
+                                        </li>
+                                        {% empty %}
+                                        <li class="text-muted">No tickets.</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

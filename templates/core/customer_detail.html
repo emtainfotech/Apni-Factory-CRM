@@ -1,0 +1,236 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col-auto">
+            <a href="{% url 'customer_list' %}" class="btn btn-sm btn-phoenix-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back
+            </a>
+        </div>
+        <div class="col">
+            <h2 class="mb-0">{{ customer.first_name }} {{ customer.last_name }}</h2>
+            <span class="badge badge-phoenix badge-phoenix-primary">{{ customer.get_status_display }}</span>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Sidebar: Contact Info -->
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Contact Details</h5>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Phone</label>
+                        <p class="mb-0 fw-bold">{{ customer.phone }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">WhatsApp</label>
+                        <p class="mb-0">{{ customer.whatsapp_number|default:"Not Provided" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Email</label>
+                        <p class="mb-0">{{ customer.email|default:"Not Provided" }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Location</label>
+                        <p class="mb-0">{{ customer.city }}, {{ customer.state }} - {{ customer.pincode }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">Business Info</h5>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Company</label>
+                        <p class="mb-0">{{ customer.company_name|default:"-" }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">GSTIN</label>
+                        <p class="mb-0">
+                            {{ customer.gst_number|default:"-" }}
+                            {% if customer.is_gst_verified %}
+                            <i class="fas fa-check-circle text-success ms-1"></i>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 bg-primary-subtle">
+                <div class="card-body">
+                    <h5 class="card-title text-primary mb-2">Customer Lifetime Value</h5>
+                    <h2 class="text-primary mb-0">₹{{ total_spent }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content: Tabs -->
+        <div class="col-12 col-xl-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary p-0">
+                    <ul class="nav nav-tabs border-0" id="customerTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active py-3 px-4" data-bs-toggle="tab" data-bs-target="#orders" type="button">Orders</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-3 px-4" data-bs-toggle="tab" data-bs-target="#transactions" type="button">Payments</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-3 px-4" data-bs-toggle="tab" data-bs-target="#invoices" type="button">Invoices</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-3 px-4" data-bs-toggle="tab" data-bs-target="#activities" type="button">Activity</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="customerTabsContent">
+                        <!-- Orders Tab -->
+                        <div class="tab-pane fade show active" id="orders">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Order No</th>
+                                            <th>Status</th>
+                                            <th>Tracking / Logistics</th>
+                                            <th>Amount</th>
+                                            <th>Date</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr>
+                                            <td>
+                                                <div class="fw-bold">{{ order.order_number }}</div>
+                                                {% if order.hostinger_order_id %}
+                                                <small class="text-body-tertiary">Ext ID: {{ order.hostinger_order_id }}</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-phoenix badge-phoenix-info">{{ order.get_status_display }}</span>
+                                                {% with latest_status=order.status_history.first %}
+                                                    {% if latest_status %}
+                                                    <div class="fs-10 text-body-tertiary mt-1">{{ latest_status.message|truncatechars:30 }}</div>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                            <td>
+                                                {% if order.lr_number %}
+                                                <div class="fs-10"><strong>LR:</strong> {{ order.lr_number }}</div>
+                                                <div class="fs-10 text-body-tertiary">{{ order.transporter_name }}</div>
+                                                {% else %}
+                                                <span class="text-body-tertiary">-</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="fw-bold">₹{{ order.total_amount }}</div>
+                                                <div class="fs-10 text-body-tertiary">Tax: ₹{{ order.tax_amount }}</div>
+                                            </td>
+                                            <td>{{ order.created_at|date:"d M Y" }}</td>
+                                            <td class="text-end">
+                                                <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-link p-0">View Details</a>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="6" class="text-center py-4 text-muted">No orders yet.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Transactions Tab -->
+                        <div class="tab-pane fade" id="transactions">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Date</th>
+                                            <th>Transaction ID</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for txn in transactions %}
+                                        <tr>
+                                            <td>
+                                                {% if txn.transaction_type == 'credit' %}
+                                                <span class="text-success"><i class="fas fa-plus-circle me-1"></i>Credit</span>
+                                                {% else %}
+                                                <span class="text-danger"><i class="fas fa-minus-circle me-1"></i>Debit</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="fw-bold">₹{{ txn.amount }}</td>
+                                            <td>{{ txn.payment_method }}</td>
+                                            <td>{{ txn.transaction_date|date:"d M Y" }}</td>
+                                            <td>{{ txn.transaction_id|default:"-" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-4 text-muted">No payment records found.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Invoices Tab -->
+                        <div class="tab-pane fade" id="invoices">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Invoice No</th>
+                                            <th>Amount</th>
+                                            <th>Date</th>
+                                            <th class="text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for inv in invoices %}
+                                        <tr>
+                                            <td>{{ inv.invoice_no }}</td>
+                                            <td>₹{{ inv.total_amount }}</td>
+                                            <td>{{ inv.invoice_date|date:"d M Y" }}</td>
+                                            <td class="text-end">
+                                                <a href="{% url 'invoice_detail' inv.id %}" class="btn btn-sm btn-link p-0">View</a>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="4" class="text-center py-4 text-muted">No invoices generated.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Activities Tab -->
+                        <div class="tab-pane fade" id="activities">
+                            <ul class="list-group list-group-flush">
+                                {% for act in activities %}
+                                <li class="list-group-item px-0 border-0">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <p class="mb-0 fw-bold">{{ act.action }}</p>
+                                            <small class="text-body-tertiary">{{ act.description }}</small>
+                                        </div>
+                                        <small class="text-body-tertiary">{{ act.created_at|date:"d M H:i" }}</small>
+                                    </div>
+                                </li>
+                                {% empty %}
+                                <li class="text-center py-4 text-muted">No activity recorded.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

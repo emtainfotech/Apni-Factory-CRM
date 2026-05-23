@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice - {{ invoice.invoice_no }}</title>
+    <style>
+        body { font-family: 'Helvetica', 'Arial', sans-serif; color: #000; margin: 0; padding: 0; font-size: 11px; line-height: 1.2; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .invoice-outer { background: white; width: 780px; margin: 0 auto; padding: 25px 35px; box-sizing: border-box; }
+        
+        /* Typography & Colors */
+        .red-text { color: #d62d2d !important; font-weight: bold; }
+        .dark-text { color: #000 !important; }
+        h1, h2, h3, h4, strong { color: #000 !important; }
+        
+        .header { display: flex; justify-content: space-between; margin-bottom: 15px; align-items: flex-start; }
+        .invoice-title { font-size: 26px; text-transform: uppercase; margin: 0; color: #d62d2d !important; font-weight: 800; letter-spacing: 1px; }
+        
+        .company-logo-container { text-align: right; }
+        .company-logo { width: 130px; margin-bottom: 2px; }
+        .company-details { text-align: right; font-size: 10px; line-height: 1.3; color: #000 !important; }
+        
+        .info-table { margin-top: 10px; }
+        .info-table td { padding: 1.5px 0; vertical-align: top; color: #000 !important; }
+        .info-label { width: 95px; font-weight: 600; }
+        
+        .bill-to-container { margin-bottom: 15px; }
+        .bill-to-header { background: #d62d2d !important; color: white !important; padding: 4px 12px; font-weight: bold; font-size: 10px; display: inline-block; border-radius: 2px; }
+        .bill-to-content { padding: 8px 2px; line-height: 1.4; color: #000 !important; }
+
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 0; border: 1px solid #000; }
+        .items-table th { background: #d62d2d !important; color: white !important; padding: 6px; text-align: center; border: 1px solid #000; font-size: 9px; text-transform: uppercase; }
+        .items-table td { border: 1px solid #000; padding: 6px 8px; vertical-align: middle; color: #000 !important; }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+
+        .summary-wrapper { display: flex; justify-content: flex-end; }
+        .summary-table { width: 400px; border-collapse: collapse; border-left: 1px solid #000; border-right: 1px solid #000; border-bottom: 1px solid #000; }
+        .summary-table td { padding: 5px 10px; border-bottom: 1px solid #ccc; color: #000 !important; }
+        .summary-table tr:last-child td { border-bottom: none; }
+        
+        .final-total-row { background: #fdf2f2 !important; border: 1px solid #000; margin-top: 5px; display: flex; align-items: stretch; }
+        .total-label-box { flex-grow: 1; padding: 10px 15px; display: flex; align-items: center; font-size: 12px; font-weight: 700; border-right: 1px solid #000; }
+        .total-amount-box { background: #d62d2d !important; color: white !important; padding: 10px 20px; font-size: 20px; font-weight: 800; min-width: 140px; text-align: right; }
+
+        .amount-words { margin: 10px 0; font-size: 10px; font-weight: 600; color: #000 !important; }
+
+        .footer-grid { display: flex; justify-content: space-between; margin-top: 15px; gap: 10px; }
+        .footer-card { border: 1px solid #000; border-radius: 3px; width: 32.5%; overflow: hidden; }
+        .footer-card-header { background: #fdf2f2 !important; padding: 4px 8px; border-bottom: 1px solid #000; display: flex; align-items: center; gap: 5px; }
+        .footer-card-header i, .footer-card-header span { color: #d62d2d !important; font-weight: 800; font-size: 9px; text-transform: uppercase; }
+        .footer-card-body { padding: 8px; font-size: 8.5px; line-height: 1.3; color: #000 !important; }
+
+        .upi-section { border: 1px solid #000; padding: 6px; border-radius: 3px; display: flex; align-items: center; gap: 8px; width: fit-content; margin-top: 10px; }
+        .signature-box { text-align: center; width: 160px; margin-left: auto; color: #000 !important; }
+        .signature-line { border-top: 1px solid #000; margin-top: 35px; padding-top: 3px; font-weight: 700; font-size: 9px; }
+
+        .system-footer { text-align: center; color: #333 !important; font-size: 8.5px; margin-top: 15px; border-top: 1px solid #eee; padding-top: 8px; }
+        .thank-you { color: #d62d2d !important; font-weight: 800; font-size: 10px; }
+        
+        @media print {
+            @page { size: A4 portrait; margin: 0; }
+            body { background: white; margin: 0; }
+            .no-print { display: none; }
+            .invoice-outer { width: 100%; border: none; box-shadow: none; padding: 30px; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center; padding: 12px; background: #222; color: white;">
+        <button onclick="window.print()" style="padding: 10px 30px; background: #d62d2d; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: 800; font-size: 14px; text-transform: uppercase; box-shadow: 0 4px 6px rgba(0,0,0,0.2);">
+            <i class="fas fa-print"></i> Click Here to Save as PDF
+        </button>
+    </div>
+
+    <div class="invoice-outer">
+        <div class="header">
+            <div>
+                <h1 class="invoice-title">TAX INVOICE</h1>
+                <table class="info-table">
+                    <tr><td class="info-label">Invoice No.</td><td>: <strong>{{ invoice.invoice_no }}</strong></td></tr>
+                    <tr><td class="info-label">Invoice Date</td><td>: <strong>{{ invoice.invoice_date|date:"d M Y" }}</strong></td></tr>
+                    <tr><td class="info-label">Place of Supply</td><td>: {{ invoice.place_of_supply }} ({{ invoice.client_state_code }})</td></tr>
+                    <tr><td class="info-label">Reverse Charge</td><td>: No</td></tr>
+                    <tr><td class="info-label">Supply Type</td><td>: {{ invoice.supply_type }}</td></tr>
+                </table>
+            </div>
+            <div class="company-logo-container">
+                <img src="/static/assets/img/images/logo-black.png" alt="ApniFactory" class="company-logo">
+                <div class="company-details">
+                    <strong class="red-text" style="font-size: 13px;">H Bose E Commerce Pvt Ltd</strong><br>
+                    353A, 1st Floor, Mahalaxmi Nagar,<br>
+                    Indore, Madhya Pradesh, 452010<br>
+                    <strong>GSTIN :</strong> 23AAGFA1234A1Z5 | <strong>State :</strong> 23<br>
+                    <strong>TAN :</strong> INDA12345A<br>
+                    <i class="fas fa-phone"></i> +91 76489 11811 | <i class="fas fa-envelope"></i> billing@apnifactory.co.in<br>
+                    <i class="fas fa-globe"></i> www.apnifactory.co.in
+                </div>
+            </div>
+        </div>
+
+        <div class="bill-to-container">
+            <div class="bill-to-header">BILL TO</div>
+            <div class="bill-to-content">
+                <strong style="font-size: 14px;">{{ invoice.client_name }}</strong><br>
+                {{ invoice.customer.address|default:invoice.place_of_supply }}<br>
+                {% if invoice.client_gstin %}<strong>GSTIN :</strong> {{ invoice.client_gstin }}{% endif %}<br>
+                <strong>State Code :</strong> {{ invoice.client_state_code }}
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th width="5%">#</th>
+                    <th width="42%" class="text-left">Particulars</th>
+                    <th width="10%">SAC Code</th>
+                    <th width="12%" class="text-right">Taxable (₹)</th>
+                    <th width="7%">GST %</th>
+                    <th width="5%" class="text-center">CGST (9%)</th>
+                    <th width="5%" class="text-center">SGST (9%)</th>
+                    <th width="4%" class="text-center">IGST (18%)</th>
+                    <th width="10%" class="text-right">Total (₹)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in invoice.items.all %}
+                <tr>
+                    <td class="text-center">{{ forloop.counter }}</td>
+                    <td class="text-left">
+                        <strong style="font-size: 10px;">{{ item.description|truncatechars:45 }}</strong><br>
+                        <span style="font-size: 8.5px; color: #444;">{{ item.description|slice:"45:" }}</span>
+                    </td>
+                    <td class="text-center">{{ item.sac_code }}</td>
+                    <td class="text-right">{{ item.taxable_value|floatformat:2 }}</td>
+                    <td class="text-center">{{ item.gst_rate|floatformat:0 }}%</td>
+                    <td class="text-center">
+                        {% if item.igst > 0 %}
+                        -
+                        {% else %}
+                        {{ item.cgst|floatformat:2 }}
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if item.igst > 0 %}
+                        -
+                        {% else %}
+                        {{ item.sgst|floatformat:2 }}
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if item.igst > 0 %}
+                        {{ item.igst|floatformat:2 }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="text-right"><strong>{{ item.total_amount|floatformat:2 }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="summary-wrapper">
+            <table class="summary-table">
+                <tr>
+                    <td class="text-right fw-bold" style="width: 65%;">Total Taxable Value</td>
+                    <td class="text-right" style="width: 35%;">₹{{ invoice.taxable_value|floatformat:2 }}</td>
+                </tr>
+                {% if invoice.igst > 0 %}
+                <tr>
+                    <td class="text-right fw-bold">Total IGST (18%)</td>
+                    <td class="text-right">₹{{ invoice.igst|floatformat:2 }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td class="text-right fw-bold">Total CGST (9%)</td>
+                    <td class="text-right">₹{{ invoice.cgst|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <td class="text-right fw-bold">Total SGST (9%)</td>
+                    <td class="text-right">₹{{ invoice.sgst|floatformat:2 }}</td>
+                </tr>
+                {% endif %}
+                <tr style="background: #fdf2f2;">
+                    <td class="text-right fw-bold">Total GST Amount</td>
+                    <td class="text-right fw-bold">₹{{ invoice.gst_total|floatformat:2 }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="final-total-row">
+            <div class="total-label-box">
+                TOTAL INVOICE VALUE <span style="font-weight: 400; margin-left: 6px; font-size: 9px;">(Inclusive of GST)</span>
+            </div>
+            <div class="total-amount-box">₹{{ invoice.total_amount|floatformat:2 }}</div>
+        </div>
+
+        <div class="amount-words">
+            Amount in Words: <strong>Rupees {{ invoice.total_amount|floatformat:0 }} Only</strong>
+        </div>
+
+        <div class="footer-grid">
+            <div class="footer-card">
+                <div class="footer-card-header">
+                    <i class="fas fa-credit-card"></i>
+                    <span>Payment Details</span>
+                </div>
+                <div class="footer-card-body">
+                    <table style="width: 100%;">
+                        <tr><td width="35%">Mode</td><td>: {{ invoice.payment_mode }}</td></tr>
+                        <tr><td>Status</td><td>: <strong>{{ invoice.payment_status|upper }}</strong></td></tr>
+                        <tr><td>Date</td><td>: {{ invoice.invoice_date|date:"d M Y" }}</td></tr>
+                    </table>
+                </div>
+            </div>
+            <div class="footer-card">
+                <div class="footer-card-header">
+                    <i class="fas fa-info-circle"></i>
+                    <span>SAC & Tax Details</span>
+                </div>
+                <div class="footer-card-body">
+                    SAC Code: 998361 (Advertising Services)<br>
+                    GST Rate: 18% | Split: {% if invoice.igst > 0 %}IGST 18%{% else %}CGST 9% + SGST 9%{% endif %}<br>
+                    Supply: Intra-State (Madhya Pradesh)
+                </div>
+            </div>
+            <div class="footer-card">
+                <div class="footer-card-header">
+                    <i class="fas fa-file-contract"></i>
+                    <span>Terms & Conditions</span>
+                </div>
+                <div class="footer-card-body" style="font-size: 8px;">
+                    1. Payment received in advance via bank transfer/cheque.<br>
+                    2. No refunds once campaign begins.<br>
+                    3. All disputes subject to Indore Jurisdiction.
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; align-items: flex-end; margin-top: 10px;">
+            <div class="signature-box">
+                <div style="font-size: 10px; font-weight: 800; margin-bottom: 3px;">For H Bose E Commerce Pvt Ltd</div>
+                <img src="/static/assets/img/images/signature.png" alt="Signature" style="height: 32px;">
+                <div class="signature-line">Authorized Signatory</div>
+            </div>
+        </div>
+
+        <div class="system-footer">
+            This is a system generated invoice and does not require physical signature.<br>
+            <strong class="thank-you">Thank you for choosing ApniFactory!</strong>
+        </div>
+    </div>
+</body>
+</html>

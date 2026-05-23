@@ -1,3 +1,4 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
@@ -15,6 +16,18 @@ from authentication.models import User, Notification
 from authentication.tokens import account_activation_token
 from .forms import UserInviteForm
 from .models import Customer
+
+# Import Hostinger Data Models
+from hostinger_data.models import (
+    Users as HostingerUser, Companies, Brands, Products, Orders,
+    Wallet, Credits, Faqs, Pages, Tickets, ShadeCards,
+    Advertisements, BankDetails, Admin as HostingerAdmin,
+    Orderdetail, OrderTracks, OrderStatus, Categories, Sliders
+)
+
+# Import Invoice Utils & Models
+from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction
+from .invoice_utils import calculate_gst_values, get_next_invoice_number
 
 # ==========================================
 #              HELPER FUNCTIONS
@@ -43,9 +56,24 @@ def health_check(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    # Show stats or recent activities
-    recent_users = User.objects.order_by('-date_joined')[:5]
-    return render(request, 'core/dashboard_admin.html', {'recent_users': recent_users})
+    # Statistics from local DB
+    total_customers = Customer.objects.count()
+    total_invoices = Invoice.objects.count()
+    
+    # Statistics from External Hostinger DB
+    total_hostinger_users = HostingerUser.objects.count()
+    total_orders = Orders.objects.count()
+    recent_orders = Orders.objects.all().order_by('-created_at')[:10]
+    
+    context = {
+        'total_customers': total_customers,
+        'total_invoices': total_invoices,
+        'total_hostinger_users': total_hostinger_users,
+        'total_orders': total_orders,
+        'recent_orders': recent_orders,
+        'recent_users': User.objects.order_by('-date_joined')[:5]
+    }
+    return render(request, 'core/dashboard_admin.html', context)
 
 @login_required
 @user_passes_test(is_manager)
@@ -154,6 +182,200 @@ def delete_user(request, user_id):
 def user_detail(request, user_id):
     user_profile = get_object_or_404(User, pk=user_id)
     return render(request, 'core/user_detail.html', {'user_profile': user_profile})
+
+
+@login_required
+def customer_detail(request, customer_id):
+    """
+    360-degree view of a customer including orders, invoices, 
+    whatsapp chats, and transactions.
+    """
+    customer = get_object_or_404(Customer, id=customer_id)
+    
+    # Fetch related data with prefetching for performance
+    orders = customer.orders.all().prefetch_related('status_history').order_by('-created_at')
+    invoices = customer.invoices.all().order_by('-created_at')
+    whatsapp_chats = customer.whatsapp_chats.all().order_by('-timestamp')
+    transactions = customer.transactions.all().order_by('-transaction_date')
+    activities = customer.activities.all().order_by('-created_at')
+    
+    context = {
+        'customer': customer,
+        'orders': orders,
+        'invoices': invoices,
+        'whatsapp_chats': whatsapp_chats,
+        'transactions': transactions,
+        'activities': activities,
+        'total_spent': sum(o.total_amount for o in orders if o.status != 'cancelled'),
+    }
+    
+    return render(request, 'core/customer_detail.html', context)
+
+@login_required
+def order_list(request):
+    """Global list of all orders from Hostinger Database."""
+    orders_qs = Orders.objects.all().order_by('-created_at')
+    
+    # Search logic
+    query = request.GET.get('q')
+    if query:
+        orders_qs = orders_qs.filter(
+            Q(orderno__icontains=query) | 
+            Q(address__icontains=query)
+        )
+        
+    paginator = Paginator(orders_qs, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    
+    return render(request, 'core/order_list.html', {'page_obj': page_obj, 'query': query})
+
+@login_required
+def product_list(request):
+    """View to list all products from Hostinger with filters."""
+    query = request.GET.get('q', '')
+    category_id = request.GET.get('category', '')
+    brand_id = request.GET.get('brand', '')
+    
+    products_qs = Products.objects.all().order_by('-created_at')
+    
+    if query:
+        products_qs = products_qs.filter(
+            Q(name__icontains=query) | 
+            Q(title__icontains=query) | 
+            Q(hsncode__icontains=query)
+        )
+        
+    if category_id:
+        products_qs = products_qs.filter(category_id=category_id)
+        
+    if brand_id:
+        # Filter by brand name instead of ID to handle duplicates correctly
+        products_qs = products_qs.filter(brand_id__in=Brands.objects.filter(name=brand_id).values_list('id', flat=True))
+        
+    # Pagination
+    paginator = Paginator(products_qs, 20)
+    page_number = request.GET.get('page')
+    products = paginator.get_page(page_number)
+    
+    # Fetch metadata for filters
+    categories = Categories.objects.all().order_by('name')
+    
+    # Fetch distinct brand names to avoid duplicates in dropdown
+    brands_names = Brands.objects.values_list('name', flat=True).distinct().order_by('name')
+    
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    # Enhance product objects with extra data
+    for p in products:
+        p.image_url = f"{IMAGE_PREFIX}{p.image}" if p.image else None
+        p.category_name = Categories.objects.filter(id=p.category_id).values_list('name', flat=True).first()
+        p.brand_name = Brands.objects.filter(id=p.brand_id).values_list('name', flat=True).first()
+        # Fetch vendor name
+        vendor = HostingerUser.objects.filter(id=p.user_id).values_list('name', flat=True).first()
+        p.vendor_name = vendor if vendor else "Unknown"
+
+    context = {
+        'products': products,
+        'categories': categories,
+        'brands': brands_names,
+        'query': query,
+        'selected_category': category_id,
+        'selected_brand': brand_id,
+    }
+    return render(request, 'core/product_list.html', context)
+
+
+@login_required
+def order_detail(request, order_id):
+    """Detailed view of a specific order from Hostinger."""
+    order = get_object_or_404(Orders, pk=order_id)
+    
+    # Get related data from Hostinger
+    order_details = Orderdetail.objects.filter(order_id=order_id)
+    
+    # Prefix for images
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+
+    # Parse attributes and fetch product details for each order item
+    for item in order_details:
+        # Parse attributes
+        if item.attribute:
+            try:
+                item.parsed_attributes = json.loads(item.attribute)
+            except (json.JSONDecodeError, TypeError):
+                item.parsed_attributes = None
+        else:
+            item.parsed_attributes = None
+            
+        # Fetch detailed product info
+        try:
+            product = Products.objects.filter(id=item.product_id).first()
+            if product:
+                item.product_obj = product
+                item.product_image = f"{IMAGE_PREFIX}{product.image}" if product.image else None
+                item.brand_obj = Brands.objects.filter(id=product.brand_id).first()
+                item.category_obj = Categories.objects.filter(id=product.category_id).first()
+                
+                # Fetch Vendor/Brand Owner info
+                vendor_user = HostingerUser.objects.filter(id=product.user_id).first()
+                vendor_company = Companies.objects.filter(user_id=product.user_id).first()
+                item.vendor_info = {
+                    'name': vendor_user.name if vendor_user else "Unknown Vendor",
+                    'company': vendor_company.name if vendor_company else None,
+                    'mobile': vendor_company.mobile if vendor_company else None,
+                }
+        except Exception:
+            item.product_obj = None
+            item.product_image = None
+            item.brand_obj = None
+            item.category_obj = None
+
+    order_tracks = OrderTracks.objects.filter(order_id=order_id).order_by('-created_at')
+    order_statuses = OrderStatus.objects.filter(order_id=order_id).order_by('-created_at')
+    
+    # Get customer info from Hostinger
+    h_user = get_object_or_404(HostingerUser, pk=order.user_id)
+    h_company = Companies.objects.filter(user_id=order.user_id).first()
+    
+    # Parse address JSON
+    address_data = {}
+    if order.address:
+        try:
+            # Clean up potential string issues (like single quotes instead of double quotes)
+            # though json.loads expects strict JSON.
+            address_data = json.loads(order.address)
+        except (json.JSONDecodeError, TypeError):
+            # If it's not valid JSON, we'll handle it as raw text in the template
+            address_data = None
+    
+    # Parse tax details JSON
+    tax_details = []
+    if order.taxdetail:
+        try:
+            tax_details = json.loads(order.taxdetail)
+        except (json.JSONDecodeError, TypeError):
+            tax_details = None
+
+    # Financials are directly on the 'order' object (Orders model)
+    # Orderdetail model doesn't have financial fields
+    items_count = order_details.count()
+    
+    context = {
+        'order': order,
+        'order_details': order_details,
+        'order_tracks': order_tracks,
+        'order_statuses': order_statuses,
+        'h_user': h_user,
+        'h_company': h_company,
+        'address_data': address_data,
+        'tax_details': tax_details,
+        'items_count': items_count,
+        'total_net': order.netamount,
+        'total_tax': order.taxamount,
+        'grand_total': order.grandtotal,
+    }
+    
+    return render(request, 'core/order_detail.html', context)
 
 
 # ==========================================
@@ -490,44 +712,326 @@ def process_import(data, request):
         messages.warning(request, error_msg)
         
 
-from django.shortcuts import render, get_object_or_404
-from django.contrib.auth.decorators import login_required
-from .models import Customer
+# ==========================================
+#         HOSTINGER DATA MANAGEMENT
+# ==========================================
 
 @login_required
-def customer_profile(request, customer_id):
-    # Fetch customer
-    customer = get_object_or_404(
-        Customer.objects.select_related('customerpreference', 'assigned_to', 'created_by'), 
-        id=customer_id
-    )
+@user_passes_test(is_admin)
+def hostinger_user_list(request):
+    """
+    Lists users from the external Hostinger database.
+    """
+    users_qs = HostingerUser.objects.all().order_by('-created_at')
+    
+    # Search logic
+    query = request.GET.get('q')
+    if query:
+        users_qs = users_qs.filter(
+            Q(name__icontains=query) | 
+            Q(email__icontains=query)
+        )
 
-    # --- FIX 1: Use correct related_name 'whatsapp_chats' ---
-    # --- FIX 2: Removed .select_related('employee') as it doesn't exist in WhatsAppChat model ---
-    whatsapp_chats = customer.whatsapp_chats.all()
-    
-    # Fetch other related data (Assuming Order/CallLog models exist in models.py)
-    # Use getattr to safely handle if relations don't exist yet
-    orders = getattr(customer, 'orders', None)
-    if orders: orders = orders.prefetch_related('items').order_by('-created_at')
-    
-    call_logs = getattr(customer, 'call_logs', None)
-    if call_logs: call_logs = call_logs.select_related('employee').order_by('-created_at')
-    
-    activities = getattr(customer, 'activities', None)
-    if activities: activities = activities.select_related('employee').order_by('-created_at')
+    # Include Admin details if requested (Addressing the "admin missing" part)
+    # Since 'Admin' is a separate table, we might want to show it as well
+    hostinger_admins = HostingerAdmin.objects.all()
+
+    paginator = Paginator(users_qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     context = {
-        'customer': customer,
-        'orders': orders,
-        'call_logs': call_logs,
-        'whatsapp_chats': whatsapp_chats,
-        'activities': activities,
-        'preference': getattr(customer, 'customerpreference', None) 
+        'page_obj': page_obj,
+        'hostinger_admins': hostinger_admins,
+        'query': query,
+    }
+
+    return render(request, 'core/hostinger_user_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def hostinger_user_detail(request, user_id):
+    """
+    Detailed view of a Hostinger user and all related data.
+    """
+    h_user = get_object_or_404(HostingerUser, pk=user_id)
+    
+    # Get related data from all identified tables
+    context = {
+        'h_user': h_user,
+        'companies': Companies.objects.filter(user_id=user_id),
+        'brands': Brands.objects.filter(user_id=user_id),
+        'products': Products.objects.filter(user_id=user_id),
+        'orders': Orders.objects.filter(user_id=user_id),
+        'wallet': Wallet.objects.filter(user_id=user_id),
+        'credits': Credits.objects.filter(user_id=user_id),
+        'faqs': Faqs.objects.filter(user_id=user_id),
+        'pages': Pages.objects.filter(user_id=user_id),
+        'tickets': Tickets.objects.filter(user_id=user_id),
+        'shade_cards': ShadeCards.objects.filter(user_id=user_id),
+        'advertisements': Advertisements.objects.filter(user_id=user_id),
+        'bank_details': BankDetails.objects.filter(user_id=user_id),
     }
     
-    return render(request, 'core/customer_profile.html', context)
+    return render(request, 'core/hostinger_user_detail.html', context)
 
+
+def hostinger_login(request):
+    """
+    Backend login view for Hostinger users.
+    """
+    if request.method == 'POST':
+        email = request.POST.get('email')
+        password = request.POST.get('password') # Note: In production, use proper password verification
+        
+        try:
+            h_user = HostingerUser.objects.using('hostinger_db').get(email=email)
+            # Simulating login by setting session variable
+            request.session['hostinger_user_id'] = h_user.id
+            request.session['hostinger_user_email'] = h_user.email
+            messages.success(request, f"Successfully logged in as {h_user.name}")
+            return redirect('hostinger_user_detail', user_id=h_user.id)
+        except HostingerUser.DoesNotExist:
+            messages.error(request, "Invalid email or password.")
+            
+    return render(request, 'core/hostinger_login.html')
+
+
+@login_required
+@user_passes_test(is_admin)
+def banner_list(request):
+    """View to show all active banners."""
+    banners = Advertisements.objects.filter(status=1).order_by('sequence')
+    
+    # Prefix for images/files
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    for banner in banners:
+        banner.image_url = f"{IMAGE_PREFIX}{banner.file}" if banner.file else None
+        
+    context = {
+        'banners': banners,
+    }
+    return render(request, 'core/banner_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def slider_list(request):
+    """View to show all active sliders."""
+    sliders = Sliders.objects.filter(status=1).order_by('-created_at')
+    
+    # Prefix for images
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    for slider in sliders:
+        slider.image_url = f"{IMAGE_PREFIX}{slider.image}" if slider.image else None
+        
+    context = {
+        'sliders': sliders,
+    }
+    return render(request, 'core/slider_list.html', context)
+
+
+# ==========================================
+#         INVOICE MANAGEMENT
+# ==========================================
+
+@login_required
+def invoice_list(request):
+    """Lists all invoices."""
+    invoices = Invoice.objects.all().order_by('-created_at')
+    
+    # Search logic
+    query = request.GET.get('q')
+    if query:
+        invoices = invoices.filter(
+            Q(invoice_no__icontains=query) | 
+            Q(client_name__icontains=query)
+        )
+        
+    paginator = Paginator(invoices, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+    
+    return render(request, 'core/invoice_list.html', {'page_obj': page_obj, 'query': query})
+
+@login_required
+def create_invoice(request):
+    """View to create a new invoice."""
+    if request.method == 'POST':
+        hostinger_user_id = request.POST.get('hostinger_user_id')
+        total_amount = request.POST.get('total_amount')
+        gst_type = request.POST.get('gst_type') # 'inclusive' or 'exclusive'
+        
+        h_user = get_object_or_404(HostingerUser, id=hostinger_user_id)
+        
+        # Get details from Hostinger Companies table if possible
+        h_company = Companies.objects.filter(user_id=hostinger_user_id).first()
+        
+        # Determine state code
+        client_gstin = request.POST.get('client_gstin') or (h_company.gst if h_company else None)
+        client_state_code = "23" # Default MP
+        if client_gstin and len(client_gstin) >= 2:
+            client_state_code = client_gstin[:2]
+        
+        # Calculate GST
+        is_inclusive = (gst_type == 'inclusive')
+        vals = calculate_gst_values(total_amount, is_inclusive, client_state_code)
+        
+        # Create Invoice
+        invoice = Invoice.objects.create(
+            invoice_no=get_next_invoice_number(),
+            hostinger_user_id=hostinger_user_id,
+            created_by=request.user,
+            client_name=request.POST.get('client_name') or h_user.name,
+            client_gstin=client_gstin,
+            client_state_code=client_state_code,
+            place_of_supply=request.POST.get('place_of_supply') or (h_company.state if h_company else 'Madhya Pradesh'),
+            taxable_value=vals['taxable_value'],
+            gst_total=vals['gst_total'],
+            cgst=vals['cgst'],
+            sgst=vals['sgst'],
+            igst=vals['igst'],
+            total_amount=vals['total_amount'],
+            payment_mode=request.POST.get('payment_mode', 'Cheque'),
+        )
+        
+        # Create Items
+        # 1. Product Listing
+        if vals['listing_taxable'] > 0:
+            item_vals = calculate_gst_values(vals['listing_taxable'], False, client_state_code)
+            InvoiceItem.objects.create(
+                invoice=invoice,
+                description="Product Listing & Data Entry Charges",
+                sac_code="998361",
+                taxable_value=vals['listing_taxable'],
+                gst_rate=18.00,
+                cgst=item_vals['cgst'],
+                sgst=item_vals['sgst'],
+                igst=item_vals['igst'],
+                total_amount=item_vals['total_amount']
+            )
+            
+        # 2. Marketing Services
+        if vals['marketing_taxable'] > 0:
+            item_vals = calculate_gst_values(vals['marketing_taxable'], False, client_state_code)
+            InvoiceItem.objects.create(
+                invoice=invoice,
+                description="Marketing & Promotional Services (Includes WhatsApp Campaign, Digital Promotion, Creative Support & Campaign Management)",
+                sac_code="998361",
+                taxable_value=vals['marketing_taxable'],
+                gst_rate=18.00,
+                cgst=item_vals['cgst'],
+                sgst=item_vals['sgst'],
+                igst=item_vals['igst'],
+                total_amount=item_vals['total_amount']
+            )
+            
+        messages.success(request, f"Invoice {invoice.invoice_no} created successfully.")
+        return redirect('invoice_detail', invoice_id=invoice.id)
+        
+    hostinger_users = HostingerUser.objects.all().order_by('name')
+    return render(request, 'core/invoice_form.html', {'hostinger_users': hostinger_users})
+
+@login_required
+def invoice_detail(request, invoice_id):
+    """View to see invoice details."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    return render(request, 'core/invoice_detail.html', {'invoice': invoice})
+
+@login_required
+def finalize_invoice(request, invoice_id):
+    """Locks the invoice from further edits."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    if request.method == 'POST':
+        invoice.is_finalized = True
+        invoice.save()
+        messages.success(request, "Invoice finalized and locked.")
+    return redirect('invoice_detail', invoice_id=invoice.id)
+
+@login_required
+def download_invoice_pdf(request, invoice_id):
+    """Generates and downloads PDF of the invoice."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    # For now, we will render a clean print-friendly HTML page
+    # In a real environment, you'd use weasyprint or reportlab here
+    return render(request, 'core/invoice_pdf.html', {'invoice': invoice})
+
+
+from django.core.mail import EmailMessage
+from django.conf import settings
+import os
+
+@login_required
+def send_invoice_email(request, invoice_id):
+    """Sends the invoice PDF to the user's email."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    h_user = get_object_or_404(HostingerUser, id=invoice.hostinger_user_id)
+    
+    if not h_user.email:
+        messages.error(request, "User does not have an email address.")
+        return redirect('invoice_detail', invoice_id=invoice.id)
+
+    # Render the invoice HTML for the email body or as an attachment
+    # For now, we send a link and basic details
+    subject = f"Tax Invoice {invoice.invoice_no} from ApniFactory"
+    body = f"Dear {h_user.name},\n\nPlease find attached your tax invoice {invoice.invoice_no} for marketing services.\n\nTotal Amount: ₹{invoice.total_amount}\n\nThank you for choosing ApniFactory!"
+    
+    email = EmailMessage(
+        subject,
+        body,
+        settings.DEFAULT_FROM_EMAIL,
+        [h_user.email],
+    )
+    
+    # Optional: Attach PDF if you have a library like WeasyPrint
+    # For now, we'll notify success
+    try:
+        email.send()
+        messages.success(request, f"Invoice sent to {h_user.email} successfully.")
+    except Exception as e:
+        messages.error(request, f"Failed to send email: {str(e)}")
+        
+    return redirect('invoice_detail', invoice_id=invoice.id)
+
+@login_required
+def send_invoice_whatsapp(request, invoice_id):
+    """Sends invoice details to the user via WhatsApp."""
+    invoice = get_object_or_404(Invoice, id=invoice_id)
+    h_user = get_object_or_404(HostingerUser, id=invoice.hostinger_user_id)
+    
+    # Get phone from Companies or other related table if not in Users
+    h_company = Companies.objects.filter(user_id=h_user.id).first()
+    phone = h_company.mobile if h_company else None
+    
+    if not phone:
+        messages.error(request, "User/Company does not have a mobile number.")
+        return redirect('invoice_detail', invoice_id=invoice.id)
+
+    # Format message
+    message = (
+        f"*TAX INVOICE: {invoice.invoice_no}*\n\n"
+        f"Dear {h_user.name},\n"
+        f"Your invoice for marketing services is ready.\n\n"
+        f"*Total Amount:* ₹{invoice.total_amount}\n"
+        f"*Status:* {invoice.payment_status.upper()}\n\n"
+        f"Thank you for choosing ApniFactory!"
+    )
+    
+    from .utils import send_text_message
+    try:
+        send_text_message(phone, message)
+        messages.success(request, f"Invoice details sent to {phone} via WhatsApp.")
+    except Exception as e:
+        messages.error(request, f"Failed to send WhatsApp: {str(e)}")
+        
+    return redirect('invoice_detail', invoice_id=invoice.id)
+
+
+# ==========================================
+#         API & UTILS
+# ==========================================
 
 import requests
 import urllib3

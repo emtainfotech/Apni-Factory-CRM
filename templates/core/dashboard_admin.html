@@ -1,21 +1,117 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#verticallyCentered">Vertically centered modal</button>
-                      <div class="modal fade" id="verticallyCentered" tabindex="-1" aria-labelledby="verticallyCenteredModalLabel" style="display: none;" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                          <div class="modal-content">
-                            <div class="modal-header">
-                              <h5 class="modal-title" id="verticallyCenteredModalLabel">Modal title</h5><button class="btn btn-close p-1" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                              <p class="text-body-tertiary lh-lg mb-0">This is a static modal example (meaning its position and display have been overridden). Included are the modal header, modal body (required for padding), and modal footer (optional). </p>
-                            </div>
-                            <div class="modal-footer"><button class="btn btn-primary" type="button">Okay</button>
-                              <button class="btn btn-outline-primary" type="button" data-bs-dismiss="modal">Cancel</button>
-                            </div>
-                          </div>
+<div class="pb-5">
+    <div class="row g-4">
+        <div class="col-12 col-xxl-6">
+            <div class="mb-8">
+                <h2 class="mb-2">Admin Dashboard</h2>
+                <h5 class="text-body-tertiary fw-semibold">Overview of CRM and External Sales Data</h5>
+            </div>
+            
+            <!-- Statistics Cards -->
+            <div class="row g-3 mb-5">
+                <div class="col-12 col-md-6 col-lg-3">
+                    <div class="card shadow-sm border-0 bg-primary-subtle">
+                        <div class="card-body">
+                            <h5 class="card-title text-primary fs-9 mb-2">Total Customers</h5>
+                            <h3 class="mb-0">{{ total_customers }}</h3>
                         </div>
-                      </div>
-                    
-    {% endblock %}
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <div class="card shadow-sm border-0 bg-success-subtle">
+                        <div class="card-body">
+                            <h5 class="card-title text-success fs-9 mb-2">Total Invoices</h5>
+                            <h3 class="mb-0">{{ total_invoices }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <div class="card shadow-sm border-0 bg-info-subtle">
+                        <div class="card-body">
+                            <h5 class="card-title text-info fs-9 mb-2">Hostinger Users</h5>
+                            <h3 class="mb-0">{{ total_hostinger_users }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-3">
+                    <div class="card shadow-sm border-0 bg-warning-subtle">
+                        <div class="card-body">
+                            <h5 class="card-title text-warning fs-9 mb-2">Total Orders</h5>
+                            <h3 class="mb-0">{{ total_orders }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Recent Orders -->
+        <div class="col-12 col-xl-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent External Orders</h5>
+                    <a href="{% url 'order_list' %}" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Order No</th>
+                                    <th>Amount</th>
+                                    <th>Date</th>
+                                    <th class="text-end pe-4">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for order in recent_orders %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 fw-bold text-primary">{{ order.orderno }}</td>
+                                    <td class="fw-bold">₹{{ order.grandtotal }}</td>
+                                    <td>{{ order.created_at|date:"d M, H:i" }}</td>
+                                    <td class="text-end pe-4">
+                                        <span class="badge badge-phoenix badge-phoenix-info">External</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-4 text-muted">No recent orders.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent CRM Users -->
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0">New CRM Team Members</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% for user in recent_users %}
+                        <li class="list-group-item px-0 border-0">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar avatar-m me-3">
+                                    <div class="avatar-name rounded-circle"><span>{{ user.username|slice:":1" }}</span></div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">{{ user.username }}</h6>
+                                    <p class="text-body-tertiary fs-10 mb-0">{{ user.get_role_display }}</p>
+                                </div>
+                                <div class="text-body-tertiary fs-10">{{ user.date_joined|date:"d M" }}</div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

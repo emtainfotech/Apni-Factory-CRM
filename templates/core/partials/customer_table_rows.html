@@ -24,7 +24,7 @@
                 </td>
 
                 <td class="ps-2">
-                    <a class="fw-bold text-body-emphasis text-decoration-none" href="#">
+                    <a class="fw-bold text-body-emphasis text-decoration-none" href="{% url 'customer_detail' customer.id %}">
                         {{ customer.first_name }} {{ customer.last_name }}
                     </a>
                 </td>
@@ -63,7 +63,7 @@
 
                 <td class="text-end pe-4">
                     <div class="btn-group">
-                        <a href="{% url 'customer_profile' customer.id %}" class="btn btn-sm btn-phoenix-secondary"><i class="fas fa-edit"></i></a>
+                        <a href="{% url 'customer_detail' customer.id %}" class="btn btn-sm btn-phoenix-secondary"><i class="fas fa-edit"></i></a>
                     </div>
                 </td>
             </tr>

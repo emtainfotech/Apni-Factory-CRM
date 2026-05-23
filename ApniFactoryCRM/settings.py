@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'authentication',
     'core',
     'widget_tweaks',
+    'hostinger_data'
 
 ]
 
@@ -87,10 +88,21 @@ WSGI_APPLICATION = 'ApniFactoryCRM.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
+# settings.py
+
 DATABASES = {
     'default': {
+        # Your existing Django CRM database (PostgreSQL/MySQL/SQLite)
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'hostinger_db': {
+        'ENGINE': 'django.db.backends.mysql', # Assuming Hostinger uses MySQL/MariaDB
+        'NAME': 'u794520423_apnifactory',
+        'USER': 'u794520423_apnifactory',          # The SELECT-only user you created
+        'PASSWORD': 'U794520423_apnifactory',
+        'HOST': 'srv1415.hstgr.io',     # The Hostname from Hostinger Remote MySQL
+        'PORT': '3306',
     }
 }
 
@@ -146,9 +158,9 @@ LOGOUT_REDIRECT_URL = 'login'
 # Email Configuration for Hostinger
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.hostinger.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 465))
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'True').lower() == 'true'
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'False').lower() == 'true'
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', '')
@@ -165,6 +177,9 @@ REST_FRAMEWORK = {
         'rest_framework.authentication.TokenAuthentication',
     ],
 }
+
+# settings.py
+DATABASE_ROUTERS = ['hostinger_data.routers.ExternalDBReadOnlyRouter']
 
 # GST API Configuration
 GST_PARTNER_ID = os.environ.get('GST_PARTNER_ID', 'CORP00002370')

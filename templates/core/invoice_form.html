@@ -1,0 +1,108 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Create Invoice | ApniFactory{% endblock %}
+
+{% block content %}
+<!-- Choices.js CSS -->
+<link rel="stylesheet" href="/static/vendors/choices/choices.min.css">
+<!-- Choices.js JS -->
+<script src="/static/vendors/choices/choices.min.js"></script>
+
+<div class="mb-9">
+    <div class="row g-3 mb-4">
+        <div class="col-auto">
+            <a href="{% url 'invoice_list' %}" class="btn btn-sm btn-phoenix-secondary mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Invoices
+            </a>
+            <h2 class="mb-0">Generate Marketing Tender Invoice</h2>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <form method="post" action="{% url 'create_invoice' %}">
+                        {% csrf_token %}
+                        
+                        <div class="row g-4 mb-4">
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="hostinger_user_id">Select Seller/User</label>
+                                <select class="form-select" id="hostinger_user_id" name="hostinger_user_id" required>
+                                    <option value="">-- Choose User --</option>
+                                    {% for h_user in hostinger_users %}
+                                    <option value="{{ h_user.id }}">
+                                        {{ h_user.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="total_amount">Total Amount (INR)</label>
+                                <input class="form-control" id="total_amount" name="total_amount" type="number" step="0.01" placeholder="e.g. 32000" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="gst_type">GST Calculation</label>
+                                <select class="form-select" id="gst_type" name="gst_type" required>
+                                    <option value="inclusive">Inclusive of GST (18%)</option>
+                                    <option value="exclusive">Exclusive of GST (18%)</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <hr class="my-2">
+                                <h5 class="mb-3">Override Client Details (Optional)</h5>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label" for="client_name">Client Name on Invoice</label>
+                                <input class="form-control" id="client_name" name="client_name" type="text" placeholder="Defaults to Customer Name" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="client_gstin">Client GSTIN</label>
+                                <input class="form-control" id="client_gstin" name="client_gstin" type="text" maxlength="15" placeholder="15 Digit GSTIN" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="place_of_supply">Place of Supply</label>
+                                <input class="form-control" id="place_of_supply" name="place_of_supply" type="text" placeholder="Defaults to Customer State" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label" for="payment_mode">Payment Mode</label>
+                                <select class="form-select" id="payment_mode" name="payment_mode">
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="Bank Transfer">Bank Transfer</option>
+                                    <option value="Cash">Cash</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-3">
+                            <a href="{% url 'invoice_list' %}" class="btn btn-outline-secondary">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-5">Generate Invoice</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const userSelect = document.getElementById('hostinger_user_id');
+        if (userSelect) {
+            new Choices(userSelect, {
+                searchEnabled: true,
+                itemSelectText: '',
+                removeItemButton: true,
+            });
+        }
+    });
+</script>
+{% endblock %}

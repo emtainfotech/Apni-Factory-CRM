@@ -9,6 +9,8 @@ User = get_user_model()
 from django.db import models
 from authentication.models import User
 
+from django.utils import timezone
+
 # --- 1. CUSTOMER MODEL ---
 class Customer(models.Model):
     LEAD_SOURCE_CHOICES = (
@@ -136,12 +138,30 @@ class Order(models.Model):
     )
 
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='orders')
-    order_number = models.CharField(max_length=50, unique=True)
+    
+    # Mapping to Hostinger Data
+    hostinger_order_id = models.IntegerField(null=True, blank=True, db_index=True)
+    order_number = models.CharField(max_length=50, unique=True) # Maps to Hostinger orderno
+    
     status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default='pending')
 
+    # Financials (Synced from Hostinger)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    net_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
     payment_mode = models.CharField(max_length=50, blank=True)
     payment_status = models.CharField(max_length=20, default='pending')
+
+    # Logistics / Tracking (From Hostinger OrderTracks)
+    transporter_name = models.CharField(max_length=255, blank=True, null=True)
+    lr_number = models.CharField(max_length=100, blank=True, null=True)
+    tracking_msg = models.TextField(blank=True, null=True)
+    invoice_number = models.CharField(max_length=100, blank=True, null=True)
+
+    # CRM Fields
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_orders')
+    crm_notes = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -152,12 +172,30 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    
+    # Sync from Hostinger Orderdetail
+    hostinger_product_id = models.IntegerField(null=True, blank=True)
     product_name = models.CharField(max_length=255)
+    hsn_code = models.CharField(max_length=20, blank=True, null=True)
+    attribute = models.TextField(blank=True, null=True)
+    
     quantity = models.PositiveIntegerField()
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
     def __str__(self):
         return f"{self.product_name} ({self.quantity})"
+
+
+class OrderStatusHistory(models.Model):
+    """Tracks status changes for CRM visibility (from Hostinger OrderStatus)"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='status_history')
+    status = models.CharField(max_length=100)
+    message = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.order.order_number} - {self.status}"
 
 
 class CallLog(models.Model):
@@ -218,6 +256,92 @@ class CustomerActivityLog(models.Model):
 
     def __str__(self):
         return self.action
+
+# --- 5. INVOICE SYSTEM ---
+class Invoice(models.Model):
+    PAYMENT_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('paid', 'Paid'),
+        ('cancelled', 'Cancelled'),
+    )
+
+    SUPPLY_TYPE_CHOICES = (
+        ('B2B', 'B2B'),
+        ('B2C', 'B2C'),
+    )
+
+    invoice_no = models.CharField(max_length=50, unique=True)
+    invoice_date = models.DateField(auto_now_add=True)
+    
+    # Relationships
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='invoices', null=True, blank=True)
+    hostinger_user_id = models.IntegerField(null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='generated_invoices')
+
+    # Client details at time of invoice (for history)
+    client_name = models.CharField(max_length=255)
+    client_gstin = models.CharField(max_length=15, blank=True, null=True)
+    client_state_code = models.CharField(max_length=2)
+    place_of_supply = models.CharField(max_length=100)
+    
+    supply_type = models.CharField(max_length=10, choices=SUPPLY_TYPE_CHOICES, default='B2B')
+    reverse_charge = models.BooleanField(default=False)
+    
+    # Financials
+    taxable_value = models.DecimalField(max_digits=12, decimal_places=2)
+    gst_total = models.DecimalField(max_digits=12, decimal_places=2)
+    cgst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    payment_mode = models.CharField(max_length=50, blank=True, null=True)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    
+    is_finalized = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.invoice_no
+
+class InvoiceItem(models.Model):
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name='items')
+    description = models.TextField()
+    sac_code = models.CharField(max_length=10, default="998361")
+    taxable_value = models.DecimalField(max_digits=12, decimal_places=2)
+    gst_rate = models.DecimalField(max_digits=5, decimal_places=2, default=18.00)
+    cgst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    sgst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    igst = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.invoice.invoice_no} - {self.description[:30]}"
+
+# --- 6. CRM TRANSACTIONS ---
+class Transaction(models.Model):
+    TRANSACTION_TYPE_CHOICES = (
+        ('credit', 'Credit (Income)'),
+        ('debit', 'Debit (Expense)'),
+    )
+    
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='transactions')
+    invoice = models.ForeignKey(Invoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='transactions')
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    payment_method = models.CharField(max_length=50, help_text="UPI, Cheque, Bank Transfer, etc.")
+    transaction_id = models.CharField(max_length=100, unique=True, blank=True, null=True)
+    
+    remark = models.TextField(blank=True)
+    transaction_date = models.DateTimeField(default=timezone.now)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.transaction_type.upper()} - {self.amount} ({self.customer.first_name})"
 
 
 # # --- Preferences Model ---

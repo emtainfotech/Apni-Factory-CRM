@@ -19,7 +19,29 @@ urlpatterns = [
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/upload/', views.bulk_upload_customers, name='bulk_upload_customers'),
     path('customers/download-sample/', views.download_sample_file, name='download_sample_file'),
-    path('customers/<int:customer_id>/', views.customer_profile, name='customer_profile'),
+    path('customers/<int:customer_id>/', views.customer_detail, name='customer_detail'),
+    
+    # Order Routes
+    path('orders/', views.order_list, name='order_list'),
+    path('orders/<int:order_id>/', views.order_detail, name='order_detail'),
+    path('products/', views.product_list, name='product_list'),
+
+    # Hostinger Data Routes
+    path('hostinger/users/', views.hostinger_user_list, name='hostinger_user_list'),
+    path('hostinger/users/<int:user_id>/', views.hostinger_user_detail, name='hostinger_user_detail'),
+    path('hostinger/login/', views.hostinger_login, name='hostinger_login'),
+    path('banners/', views.banner_list, name='banner_list'),
+    path('sliders/', views.slider_list, name='slider_list'),
+
+    # Invoice Routes
+    path('invoices/', views.invoice_list, name='invoice_list'),
+    path('invoices/create/', views.create_invoice, name='create_invoice'),
+    path('invoices/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
+    path('invoices/<int:invoice_id>/finalize/', views.finalize_invoice, name='finalize_invoice'),
+    path('invoices/<int:invoice_id>/pdf/', views.download_invoice_pdf, name='download_invoice_pdf'),
+    path('invoices/<int:invoice_id>/send-email/', views.send_invoice_email, name='send_invoice_email'),
+    path('invoices/<int:invoice_id>/send-whatsapp/', views.send_invoice_whatsapp, name='send_invoice_whatsapp'),
+
     path('api/cities/', views.api_get_cities, name='api_get_cities'),
     path('api/pincode-details/', views.api_get_pincode_details, name='api_get_pincode_details'),
     path('api/city-pincodes/', views.api_get_pincodes_for_city, name='api_get_pincodes_for_city'),

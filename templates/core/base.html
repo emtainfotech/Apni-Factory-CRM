@@ -79,45 +79,111 @@
                                 </a>
 
                                 <div class="parent-wrapper label-1">
-                                    <ul class="nav collapse parent {% if 'dashboard' in request.path %}show{% endif %}"
+                                    <ul class="nav collapse parent {% if 'dashboard' in request.path or 'orders' in request.path or 'invoices' in request.path or 'hostinger' in request.path %}show{% endif %}"
                                         data-bs-parent="#navbarVerticalCollapse" id="nv-home">
 
+                                        <!-- CRM Section -->
                                         <li class="nav-item">
-                                            <a class="nav-link {% if url_name == 'dashboard_admin' or url_name == 'dashboard_manager' %}active{% endif %}"
-                                                href="{% url 'dashboard_admin' %}">
-                                                <div class="d-flex align-items-center"><span
-                                                        class="nav-link-text">CRM</span></div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if url_name == 'dashboard_admin' %}active{% endif %}"
+                                                    href="{% url 'dashboard_admin' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="home"></span></span>
+                                                        <span class="nav-link-text">Dashboard</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+
+                                        <li class="nav-item-wrapper py-2">
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Team & Customers</span>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if url_name == 'user_list' or url_name == 'user_list' %}active{% endif %}"
+                                            <a class="nav-link {% if 'user' in request.path and 'hostinger' not in request.path %}active{% endif %}"
                                                 href="{% url 'user_list' %}">
-                                                <div class="d-flex align-items-center"><span
-                                                        class="nav-link-text">Employee</span></div>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="users"></span></span>
+                                                    <span class="nav-link-text">Employees</span>
+                                                </div>
                                             </a>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if url_name == 'customer_list' or url_name == 'customer_list' %}active{% endif %}"
+                                            <a class="nav-link {% if url_name == 'customer_list' %}active{% endif %}"
                                                 href="{% url 'customer_list' %}">
-                                                <div class="d-flex align-items-center"><span
-                                                        class="nav-link-text">Customer</span></div>
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="user"></span></span>
+                                                    <span class="nav-link-text">CRM Customers</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item-wrapper py-2">
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">External Data (Hostinger)</span>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'hostinger' in request.path %}active{% endif %}"
+                                                href="{% url 'hostinger_user_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="external-link"></span></span>
+                                                    <span class="nav-link-text">External Users</span>
+                                                </div>
                                             </a>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if url_name == 'dashboard_admin' or url_name == 'dashboard_manager' %}active{% endif %}"
-                                                href="{% url 'dashboard_admin' %}">
-                                                <div class="d-flex align-items-center"><span
-                                                        class="nav-link-text">CRM</span></div>
+                                            <a class="nav-link {% if 'orders' in request.path %}active{% endif %}"
+                                                href="{% url 'order_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="shopping-cart"></span></span>
+                                                    <span class="nav-link-text">External Orders</span>
+                                                </div>
                                             </a>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link" href="/static/dashboard/travel-agency.html">
-                                                <div class="d-flex align-items-center"><span
-                                                        class="nav-link-text">Travel agency</span></div>
+                                            <a class="nav-link {% if 'products' in request.path %}active{% endif %}"
+                                                href="{% url 'product_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="package"></span></span>
+                                                    <span class="nav-link-text">External Products</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'banner_list' %}active{% endif %}"
+                                                href="{% url 'banner_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="image"></span></span>
+                                                    <span class="nav-link-text">App Banners</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'slider_list' %}active{% endif %}"
+                                                href="{% url 'slider_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="layers"></span></span>
+                                                    <span class="nav-link-text">App Sliders</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item-wrapper py-2">
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Billing</span>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'invoices' in request.path %}active{% endif %}"
+                                                href="{% url 'invoice_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="file-text"></span></span>
+                                                    <span class="nav-link-text">Marketing Invoices</span>
+                                                </div>
                                             </a>
                                         </li>
                                     </ul>
@@ -366,10 +432,7 @@
             <footer class="footer position-absolute">
                 <div class="row g-0 justify-content-between align-items-center h-100">
                     <div class="col-12 col-sm-auto text-center">
-                        <p class="mb-0 mt-2 mt-sm-0 text-body">Thank you for creating with Phoenix<span
-                                class="d-none d-sm-inline-block"></span><span
-                                class="d-none d-sm-inline-block mx-1">|</span><br class="d-sm-none" />2025 &copy;<a
-                                class="mx-1" href="https://themewagon.com">Themewagon</a></p>
+                        <p class="mb-0 mt-2 mt-sm-0 text-body">2026 &copy; <span class="fw-bold">H Bose E Commerce Pvt Ltd</span></p>
                     </div>
                     <div class="col-12 col-sm-auto text-center">
                         <p class="mb-0 text-body-tertiary text-opacity-85">v1.24.0</p>
