@@ -1,0 +1,56 @@
+{% for product in products %}
+<tr class="align-middle">
+    <td class="ps-4 py-3">
+        <div class="d-flex align-items-center">
+            {% if product.image_url %}
+            <div class="avatar avatar-xl me-3" style="width: 45px; height: 45px;">
+                <img class="rounded shadow-sm border border-light" src="{{ product.image_url }}" alt="{{ product.name }}" style="object-fit: cover; width: 45px; height: 45px;" onerror="this.src='https://placehold.co/100x100?text=No+Image'"/>
+            </div>
+            {% else %}
+            <div class="avatar avatar-xl me-3 d-flex align-items-center justify-content-center bg-primary-subtle text-primary fw-bold rounded shadow-sm border" style="width: 45px; height: 45px;">
+                <span>{{ product.name|slice:":1"|upper }}</span>
+            </div>
+            {% endif %}
+            <div>
+                <div class="fw-bold text-primary mb-1 fs-9">{{ product.name }}</div>
+                <small class="text-body-tertiary d-block fs-10">{{ product.title|truncatechars:45 }}</small>
+                <small class="text-info fs-10 fw-semibold">DB ID: #{{ product.id }}</small>
+            </div>
+        </div>
+    </td>
+    <td>
+        <div class="d-flex flex-column gap-1">
+            <span class="badge badge-phoenix badge-phoenix-info w-fit-content fs-11">
+                <span class="fas fa-tag me-1"></span>{{ product.category_name|default:"Uncategorized" }}
+            </span>
+            <span class="badge badge-phoenix badge-phoenix-primary w-fit-content fs-11">
+                <span class="fas fa-certificate me-1"></span>{{ product.brand_name|default:"Generic" }}
+            </span>
+        </div>
+    </td>
+    <td>
+        <div class="fw-semibold text-body-emphasis fs-9">
+            <span class="fas fa-user-tie me-1 text-body-tertiary"></span>{{ product.vendor_name }}
+        </div>
+        <small class="text-body-tertiary fs-10">User ID: #{{ product.user_id }}</small>
+    </td>
+    <td class="text-center fw-bold text-body-highlight fs-9">{{ product.hsncode|default:"-" }}</td>
+    <td class="text-center">
+        {% if product.status == 1 %}
+        <span class="badge badge-phoenix badge-phoenix-success fs-10">Active</span>
+        {% else %}
+        <span class="badge badge-phoenix badge-phoenix-secondary fs-10">Inactive</span>
+        {% endif %}
+    </td>
+    <td class="text-end pe-4 text-body-tertiary fs-10">
+        {{ product.created_at|date:"d M Y" }}
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center py-5 text-body-tertiary">
+        <span class="fas fa-box-open fa-3x mb-3 text-body-quaternary d-block"></span>
+        <p class="mb-0 fs-9">No products found matching criteria.</p>
+    </td>
+</tr>
+{% endfor %}

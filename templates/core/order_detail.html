@@ -1,364 +1,369 @@
 {% extends 'core/base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="mb-9">
-    <div class="row g-3 mb-4 align-items-center">
+    <!-- Top Action Bar -->
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
         <div class="col-auto">
-            <a href="{% url 'order_list' %}" class="btn btn-sm btn-phoenix-secondary">
-                <i class="fas fa-arrow-left me-1"></i>Back to Orders
-            </a>
-        </div>
-        <div class="col">
-            <h2 class="mb-0">Order: {{ order.orderno }}</h2>
-            <p class="text-body-tertiary mb-0">Placed on {{ order.created_at|date:"d M Y, H:i" }}</p>
+            <div class="d-flex align-items-center">
+                <a href="{% url 'order_list' %}" class="btn btn-phoenix-secondary btn-sm me-3">
+                    <i class="fas fa-arrow-left me-1"></i>Back
+                </a>
+                <div>
+                    <h2 class="mb-0">Order: {{ order.orderno }}</h2>
+                    <p class="text-body-tertiary mb-0">Placed on {{ order.created_at|date:"d M Y, H:i" }}</p>
+                </div>
+            </div>
         </div>
         <div class="col-auto">
-            <span class="badge badge-phoenix badge-phoenix-info fs-8">External Order</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-phoenix-primary btn-sm" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i>Print Invoice
+                </button>
+                <button class="btn btn-primary btn-sm">
+                    <i class="fas fa-share-alt me-1"></i>Share Details
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Banner -->
+    <div class="card shadow-sm border-0 mb-4 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="row g-0">
+                <div class="col-12 col-md-auto bg-{% if 'success' in latest_status.status|lower or 'delivered' in latest_status.status|lower %}success{% elif 'cancel' in latest_status.status|lower %}danger{% else %}info{% endif %}-subtle px-4 py-3 d-flex align-items-center">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-{% if 'success' in latest_status.status|lower or 'delivered' in latest_status.status|lower %}success{% elif 'cancel' in latest_status.status|lower %}danger{% else %}info{% endif %} text-white me-3">
+                            <i class="fas fa-{% if 'success' in latest_status.status|lower or 'delivered' in latest_status.status|lower %}check{% elif 'cancel' in latest_status.status|lower %}times{% else %}info-circle{% endif %}"></i>
+                        </div>
+                        <div>
+                            <div class="fs-10 fw-bold text-uppercase text-body-tertiary">Current Status</div>
+                            <h4 class="mb-0 text-{% if 'success' in latest_status.status|lower or 'delivered' in latest_status.status|lower %}success{% elif 'cancel' in latest_status.status|lower %}danger{% else %}info{% endif %} fw-bolder">
+                                {{ latest_status.status|default:"Pending" }}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+                <div class="col flex-grow-1 px-4 py-3 bg-body-tertiary border-start border-translucent">
+                    <div class="row h-100 align-items-center">
+                        <div class="col">
+                            <div class="fs-10 fw-bold text-uppercase text-body-tertiary">Latest Update</div>
+                            <p class="mb-0 text-body-highlight fw-semibold">{{ latest_status.msg|default:"Order is being processed" }}</p>
+                        </div>
+                        {% if latest_track %}
+                        <div class="col-auto border-start border-translucent ps-4">
+                            <div class="fs-10 fw-bold text-uppercase text-body-tertiary">Tracking</div>
+                            <p class="mb-0 fw-bold text-primary">{{ latest_track.lrno|default:latest_track.transname }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <div class="row g-4">
-        <!-- Order Summary & Items -->
+        <!-- Main Content (Left) -->
         <div class="col-12 col-xl-8">
-            <!-- Order Items Table -->
+            <!-- Products List -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Order Items ({{ items_count }})</h5>
-                    <span class="badge bg-primary rounded-pill">{{ items_count }} Products</span>
+                <div class="card-header bg-body-tertiary py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0"><i class="fas fa-shopping-bag me-2 text-primary"></i>Items in Order ({{ items_count }})</h5>
+                        <span class="badge badge-phoenix badge-phoenix-primary">{{ total_qty }} Total Items</span>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm fs-9 mb-0">
-                            <thead>
-                                <tr>
-                                    <th class="ps-4" style="min-width: 250px;">Product Name</th>
-                                    <th>Brand/Category</th>
-                                    <th class="text-center">HSN</th>
-                                    <th class="text-end pe-4">Attributes</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in order_details %}
-                                <tr>
-                                    <td class="ps-4">
-                                        <div class="d-flex align-items-center">
-                                            {% if item.product_image %}
-                                            <div class="avatar avatar-l me-3">
-                                                <img class="rounded" src="{{ item.product_image }}" alt="{{ item.productname }}" style="object-fit: cover;" onerror="this.src='https://placehold.co/50x50?text=No+Image'"/>
-                                            </div>
+                    {% for item in order_details %}
+                    <div class="p-4 {% if not forloop.last %}border-bottom border-translucent{% endif %}">
+                        <div class="row g-3">
+                            <div class="col-auto">
+                                {% if item.product_image %}
+                                <div class="avatar avatar-4xl">
+                                    <img class="rounded border border-translucent" src="{{ item.product_image }}" alt="{{ item.productname }}" style="object-fit: cover;" onerror="this.src='https://placehold.co/150x150?text=No+Image'"/>
+                                </div>
+                                {% else %}
+                                <div class="avatar avatar-4xl">
+                                    <div class="avatar-name rounded border border-translucent bg-primary-subtle text-primary fs-5 fw-bold">
+                                        <span>{{ item.productname|slice:":1" }}</span>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h5 class="text-primary mb-1">{{ item.productname }}</h5>
+                                        <div class="d-flex gap-2 mb-2">
+                                            <span class="badge badge-phoenix badge-phoenix-info fs-10">ID: #{{ item.product_id }}</span>
+                                            <span class="badge badge-phoenix badge-phoenix-secondary fs-10">HSN: {{ item.hsn|default:"N/A" }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="fs-10 text-body-tertiary fw-bold text-uppercase">Subtotal</div>
+                                        {% with item.parsed_attributes|first as first_attr %}
+                                        <h4 class="mb-0 text-success">₹{{ first_attr.totalprice|floatformat:2|default:"0.00" }}</h4>
+                                        {% endwith %}
+                                    </div>
+                                </div>
+
+                                <div class="row mt-3 g-3">
+                                    <!-- Attributes -->
+                                    <div class="col-12 col-md-7">
+                                        <div class="bg-body-tertiary p-3 rounded-3 border border-translucent">
+                                            <h6 class="fs-10 fw-bold text-uppercase text-body-tertiary mb-3 border-bottom border-translucent pb-2">Product Configurations</h6>
+                                            {% if item.parsed_attributes %}
+                                                {% for attr in item.parsed_attributes %}
+                                                <div class="row g-2 mb-2">
+                                                    <div class="col-4">
+                                                        <div class="fs-11 text-body-tertiary">Color/Shade</div>
+                                                        <div class="fw-bold fs-10 text-body-emphasis">{{ attr.color|default:"Default" }}</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="fs-11 text-body-tertiary">Packing</div>
+                                                        <div class="fw-bold fs-10 text-body-emphasis">{{ attr.boxpacking|default:"Standard" }}</div>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <div class="fs-11 text-body-tertiary">Quantity</div>
+                                                        <div class="fw-bold fs-10 text-primary">{{ attr.qty|default:"0" }} Pcs</div>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
                                             {% else %}
-                                            <div class="avatar avatar-l me-3">
-                                                <div class="avatar-name rounded bg-primary-subtle text-primary fs-10 fw-bold">
-                                                    <span>{{ item.productname|slice:":1" }}</span>
-                                                </div>
-                                            </div>
-                                            {% endif %}
-                                            <div>
-                                                <div class="fw-bold text-primary">{{ item.productname }}</div>
-                                                <small class="text-body-tertiary d-block">Product ID: {{ item.product_id }}</small>
-                                                {% if item.category_obj %}
-                                                <small class="text-info fw-bold">{{ item.category_obj.name }}</small>
-                                                {% endif %}
-                                                
-                                                {% if item.vendor_info %}
-                                                <div class="mt-2 p-2 bg-body-tertiary rounded border border-translucent">
-                                                    <small class="text-body-tertiary fs-11 fw-bold text-uppercase d-block mb-1">Vendor / Brand Owner</small>
-                                                    <div class="fs-10 fw-bold text-body-emphasis">
-                                                        <i class="fas fa-store me-1 text-primary"></i>
-                                                        {{ item.vendor_info.name }}
-                                                    </div>
-                                                    {% if item.vendor_info.company %}
-                                                    <div class="fs-11 text-body-tertiary">
-                                                        <i class="fas fa-building me-1"></i>{{ item.vendor_info.company }}
-                                                    </div>
-                                                    {% endif %}
-                                                    {% if item.vendor_info.mobile %}
-                                                    <div class="fs-11 text-body-tertiary">
-                                                        <i class="fas fa-phone-alt me-1"></i>{{ item.vendor_info.mobile }}
-                                                    </div>
-                                                    {% endif %}
-                                                </div>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="d-flex flex-column">
-                                            {% if item.brand_obj %}
-                                            <span class="badge badge-phoenix badge-phoenix-primary mb-1">{{ item.brand_obj.name }}</span>
-                                            {% endif %}
-                                            {% if item.brdcmpcat %}
-                                            <span class="badge badge-phoenix badge-phoenix-secondary">{{ item.brdcmpcat }}</span>
+                                                <p class="mb-0 fs-10 italic text-body-tertiary">No specific configurations available.</p>
                                             {% endif %}
                                         </div>
-                                    </td>
-                                    <td class="text-center">{{ item.hsn|default:"-" }}</td>
-                                    <td class="text-end pe-4">
-                                        {% if item.parsed_attributes %}
-                                            {% for attr in item.parsed_attributes %}
-                                            <div class="mb-2 {% if not forloop.last %}border-bottom border-translucent pb-2{% endif %}">
-                                                <div class="d-flex justify-content-between mb-1">
-                                                    <span class="text-body-tertiary">Color:</span>
-                                                    <span class="fw-bold text-body-emphasis">{{ attr.color|default:"-" }}</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between mb-1">
-                                                    <span class="text-body-tertiary">Packing:</span>
-                                                    <span class="fw-bold text-body-emphasis">{{ attr.boxpacking|default:"-" }}</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between mb-1">
-                                                    <span class="text-body-tertiary">Qty:</span>
-                                                    <span class="fw-bold text-primary">{{ attr.qty|default:"0" }} Pcs</span>
-                                                </div>
-                                                <div class="d-flex justify-content-between">
-                                                    <span class="text-body-tertiary">Price:</span>
-                                                    <span class="fw-bold text-success">₹{{ attr.totalprice|default:"0" }}</span>
+                                    </div>
+                                    <!-- Vendor Info -->
+                                    <div class="col-12 col-md-5">
+                                        <div class="bg-white p-3 rounded-3 border border-translucent h-100">
+                                            <h6 class="fs-10 fw-bold text-uppercase text-body-tertiary mb-3 border-bottom border-translucent pb-2">Fulfillment Source</h6>
+                                            <div class="d-flex align-items-center">
+                                                <div class="icon-circle-sm bg-info-subtle text-info me-2"><i class="fas fa-store"></i></div>
+                                                <div>
+                                                    <div class="fw-bold fs-10 text-body-emphasis">{{ item.vendor_info.name }}</div>
+                                                    <div class="fs-11 text-body-tertiary">{{ item.vendor_info.company|default:"Direct Factory" }}</div>
                                                 </div>
                                             </div>
-                                            {% endfor %}
-                                        {% elif item.attribute %}
-                                            <div class="fs-10 text-body-tertiary">{{ item.attribute }}</div>
-                                        {% else %}
-                                            -
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="4" class="text-center py-4 text-muted">No items found.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                            {% if item.vendor_info.mobile %}
+                                            <div class="mt-2">
+                                                <a href="tel:{{ item.vendor_info.mobile }}" class="btn btn-link p-0 fs-10 text-decoration-none">
+                                                    <i class="fas fa-phone-alt me-1"></i>{{ item.vendor_info.mobile }}
+                                                </a>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
             </div>
 
-            <!-- Financial Details -->
-            <div class="card shadow-sm border-0 mb-4 overflow-hidden">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Financial Summary</h5>
+            <!-- Financials & Tax -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0"><i class="fas fa-calculator me-2 text-success"></i>Billing & Financial Summary</h5>
                 </div>
-                <div class="card-body bg-light-subtle">
-                    <div class="row g-4 text-center">
-                        <div class="col-md-3 border-end border-translucent">
-                            <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Seller Coupon</label>
-                            <p class="mb-0 fw-bold text-danger">₹{{ order.sellercouponamount|floatformat:2 }}</p>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-12 col-md-6">
+                            <div class="bg-body-tertiary p-4 rounded-3 h-100 border border-translucent">
+                                <h6 class="fs-10 fw-bold text-uppercase text-body-tertiary mb-3">Amount Summary</h6>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-body-highlight">Net Amount (Pre-tax)</span>
+                                    <span class="fw-bold">₹{{ order.netamount|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-body-highlight">Tax Amount</span>
+                                    <span class="fw-bold">₹{{ order.taxamount|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span class="text-danger">Seller Discounts</span>
+                                    <span class="fw-bold text-danger">-₹{{ order.sellercouponamount|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between mb-3">
+                                    <span class="text-info">Admin Coupons</span>
+                                    <span class="fw-bold text-info">-₹{{ order.admincouponamount|floatformat:2 }}</span>
+                                </div>
+                                <div class="d-flex justify-content-between pt-3 border-top border-translucent">
+                                    <h4 class="mb-0 text-body-emphasis">Grand Total</h4>
+                                    <h3 class="mb-0 text-primary fw-bolder">₹{{ order.grandtotal|floatformat:2 }}</h3>
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-3 border-end border-translucent">
-                            <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Admin Coupon</label>
-                            <p class="mb-0 fw-bold text-info">₹{{ order.admincouponamount|floatformat:2 }}</p>
-                        </div>
-                        <div class="col-md-3 border-end border-translucent">
-                            <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Tax Amount</label>
-                            <p class="mb-0 fw-bold">₹{{ order.taxamount|floatformat:2 }}</p>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Grand Total</label>
-                            <h3 class="mb-0 text-primary fw-bolder">₹{{ order.grandtotal|floatformat:2 }}</h3>
-                        </div>
-                    </div>
-                    {% if order.taxdetail %}
-                    <div class="mt-4 pt-3 border-top border-translucent">
-                        <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-2">Tax Breakdown</label>
-                        <div class="bg-white p-3 rounded border border-translucent">
-                            {% if tax_details %}
+                        <div class="col-12 col-md-6">
+                            <div class="bg-white p-4 rounded-3 h-100 border border-translucent">
+                                <h6 class="fs-10 fw-bold text-uppercase text-body-tertiary mb-3">Tax Breakdown</h6>
+                                {% if tax_details %}
                                 <div class="table-responsive">
                                     <table class="table table-sm table-borderless fs-10 mb-0">
                                         <thead>
-                                            <tr class="text-body-tertiary">
-                                                <th>Tax Name</th>
-                                                <th class="text-center">Rate (%)</th>
-                                                <th class="text-end">Amount</th>
+                                            <tr class="text-body-tertiary border-bottom">
+                                                <th class="ps-0">Tax Type</th>
+                                                <th class="text-center">Rate</th>
+                                                <th class="text-end pe-0">Amount</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for tax in tax_details %}
-                                            <tr>
-                                                <td class="fw-bold text-body-emphasis">{{ tax.name }}</td>
+                                            <tr class="align-middle">
+                                                <td class="ps-0 py-2 fw-semibold">{{ tax.name }}</td>
                                                 <td class="text-center">{{ tax.rate }}%</td>
-                                                <td class="text-end fw-bold">₹{{ tax.tax|floatformat:2 }}</td>
+                                                <td class="text-end pe-0 fw-bold">₹{{ tax.tax|floatformat:2 }}</td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
-                                        <tfoot class="border-top">
-                                            <tr>
-                                                <td colspan="2" class="fw-bold">Total Tax</td>
-                                                <td class="text-end fw-bolder text-primary">₹{{ order.taxamount|floatformat:2 }}</td>
-                                            </tr>
-                                        </tfoot>
                                     </table>
                                 </div>
-                            {% else %}
-                                <div class="fs-10 text-body-highlight">{{ order.taxdetail }}</div>
-                            {% endif %}
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <p class="mb-0 fs-10 text-body-tertiary italic">{{ order.taxdetail|default:"No detailed tax breakdown available." }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
                         </div>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Status Timeline -->
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Order Status History</h5>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                        <table class="table table-sm fs-9 mb-0">
-                            <thead class="bg-body-tertiary sticky-top">
-                                <tr>
-                                    <th class="ps-4 py-2">Status</th>
-                                    <th class="py-2">Message</th>
-                                    <th class="py-2 pe-4 text-end">Updated Date</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for status in order_statuses %}
-                                <tr class="align-middle">
-                                    <td class="ps-4">
-                                        <span class="badge badge-phoenix fs-10 badge-phoenix-{% if 'success' in status.status|lower or 'delivered' in status.status|lower %}success{% elif 'cancel' in status.status|lower %}danger{% else %}info{% endif %}">
-                                            {{ status.status }}
-                                        </span>
-                                    </td>
-                                    <td><div class="text-body-highlight">{{ status.msg }}</div></td>
-                                    <td class="pe-4 text-end text-body-tertiary">{{ status.created_at|date:"d M Y, H:i" }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="3" class="text-center py-4 text-muted">No status updates found.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Customer & Tracking Sidebar -->
+        <!-- Sidebar (Right) -->
         <div class="col-12 col-xl-4">
-            <!-- Customer Info -->
+            <!-- Customer Card -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Customer Profile</h5>
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0"><i class="fas fa-user me-2 text-primary"></i>Customer Profile</h5>
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-4">
-                        <div class="avatar avatar-xl me-3">
+                        <div class="avatar avatar-3xl me-3">
                             <div class="avatar-name rounded-circle bg-primary-subtle text-primary fs-6 fw-bold">
                                 <span>{{ h_user.name|slice:":1" }}</span>
                             </div>
                         </div>
                         <div>
                             <h5 class="mb-1 text-body-emphasis">{{ h_user.name }}</h5>
-                            <a href="mailto:{{ h_user.email }}" class="fs-9 text-decoration-none">{{ h_user.email }}</a>
+                            <span class="badge badge-phoenix badge-phoenix-info fs-11">App ID: #{{ order.user_id }}</span>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Hostinger User ID</label>
-                        <p class="mb-0 fw-semibold text-body-highlight">#{{ order.user_id }}</p>
+                    <div class="space-y-3">
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle-xs bg-body-tertiary text-primary me-2"><i class="fas fa-envelope"></i></div>
+                            <div class="fs-9 text-body-highlight">{{ h_user.email }}</div>
+                        </div>
+                        {% if h_company %}
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle-xs bg-body-tertiary text-primary me-2"><i class="fas fa-building"></i></div>
+                            <div class="fs-9 text-body-highlight">{{ h_company.name }}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle-xs bg-body-tertiary text-primary me-2"><i class="fas fa-phone"></i></div>
+                            <div class="fs-9 text-body-highlight">{{ h_company.mobile|default:"No Phone" }}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <div class="icon-circle-xs bg-body-tertiary text-primary me-2"><i class="fas fa-map-marker-alt"></i></div>
+                            <div class="fs-9 text-body-highlight">{{ h_company.city }}, {{ h_company.state }}</div>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% if h_company %}
-                    <div class="mb-3">
-                        <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Company Name</label>
-                        <p class="mb-0 fw-semibold text-body-highlight">{{ h_company.name|default:"-" }}</p>
+                    <div class="mt-4">
+                        <a href="{% url 'hostinger_user_detail' order.user_id %}" class="btn btn-phoenix-primary btn-sm w-100">
+                            View Full History
+                        </a>
                     </div>
-                    <div class="mb-3">
-                        <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Mobile Number</label>
-                        <p class="mb-0 fw-semibold text-body-highlight">
-                            <i class="fas fa-phone-alt fs-10 me-1"></i>{{ h_company.mobile|default:"-" }}
-                        </p>
-                    </div>
-                    <div class="mb-0">
-                        <label class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Business Location</label>
-                        <p class="mb-0 fs-9 text-body-highlight">
-                            <i class="fas fa-map-marker-alt fs-10 me-1"></i>{{ h_company.city|default:"-" }}, {{ h_company.state|default:"-" }}
-                        </p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
-            <!-- Shipping Address -->
+            <!-- Shipping Card -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Delivery Address</h5>
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0"><i class="fas fa-truck me-2 text-info"></i>Shipping Address</h5>
                 </div>
                 <div class="card-body">
-                    <div class="d-flex">
-                        <i class="fas fa-truck text-primary mt-1 me-3"></i>
+                    <div class="bg-info-subtle p-3 rounded-3 border border-info-subtle">
                         <div class="fs-9 lh-lg text-body-highlight">
                             {% if address_data %}
-                                <div class="fw-bold mb-1 text-primary">{{ address_data.name|default:h_user.name }}</div>
+                                <div class="fw-bold mb-1 text-info text-uppercase fs-10">Delivery To:</div>
+                                <div class="fw-bolder mb-2 fs-8">{{ address_data.name|default:h_user.name }}</div>
                                 
-                                {% if address_data.landmark1 %}
-                                    <div class="mb-0">{{ address_data.landmark1 }}</div>
-                                {% endif %}
+                                <div class="mb-0">{{ address_data.landmark1 }}</div>
+                                {% if address_data.landmark2 %}<div class="mb-0">{{ address_data.landmark2 }}</div>{% endif %}
                                 
-                                {% if address_data.landmark2 %}
-                                    <div class="mb-0">{{ address_data.landmark2 }}</div>
-                                {% endif %}
-                                
-                                <div class="mb-1">
-                                    {{ address_data.city|default:"" }}{% if address_data.city and address_data.state %}, {% endif %}
-                                    {{ address_data.state|default:"" }} - {{ address_data.pincode|default:"" }}
+                                <div class="mb-2 fw-bold">
+                                    {{ address_data.city|default:"" }}, {{ address_data.state|default:"" }} - {{ address_data.pincode|default:"" }}
                                 </div>
 
                                 {% if address_data.phoneno %}
-                                <div class="mt-2 text-body-emphasis">
-                                    <i class="fas fa-phone-alt fs-10 me-1"></i>{{ address_data.phoneno }}
-                                </div>
-                                {% endif %}
-
-                                {% if address_data.type %}
-                                <div class="mt-2">
-                                    <span class="badge badge-phoenix badge-phoenix-info fs-10">
-                                        <i class="fas fa-tag me-1"></i>{{ address_data.type|title }}
-                                    </span>
+                                <div class="mt-2 pt-2 border-top border-info-subtle">
+                                    <i class="fas fa-phone-alt fs-11 me-2 text-info"></i><span class="fw-bold">{{ address_data.phoneno }}</span>
                                 </div>
                                 {% endif %}
                             {% else %}
-                                {{ order.address|linebreaksbr }}
+                                <div class="fw-bold mb-2">{{ order.address|linebreaksbr }}</div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Logistics Tracking -->
+            <!-- Tracking Timeline -->
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">Tracking Logs</h5>
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0"><i class="fas fa-stream me-2 text-warning"></i>Logistics & Timeline</h5>
                 </div>
-                <div class="card-body p-0">
-                    <div class="p-3">
+                <div class="card-body">
+                    <div class="timeline">
                         {% for track in order_tracks %}
-                        <div class="d-flex align-items-start mb-3 {% if not forloop.last %}border-bottom border-translucent pb-3{% endif %}">
-                            <div class="me-3">
-                                <div class="bg-{% if track.status == 1 %}success{% else %}warning{% endif %}-subtle text-{% if track.status == 1 %}success{% else %}warning{% endif %} rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px;">
-                                    <i class="fas fa-{% if track.status == 1 %}check{% else %}clock{% endif %} fs-10"></i>
+                        <div class="timeline-item pb-4 {% if not forloop.last %}border-start border-translucent ms-2 ps-4{% endif %} position-relative">
+                            <div class="timeline-dot bg-{% if track.status == 1 %}success{% else %}warning{% endif %}"></div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <h6 class="mb-0 fw-bold">{{ track.transname|default:"System Log" }}</h6>
+                                    <span class="fs-11 text-body-tertiary">{{ track.created_at|date:"d M, H:i" }}</span>
                                 </div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <span class="fw-bold fs-9 text-body-emphasis">{{ track.transname|default:"System Update" }}</span>
-                                    <span class="text-body-tertiary fs-10">{{ track.created_at|date:"d M, H:i" }}</span>
-                                </div>
-                                <div class="text-body-highlight fs-9">{{ track.text }}</div>
+                                <p class="fs-10 text-body-highlight mb-2">{{ track.text }}</p>
                                 {% if track.lrno %}
-                                <div class="mt-2 p-2 bg-light rounded d-inline-block border border-translucent">
-                                    <span class="text-body-tertiary fs-10 fw-bold text-uppercase me-2">LR No:</span>
-                                    <span class="text-primary fw-bold fs-9">{{ track.lrno }}</span>
+                                <div class="bg-body-tertiary px-2 py-1 rounded d-inline-block border border-translucent">
+                                    <span class="fs-11 fw-bold text-primary">LR: {{ track.lrno }}</span>
                                 </div>
                                 {% endif %}
                             </div>
                         </div>
                         {% empty %}
-                        <div class="text-center py-4 text-muted fs-9">
-                            <i class="fas fa-box-open d-block fs-5 mb-2"></i>
-                            No tracking logs available.
+                        <div class="text-center py-4">
+                            <i class="fas fa-clock fa-2x text-body-quaternary mb-2"></i>
+                            <p class="mb-0 fs-10 text-body-tertiary">No tracking history yet.</p>
                         </div>
                         {% endfor %}
+                    </div>
+                    
+                    <div class="mt-4 pt-3 border-top border-translucent">
+                        <h6 class="fs-10 fw-bold text-uppercase text-body-tertiary mb-3">Status Log</h6>
+                        <div class="space-y-3">
+                            {% for status in order_statuses|slice:":5" %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fs-10 fw-bold text-body-emphasis">{{ status.status }}</span>
+                                <span class="fs-11 text-body-tertiary">{{ status.created_at|date:"d M" }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.icon-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+.icon-circle-sm { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; }
+.icon-circle-xs { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; }
+.timeline-dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; left: -6px; top: 4px; z-index: 1; }
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.space-y-3 > * + * { margin-top: 0.75rem; }
+</style>
 {% endblock %}

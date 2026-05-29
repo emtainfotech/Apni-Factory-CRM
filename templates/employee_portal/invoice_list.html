@@ -1,0 +1,121 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0">Marketing Invoices</h2>
+            <p class="text-body-tertiary mb-0">Browse and manage invoices generated for your assigned customer leads.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:create_invoice' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus me-2"></i>Create Marketing Invoice
+            </a>
+        </div>
+    </div>
+
+    <!-- Invoices Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead>
+                        <tr class="bg-body-tertiary">
+                            <th class="ps-4 py-3">Invoice Number</th>
+                            <th class="py-3">CRM Customer Name</th>
+                            <th class="py-3">Place of Supply</th>
+                            <th class="py-3">Taxable Value</th>
+                            <th class="py-3">GST Tax Total</th>
+                            <th class="py-3">Grand Total</th>
+                            <th class="py-3">Finalized</th>
+                            <th class="py-3">Payment</th>
+                            <th class="text-end pe-4 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for inv in page_obj %}
+                        <tr class="align-middle">
+                            <!-- Invoice No -->
+                            <td class="ps-4 py-3">
+                                <a href="{% url 'employee_portal:invoice_detail' inv.id %}" class="fw-bold text-primary text-decoration-none">
+                                    {{ inv.invoice_no }}
+                                </a>
+                            </td>
+                            <!-- Customer -->
+                            <td>
+                                {% if inv.customer %}
+                                <a href="{% url 'employee_portal:customer_detail' inv.customer.id %}" class="fw-semibold text-dark text-decoration-none">
+                                    {{ inv.client_name }}
+                                </a>
+                                {% else %}
+                                <span class="text-dark fw-semibold">{{ inv.client_name }}</span>
+                                {% endif %}
+                            </td>
+                            <!-- POS -->
+                            <td>{{ inv.place_of_supply }}</td>
+                            <!-- Taxable Value -->
+                            <td>₹{{ inv.taxable_value|floatformat:2 }}</td>
+                            <!-- GST -->
+                            <td>₹{{ inv.gst_total|floatformat:2 }}</td>
+                            <!-- Grand Total -->
+                            <td><strong class="text-dark">₹{{ inv.total_amount|floatformat:2 }}</strong></td>
+                            <!-- Finalized -->
+                            <td>
+                                <span class="badge bg-{% if inv.is_finalized %}success{% else %}warning{% endif %}-subtle text-{% if inv.is_finalized %}success{% else %}warning{% endif %}">
+                                    {% if inv.is_finalized %}Finalized{% else %}Draft{% endif %}
+                                </span>
+                            </td>
+                            <!-- Payment Status -->
+                            <td>
+                                <span class="badge bg-{% if inv.payment_status == 'paid' %}success{% else %}danger{% endif %}-subtle text-{% if inv.payment_status == 'paid' %}success{% else %}danger{% endif %}">
+                                    {{ inv.get_payment_status_display }}
+                                </span>
+                            </td>
+                            <!-- Actions -->
+                            <td class="text-end pe-4">
+                                <a href="{% url 'employee_portal:invoice_detail' inv.id %}" class="btn btn-phoenix-primary btn-xs">
+                                    <i class="fas fa-eye me-1"></i>View Details
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-file-invoice-dollar d-block fs-2 mb-3"></i>No marketing invoices drafted yet. Click "Create Marketing Invoice" above.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-body-tertiary py-3 d-flex justify-content-between align-items-center">
+                <span class="fs-10 text-body-tertiary">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col">
+            <h2 class="mb-0">Category Management</h2>
+            <p class="text-body-tertiary mb-0">Manage all hierarchical categories for the application</p>
+        </div>
+        <div class="col-auto">
+            <span class="badge badge-phoenix badge-phoenix-info fs-8">Application Hierarchy</span>
+        </div>
+    </div>
+
+    <ul class="nav nav-links mb-3 mb-lg-2 mx-n3" id="categoryTab" role="tablist">
+        <li class="nav-item"><a class="nav-link active" id="main-tab" data-bs-toggle="tab" href="#tab-main" role="tab" aria-controls="tab-main" aria-selected="true">Main Categories</a></li>
+        <li class="nav-item"><a class="nav-link" id="cat-tab" data-bs-toggle="tab" href="#tab-cat" role="tab" aria-controls="tab-cat" aria-selected="false">Categories</a></li>
+        <li class="nav-item"><a class="nav-link" id="sub-tab" data-bs-toggle="tab" href="#tab-sub" role="tab" aria-controls="tab-sub" aria-selected="false">Sub Categories</a></li>
+    </ul>
+
+    <div class="tab-content" id="categoryTabContent">
+        <!-- Main Categories -->
+        <div class="tab-pane fade show active" id="tab-main" role="tabpanel" aria-labelledby="main-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4" style="width: 300px;">Main Category</th>
+                                    <th>Title</th>
+                                    <th class="text-center">Sequence</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-4">Created Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in main_categories %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-l me-3">
+                                                <img class="rounded" src="{{ item.image_url }}" alt="{{ item.name }}" style="object-fit: cover;" onerror="this.src='https://placehold.co/50x50?text=NA'"/>
+                                            </div>
+                                            <div class="fw-bold text-primary">{{ item.name }}</div>
+                                        </div>
+                                    </td>
+                                    <td>{{ item.title }}</td>
+                                    <td class="text-center fw-bold">{{ item.sequence }}</td>
+                                    <td class="text-center">
+                                        {% if item.status == 1 %}
+                                        <span class="badge badge-phoenix badge-phoenix-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">{{ item.created_at|date:"d M Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="tab-pane fade" id="tab-cat" role="tabpanel" aria-labelledby="cat-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4" style="width: 300px;">Category</th>
+                                    <th>Main Category</th>
+                                    <th class="text-center">Sequence</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-4">Created Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in categories %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-l me-3">
+                                                <img class="rounded" src="{{ item.image_url }}" alt="{{ item.name }}" style="object-fit: cover;" onerror="this.src='https://placehold.co/50x50?text=NA'"/>
+                                            </div>
+                                            <div class="fw-bold text-primary">{{ item.name }}</div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-phoenix badge-phoenix-secondary">{{ item.main_category_name }}</span></td>
+                                    <td class="text-center fw-bold">{{ item.sequence }}</td>
+                                    <td class="text-center">
+                                        {% if item.status == 1 %}
+                                        <span class="badge badge-phoenix badge-phoenix-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">{{ item.created_at|date:"d M Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sub Categories -->
+        <div class="tab-pane fade" id="tab-sub" role="tabpanel" aria-labelledby="sub-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4" style="width: 300px;">Sub Category</th>
+                                    <th>Parent Category</th>
+                                    <th class="text-center">Status</th>
+                                    <th class="text-end pe-4">Created Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in sub_categories %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-l me-3">
+                                                <img class="rounded" src="{{ item.image_url }}" alt="{{ item.name }}" style="object-fit: cover;" onerror="this.src='https://placehold.co/50x50?text=NA'"/>
+                                            </div>
+                                            <div class="fw-bold text-primary">{{ item.name }}</div>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge badge-phoenix badge-phoenix-info">{{ item.category_name }}</span></td>
+                                    <td class="text-center">
+                                        {% if item.status == 1 %}
+                                        <span class="badge badge-phoenix badge-phoenix-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end pe-4">{{ item.created_at|date:"d M Y" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

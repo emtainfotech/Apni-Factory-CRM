@@ -37,9 +37,10 @@
                     <div class="col-12 col-md-auto d-flex align-items-center gap-3">
                         <div class="search-box">
                             <form class="position-relative">
-                                <input class="form-control search-input search" type="search" name="q" value="{{ query }}" placeholder="Search customers..." 
-                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" />
+                                <input class="form-control search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search customers..." 
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-indicator="#search-spinner" />
                                 <span class="fas fa-search search-box-icon"></span>
+                                <div class="spinner-border spinner-border-sm text-primary htmx-indicator position-absolute end-0 top-50 translate-middle-y me-3" role="status" id="search-spinner" style="width: 1rem; height: 1rem; z-index: 10;"></div>
                             </form>
                         </div>
                     </div>

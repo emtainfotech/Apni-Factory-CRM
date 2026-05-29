@@ -1,0 +1,301 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <!-- Header Navigation -->
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:customer_list' %}" class="btn btn-link p-0 mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to My Customers
+            </a>
+            <h2 class="mb-0">{{ customer.first_name }} {{ customer.last_name }}</h2>
+            <p class="text-body-tertiary mb-0">Assigned customer profile card.</p>
+        </div>
+        
+        <!-- Status Toggles & Conversions -->
+        <div class="col-auto d-flex gap-2">
+            {% if customer.status == 'lead' %}
+            <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post">
+                {% csrf_token %}
+                <button class="btn btn-success" type="submit">
+                    <i class="fas fa-check-double me-2"></i>Convert to Active Customer
+                </button>
+            </form>
+            {% endif %}
+            
+            <span class="btn btn-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}info{% else %}warning{% endif %} disabled">
+                Status: {{ customer.get_status_display }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Main Profile Grid -->
+    <div class="row g-4">
+        <!-- Sidebar Column: Basic Info & Log Call Form -->
+        <div class="col-12 col-lg-4">
+            <!-- Basic Details Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Customer Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Company Name</label>
+                        <strong class="text-dark">{{ customer.company_name|default:"Not Provided" }}</strong>
+                    </div>
+                    {% if customer.gst_number %}
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">GSTIN</label>
+                        <strong class="text-dark">{{ customer.gst_number }}</strong>
+                        {% if customer.is_gst_verified %}
+                        <span class="badge bg-success-subtle text-success ms-1 px-2 py-0.5" style="font-size: 9px;"><i class="fas fa-check-circle"></i> Verified</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Mobile Phone</label>
+                        <strong class="text-dark">{{ customer.phone }}</strong>
+                    </div>
+                    {% if customer.whatsapp_number %}
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">WhatsApp Number</label>
+                        <strong class="text-dark">{{ customer.whatsapp_number }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if customer.email %}
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Email Address</label>
+                        <a href="mailto:{{ customer.email }}" class="text-primary fw-semibold">{{ customer.email }}</a>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Location Address</label>
+                        <div class="text-dark">{{ customer.address }}</div>
+                        <div class="text-body-tertiary fs-10">{{ customer.city }}, {{ customer.state }} - {{ customer.pincode }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Lead Source</label>
+                        <span class="badge bg-secondary-subtle text-secondary text-capitalize">{{ customer.lead_source }}</span>
+                    </div>
+                    {% if customer.notes %}
+                    <div class="mb-0">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Internal Notes</label>
+                        <p class="text-body-secondary fs-10 mb-0 italic">{{ customer.notes }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Log Interactive Call Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-phone-alt me-2 text-primary"></i>Log New Call Log</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{% url 'employee_portal:log_call' customer.id %}" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fs-9 fw-bold text-uppercase">Call Connection Status</label>
+                            <select name="call_status" class="form-select form-select-sm" required>
+                                <option value="connected">Connected</option>
+                                <option value="not_connected">Not Connected</option>
+                                <option value="busy">Busy</option>
+                                <option value="no_answer">No Answer</option>
+                                <option value="follow_up">Follow Up Required</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fs-9 fw-bold text-uppercase">Call Conversation Remark</label>
+                            <textarea name="remark" class="form-control form-control-sm" rows="3" placeholder="Summarize call details..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fs-9 fw-bold text-uppercase">Next Follow Up Date (Optional)</label>
+                            <input type="datetime-local" name="follow_up_date" class="form-control form-control-sm" />
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-save me-2"></i>Save Call Log
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Column: Orders, Invoices, Timeline History -->
+        <div class="col-12 col-lg-8">
+            <!-- Tabs Menu -->
+            <ul class="nav nav-tabs border-bottom mb-4" id="profileTabs" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active" id="orders-tab" data-bs-toggle="tab" data-bs-target="#tab-orders" type="button" role="tab"><i class="fas fa-shopping-cart me-2"></i>E-Commerce Orders (Live)</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="calls-tab" data-bs-toggle="tab" data-bs-target="#tab-calls" type="button" role="tab"><i class="fas fa-phone-volume me-2"></i>Call Logs</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#tab-invoices" type="button" role="tab"><i class="fas fa-file-invoice-dollar me-2"></i>Marketing Invoices</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#tab-timeline" type="button" role="tab"><i class="fas fa-history me-2"></i>CRM Activity Log</button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="profileTabsContent">
+                <!-- E-Commerce Orders Tab -->
+                <div class="tab-pane fade show active" id="tab-orders" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">Client Purchase Transactions (Total Spent: ₹{{ total_spent|floatformat:2 }})</h6>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9 mb-0">
+                                    <thead>
+                                        <tr class="bg-light">
+                                            <th class="ps-3 py-2">Order No</th>
+                                            <th class="py-2">Net Amount</th>
+                                            <th class="py-2">Tax Amount</th>
+                                            <th class="py-2">Grand Total</th>
+                                            <th class="text-end pe-3 py-2">Order Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr class="align-middle">
+                                            <td class="ps-3 py-2">
+                                                <a href="{% url 'employee_portal:order_detail' order.id %}" class="fw-bold text-primary text-decoration-none">
+                                                    #{{ order.orderno }}
+                                                </a>
+                                            </td>
+                                            <td>₹{{ order.netamount|floatformat:2 }}</td>
+                                            <td>₹{{ order.taxamount|floatformat:2 }}</td>
+                                            <td><strong class="text-dark">₹{{ order.grandtotal|floatformat:2 }}</strong></td>
+                                            <td class="text-end pe-3 text-body-secondary">{{ order.created_at|date:"d M Y H:i" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4 text-body-tertiary">
+                                                No remote purchases tracked under this client's phone/GST in hostinger_db.
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Call Logs Tab -->
+                <div class="tab-pane fade" id="tab-calls" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9 mb-0">
+                                    <thead>
+                                        <tr class="bg-light">
+                                            <th class="ps-3 py-2">Status</th>
+                                            <th class="py-2">Call Summary / Remark</th>
+                                            <th class="py-2">Follow Up Date</th>
+                                            <th class="text-end pe-3 py-2">Logged At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for log in call_logs %}
+                                        <tr class="align-middle">
+                                            <td class="ps-3 py-2">
+                                                <span class="badge badge-phoenix badge-phoenix-{% if log.call_status == 'connected' %}success{% elif log.call_status == 'follow_up' %}warning{% else %}danger{% endif %} fs-11">
+                                                    {{ log.get_call_status_display }}
+                                                </span>
+                                            </td>
+                                            <td><div class="text-body-secondary">{{ log.remark }}</div></td>
+                                            <td>{{ log.follow_up_date|date:"d M Y H:i"|default:"-" }}</td>
+                                            <td class="text-end pe-3 text-body-secondary">{{ log.created_at|date:"d M Y H:i" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4 text-body-tertiary">No calls logged yet. Use the card sidebar to add call notes.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Invoices Tab -->
+                <div class="tab-pane fade" id="tab-invoices" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-2">
+                            <h6 class="mb-0">Local Generated Invoices</h6>
+                            <a href="{% url 'employee_portal:create_invoice' %}?customer={{ customer.id }}" class="btn btn-xs btn-primary"><i class="fas fa-plus me-1"></i>Create Invoice</a>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9 mb-0">
+                                    <thead>
+                                        <tr class="bg-light">
+                                            <th class="ps-3 py-2">Invoice No</th>
+                                            <th class="py-2">Place of Supply</th>
+                                            <th class="py-2">Total Amount</th>
+                                            <th class="py-2">Payment Status</th>
+                                            <th class="text-end pe-3 py-2">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for invoice in invoices %}
+                                        <tr class="align-middle">
+                                            <td class="ps-3 py-2">
+                                                <a href="{% url 'employee_portal:invoice_detail' invoice.id %}" class="fw-bold text-primary text-decoration-none">
+                                                    {{ invoice.invoice_no }}
+                                                </a>
+                                            </td>
+                                            <td>{{ invoice.place_of_supply }}</td>
+                                            <td>₹{{ invoice.total_amount|floatformat:2 }}</td>
+                                            <td>
+                                                <span class="badge bg-{% if invoice.payment_status == 'paid' %}success{% else %}warning{% endif %}-subtle text-{% if invoice.payment_status == 'paid' %}success{% else %}warning{% endif %}">
+                                                    {{ invoice.get_payment_status_display }}
+                                                </span>
+                                            </td>
+                                            <td class="text-end pe-3 text-body-secondary">{{ invoice.invoice_date|date:"d M Y" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="5" class="text-center py-4 text-body-tertiary">No invoices generated for this customer.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Activity logs Tab -->
+                <div class="tab-pane fade" id="tab-timeline" role="tabpanel">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body py-4 ps-5">
+                            <div class="timeline position-relative">
+                                {% for act in activities %}
+                                <div class="timeline-item border-start border-translucent ps-4 pb-4 position-relative ms-2">
+                                    <div class="timeline-dot bg-primary"></div>
+                                    <h6 class="mb-1 text-dark">{{ act.action }}</h6>
+                                    <p class="text-body-secondary fs-10 mb-1">{{ act.description }}</p>
+                                    <span class="text-body-quaternary fs-11">{{ act.created_at|date:"d M Y H:i" }} by {{ act.employee.username }}</span>
+                                </div>
+                                {% empty %}
+                                <p class="text-center text-body-tertiary my-4">No activities logged yet.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline-dot { width: 10px; height: 10px; border-radius: 50%; position: absolute; left: -5px; top: 4px; z-index: 1; }
+</style>
+{% endblock %}

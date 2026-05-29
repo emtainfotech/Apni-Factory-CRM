@@ -1,0 +1,191 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="pb-5">
+    <!-- Header Block -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2 text-bold text-body-highlight"><span class="fas fa-calendar-alt text-warning me-2"></span>HRMS Leave Request Audit</h2>
+                    <h5 class="text-body-tertiary fw-semibold">Review, Approve, or Reject CRM Employee Duty Leave Requests</h5>
+                </div>
+                <div>
+                    <a href="{% url 'dashboard_admin' %}" class="btn btn-phoenix-secondary btn-sm px-3">
+                        <span class="fas fa-arrow-left me-2"></span>Back to Command Center
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Django Standard Messages (Aesthetic Banner) -->
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Pending Leave Requests Panel -->
+    <div class="row mb-5">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-warning-subtle py-3 border-start border-warning border-4 d-flex justify-content-between align-items-center">
+                    <h5 class="text-warning-emphasis mb-0 fw-bold"><span class="fas fa-hourglass-half me-2"></span>Pending Requests Awaiting Audit</h5>
+                    <span class="badge bg-warning text-dark rounded-pill fw-bold">{{ pending_leaves.count }} Requests</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Employee</th>
+                                    <th class="py-2">Category</th>
+                                    <th class="py-2">Start Date</th>
+                                    <th class="py-2">End Date</th>
+                                    <th class="py-2">Explanatory Reason</th>
+                                    <th class="py-2">Submitted Time</th>
+                                    <th class="pe-4 py-2 text-end">Audit Controls</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in pending_leaves %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-s me-2">
+                                                <div class="avatar-name rounded-circle bg-primary-subtle text-primary fw-bold">
+                                                    <span>{{ leave.employee.username|slice:":1"|upper }}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold text-body-highlight">{{ leave.employee.username }}</h6>
+                                                <span class="text-muted fs-10">{{ leave.employee.email|default:"No email registered" }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-capitalize fw-semibold text-primary">
+                                        {{ leave.get_leave_type_display }}
+                                    </td>
+                                    <td class="fw-bold text-body-highlight">{{ leave.start_date|date:"d M Y" }}</td>
+                                    <td class="fw-bold text-body-highlight">{{ leave.end_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <div class="text-body-highlight" style="max-width: 320px;" title="{{ leave.reason }}">
+                                            {{ leave.reason }}
+                                        </div>
+                                    </td>
+                                    <td class="text-muted">{{ leave.created_at|date:"d M Y H:i" }}</td>
+                                    <td class="pe-4 text-end">
+                                        <div class="d-flex gap-2 justify-content-end">
+                                            <form method="POST" action="{% url 'approve_leave' leave.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-success btn-xs px-2">
+                                                    <span class="fas fa-check me-1"></span>Approve
+                                                </button>
+                                            </form>
+                                            <form method="POST" action="{% url 'reject_leave' leave.id %}" class="d-inline">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-danger btn-xs px-2">
+                                                    <span class="fas fa-times me-1"></span>Reject
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-muted">
+                                        <span class="fas fa-check-circle d-block fs-3 mb-2 text-success"></span>All leave applications have been audited. Zero pending requests.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completed Leave Logs Panel -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-history me-2"></span>HRMS Audited Leave History Archives</h5>
+                    <span class="badge badge-phoenix badge-phoenix-secondary">{{ completed_leaves.count }} Total Archived</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Employee</th>
+                                    <th class="py-2">Category</th>
+                                    <th class="py-2">Start Date</th>
+                                    <th class="py-2">End Date</th>
+                                    <th class="py-2">Explanatory Reason</th>
+                                    <th class="py-2">Audit Decision</th>
+                                    <th class="pe-4 py-2 text-end">Auditor Signature</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in completed_leaves %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-s me-2">
+                                                <div class="avatar-name rounded-circle bg-secondary-subtle text-secondary fw-bold">
+                                                    <span>{{ leave.employee.username|slice:":1"|upper }}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-semibold text-body-highlight">{{ leave.employee.username }}</h6>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-capitalize">{{ leave.get_leave_type_display }}</td>
+                                    <td>{{ leave.start_date|date:"d M Y" }}</td>
+                                    <td>{{ leave.end_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <div class="text-muted line-clamp-1" style="max-width: 280px;" title="{{ leave.reason }}">
+                                            {{ leave.reason }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if leave.status == 'approved' %}
+                                        <span class="badge badge-phoenix badge-phoenix-success px-2 py-1 fs-11 text-uppercase">Approved</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger px-2 py-1 fs-11 text-uppercase">Rejected</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <div class="fw-semibold text-body-highlight">👤 {{ leave.approved_by.username }}</div>
+                                        <div class="fs-10 text-muted mt-1">{{ leave.updated_at|date:"d M H:i" }}</div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">No completed leave history logs found in archives.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+{% endblock %}

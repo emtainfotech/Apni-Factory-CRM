@@ -1,0 +1,75 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col">
+            <h2 class="mb-0">Company Management</h2>
+            <p class="text-body-tertiary mb-0">View all registered companies/vendors on the application</p>
+        </div>
+        <div class="col-auto">
+            <span class="badge badge-phoenix badge-phoenix-info fs-8">App Vendors</span>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead class="bg-body-tertiary">
+                        <tr>
+                            <th class="ps-4" style="width: 300px;">Company Info</th>
+                            <th>Contact Details</th>
+                            <th>GST / City</th>
+                            <th class="text-center">Min Order</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-end pe-4">Joined Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for company in companies %}
+                        <tr class="align-middle">
+                            <td class="ps-4 py-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-l me-3">
+                                        <div class="avatar-name rounded bg-info-subtle text-info fs-9 fw-bold"><span>{{ company.name|slice:":1" }}</span></div>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-primary mb-1">{{ company.name }}</div>
+                                        <small class="text-info">ID: #{{ company.id }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <small><i class="fas fa-envelope me-1 text-body-tertiary"></i>{{ company.email }}</small>
+                                    <small><i class="fas fa-phone me-1 text-body-tertiary"></i>{{ company.mobile }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="d-flex flex-column">
+                                    <span class="fw-bold">{{ company.gst }}</span>
+                                    <small class="text-body-tertiary">{{ company.city }}, {{ company.state }}</small>
+                                </div>
+                            </td>
+                            <td class="text-center fw-bold text-success">₹{{ company.minordervalue }}</td>
+                            <td class="text-center">
+                                {% if company.status == 1 %}
+                                <span class="badge badge-phoenix badge-phoenix-success">Active</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4 text-body-tertiary">{{ company.created_at|date:"d M Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="6" class="text-center py-5">No companies found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

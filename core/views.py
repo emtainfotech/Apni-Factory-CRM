@@ -7,31 +7,56 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.core.mail import EmailMessage
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.core.paginator import Paginator
 from django.http import HttpResponse
+from django.utils import timezone
 
 # Import Models & Forms
 from authentication.models import User, Notification
 from authentication.tokens import account_activation_token
 from .forms import UserInviteForm
-from .models import Customer
+from .models import Customer, WhatsAppLead
 
 # Import Hostinger Data Models
 from hostinger_data.models import (
     Users as HostingerUser, Companies, Brands, Products, Orders,
     Wallet, Credits, Faqs, Pages, Tickets, ShadeCards,
     Advertisements, BankDetails, Admin as HostingerAdmin,
-    Orderdetail, OrderTracks, OrderStatus, Categories, Sliders
+    Orderdetail, OrderTracks, OrderStatus, Categories, Sliders,
+    MainCategories, SubCategories, Brands as AppBrands, Tickets as AppTickets,
+    Companies as AppCompanies, Wallet as AppWallet, Faqs as AppFaqs
 )
 
 # Import Invoice Utils & Models
-from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction
+from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest
 from .invoice_utils import calculate_gst_values, get_next_invoice_number
+
+from datetime import datetime, timedelta
 
 # ==========================================
 #              HELPER FUNCTIONS
 # ==========================================
+
+def attendance_required(view_func):
+    """
+    Decorator for views that checks if the user has punched in for today.
+    Admins are exempted.
+    """
+    def _wrapped_view(request, *args, **kwargs):
+        if request.user.is_superuser or request.user.role == 'admin':
+            return view_func(request, *args, **kwargs)
+        
+        today = timezone.now().date()
+        attendance = Attendance.objects.filter(user=request.user, date=today, is_punched_in=True).first()
+        
+        if not attendance:
+            messages.warning(request, "Please Punch-In to access your dashboard.")
+            return redirect('employee_dashboard')
+            
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
 
 def is_admin(user):
     return user.is_superuser or user.role == 'admin'
@@ -56,22 +81,78 @@ def health_check(request):
 @login_required
 @user_passes_test(is_admin)
 def admin_dashboard(request):
-    # Statistics from local DB
+    from hostinger_data.models import Customers as HostingerCustomer
+    
+    # Local CRM Counts
     total_customers = Customer.objects.count()
     total_invoices = Invoice.objects.count()
     
-    # Statistics from External Hostinger DB
+    # Remote E-commerce Counts & Sales (synced dynamically from hostinger_db)
     total_hostinger_users = HostingerUser.objects.count()
     total_orders = Orders.objects.count()
+    
+    # Calculate Total E-commerce Business Sales Volume
+    total_sales = Orders.objects.aggregate(total=Sum('grandtotal'))['total'] or 0
     recent_orders = Orders.objects.all().order_by('-created_at')[:10]
     
+    # WhatsApp Bot capture metrics
+    whatsapp_needs_human = WhatsAppLead.objects.filter(needs_human=True).select_related('customer')
+    total_whatsapp_leads = WhatsAppLead.objects.count()
+    
+    # HRMS Overview
+    pending_leaves_count = LeaveRequest.objects.filter(status='pending').count()
+    
+    # Team Performance & Attendance reports
+    employees = User.objects.exclude(Q(role='admin') | Q(is_superuser=True)).order_by('username')
+    today = timezone.now().date()
+    
+    for emp in employees:
+        # Today's Punch status
+        emp.today_attendance = Attendance.objects.filter(user=emp, date=today).first()
+        
+        # Performance KPIs
+        emp.assigned_customers_count = Customer.objects.filter(assigned_to=emp).count()
+        emp.today_calls_count = CallLog.objects.filter(employee=emp, created_at__date=today).count()
+        
+        # Calculate Employee Generated Revenue in INR
+        assigned_custs = Customer.objects.filter(assigned_to=emp)
+        phones = [c.phone for c in assigned_custs if c.phone]
+        whatsapp_numbers = [c.whatsapp_number for c in assigned_custs if c.whatsapp_number]
+        gst_numbers = [c.gst_number for c in assigned_custs if c.gst_number]
+        
+        remote_cust_ids = []
+        if phones or whatsapp_numbers or gst_numbers:
+            q_filter = Q()
+            if phones:
+                q_filter |= Q(mobile__in=phones)
+            if whatsapp_numbers:
+                q_filter |= Q(whatsappno__in=whatsapp_numbers)
+            if gst_numbers:
+                q_filter |= Q(gstorpan__in=gst_numbers)
+                
+            remote_cust_ids = list(
+                HostingerCustomer.objects.using('hostinger_db')
+                .filter(q_filter)
+                .values_list('id', flat=True)
+            )
+            
+        if remote_cust_ids:
+            emp.revenue_generated = Orders.objects.using('hostinger_db').filter(customer_id__in=remote_cust_ids).aggregate(total=Sum('grandtotal'))['total'] or 0
+        else:
+            emp.revenue_generated = 0
+            
     context = {
         'total_customers': total_customers,
         'total_invoices': total_invoices,
         'total_hostinger_users': total_hostinger_users,
         'total_orders': total_orders,
+        'total_sales': total_sales,
         'recent_orders': recent_orders,
-        'recent_users': User.objects.order_by('-date_joined')[:5]
+        'recent_users': User.objects.order_by('-date_joined')[:5],
+        'whatsapp_needs_human': whatsapp_needs_human,
+        'total_whatsapp_leads': total_whatsapp_leads,
+        'pending_leaves_count': pending_leaves_count,
+        'employees': employees,
     }
     return render(request, 'core/dashboard_admin.html', context)
 
@@ -80,10 +161,55 @@ def admin_dashboard(request):
 def manager_dashboard(request):
     return render(request, 'core/dashboard_manager.html')
 
+# Legacy employee views removed in favor of namespaced employee_portal app.
+
+
 @login_required
-@user_passes_test(is_employee)
-def employee_dashboard(request):
-    return render(request, 'core/dashboard_employee.html')
+@attendance_required
+def log_call(request, customer_id):
+    if request.method == 'POST':
+        customer = get_object_or_404(Customer, id=customer_id)
+        call_status = request.POST.get('call_status')
+        remark = request.POST.get('remark')
+        follow_up = request.POST.get('follow_up_date')
+        
+        log = CallLog.objects.create(
+            customer=customer,
+            employee=request.user,
+            call_status=call_status,
+            remark=remark,
+            follow_up_date=follow_up if follow_up else None
+        )
+        
+        # Log activity
+        CustomerActivityLog.objects.create(
+            customer=customer,
+            employee=request.user,
+            action="Call Logged",
+            description=f"Status: {log.get_call_status_display()}. Remark: {remark}"
+        )
+        
+        messages.success(request, "Call logged successfully.")
+    return redirect('customer_detail', customer_id=customer_id)
+
+
+@login_required
+@attendance_required
+def convert_lead(request, customer_id):
+    customer = get_object_or_404(Customer, id=customer_id)
+    if customer.status == 'lead':
+        customer.status = 'customer'
+        customer.save()
+        
+        CustomerActivityLog.objects.create(
+            customer=customer,
+            employee=request.user,
+            action="Lead Converted",
+            description="Status changed from Lead to Customer."
+        )
+        messages.success(request, f"{customer.first_name} has been converted to a Customer.")
+    return redirect('customer_detail', customer_id=customer_id)
+
 
 @login_required
 @user_passes_test(is_field_agent)
@@ -140,7 +266,7 @@ def user_list(request):
     users_qs = User.objects.all().order_by('-date_joined')
     
     # 1. Search Logic
-    query = request.GET.get('q')
+    query = request.GET.get('q', '')
     if query:
         users_qs = users_qs.filter(
             Q(username__icontains=query) | 
@@ -148,22 +274,41 @@ def user_list(request):
             Q(role__icontains=query)
         )
 
-    # 2. Pagination
+    # 2. Filters
+    role_filter = request.GET.get('role', '')
+    status_filter = request.GET.get('status', '')
+
+    if role_filter:
+        users_qs = users_qs.filter(role=role_filter)
+    if status_filter:
+        is_active = status_filter == 'active'
+        users_qs = users_qs.filter(is_active=is_active)
+
+    # 3. Pagination
     paginator = Paginator(users_qs, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # 3. HTMX Navigation Fix
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+        'selected_role': role_filter,
+        'selected_status': status_filter,
+        'roles': User.ROLE_CHOICES,
+    }
+
+    # 4. HTMX Navigation Fix
     is_htmx = request.headers.get('HX-Request') == 'true'
     target_id = request.headers.get('HX-Target')
 
-    # Only return partial if specifically updating the table body
-    if is_htmx and target_id == 'user-table-body':
-        return render(request, 'core/partials/user_table_rows.html', {'page_obj': page_obj})
+    # Only return partial if specifically updating the table wrapper
+    if is_htmx and target_id == 'user-table-wrapper':
+        return render(request, 'core/partials/user_table.html', context)
 
     # Otherwise return full page
     form = UserInviteForm()
-    return render(request, 'core/user_list.html', {'page_obj': page_obj, 'form': form})
+    context['form'] = form
+    return render(request, 'core/user_list.html', context)
 
 
 @login_required
@@ -185,6 +330,7 @@ def user_detail(request, user_id):
 
 
 @login_required
+@attendance_required
 def customer_detail(request, customer_id):
     """
     360-degree view of a customer including orders, invoices, 
@@ -198,6 +344,7 @@ def customer_detail(request, customer_id):
     whatsapp_chats = customer.whatsapp_chats.all().order_by('-timestamp')
     transactions = customer.transactions.all().order_by('-transaction_date')
     activities = customer.activities.all().order_by('-created_at')
+    call_logs = customer.call_logs.all().order_by('-created_at')
     
     context = {
         'customer': customer,
@@ -206,6 +353,7 @@ def customer_detail(request, customer_id):
         'whatsapp_chats': whatsapp_chats,
         'transactions': transactions,
         'activities': activities,
+        'call_logs': call_logs,
         'total_spent': sum(o.total_amount for o in orders if o.status != 'cancelled'),
     }
     
@@ -213,21 +361,44 @@ def customer_detail(request, customer_id):
 
 @login_required
 def order_list(request):
-    """Global list of all orders from Hostinger Database."""
+    """Global list of all orders from Hostinger Database with filters and pagination."""
     orders_qs = Orders.objects.all().order_by('-created_at')
     
-    # Search logic
-    query = request.GET.get('q')
+    # 1. Search logic
+    query = request.GET.get('q', '')
     if query:
         orders_qs = orders_qs.filter(
             Q(orderno__icontains=query) | 
             Q(address__icontains=query)
         )
         
-    paginator = Paginator(orders_qs, 20)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    # 2. Status filter
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        order_ids = OrderStatus.objects.filter(status__icontains=status_filter).values_list('order_id', flat=True).distinct()
+        orders_qs = orders_qs.filter(id__in=order_ids)
+        
+    # 3. Pagination
+    paginator = Paginator(orders_qs, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
     
-    return render(request, 'core/order_list.html', {'page_obj': page_obj, 'query': query})
+    # Inject latest status for each order in the page
+    for order in page_obj:
+        latest_status = OrderStatus.objects.filter(order_id=order.id).order_by('-created_at').first()
+        order.current_status = latest_status.status if latest_status else "Pending"
+        
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+        'selected_status': status_filter,
+    }
+    
+    # 4. HTMX Integration
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'order-table-wrapper':
+        return render(request, 'core/partials/order_table.html', context)
+    
+    return render(request, 'core/order_list.html', context)
 
 @login_required
 def product_list(request):
@@ -282,6 +453,9 @@ def product_list(request):
         'selected_category': category_id,
         'selected_brand': brand_id,
     }
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'product-table-wrapper':
+        return render(request, 'core/partials/product_table.html', context)
+        
     return render(request, 'core/product_list.html', context)
 
 
@@ -333,19 +507,27 @@ def order_detail(request, order_id):
     order_tracks = OrderTracks.objects.filter(order_id=order_id).order_by('-created_at')
     order_statuses = OrderStatus.objects.filter(order_id=order_id).order_by('-created_at')
     
-    # Get customer info from Hostinger
+    # Get customer info from Application DB
     h_user = get_object_or_404(HostingerUser, pk=order.user_id)
-    h_company = Companies.objects.filter(user_id=order.user_id).first()
+    h_company = AppCompanies.objects.filter(user_id=order.user_id).first()
+    
+    # Get latest status for banner
+    latest_status = order_statuses.first() if order_statuses.exists() else None
+    latest_track = order_tracks.first() if order_tracks.exists() else None
+    
+    # Calculate totals if not present
+    total_qty = 0
+    for item in order_details:
+        if item.parsed_attributes:
+            for attr in item.parsed_attributes:
+                total_qty += int(attr.get('qty', 0))
     
     # Parse address JSON
     address_data = {}
     if order.address:
         try:
-            # Clean up potential string issues (like single quotes instead of double quotes)
-            # though json.loads expects strict JSON.
             address_data = json.loads(order.address)
         except (json.JSONDecodeError, TypeError):
-            # If it's not valid JSON, we'll handle it as raw text in the template
             address_data = None
     
     # Parse tax details JSON
@@ -356,8 +538,7 @@ def order_detail(request, order_id):
         except (json.JSONDecodeError, TypeError):
             tax_details = None
 
-    # Financials are directly on the 'order' object (Orders model)
-    # Orderdetail model doesn't have financial fields
+    # Financials
     items_count = order_details.count()
     
     context = {
@@ -365,11 +546,14 @@ def order_detail(request, order_id):
         'order_details': order_details,
         'order_tracks': order_tracks,
         'order_statuses': order_statuses,
+        'latest_status': latest_status,
+        'latest_track': latest_track,
         'h_user': h_user,
         'h_company': h_company,
         'address_data': address_data,
         'tax_details': tax_details,
         'items_count': items_count,
+        'total_qty': total_qty,
         'total_net': order.netamount,
         'total_tax': order.taxamount,
         'grand_total': order.grandtotal,
@@ -460,6 +644,7 @@ from .forms import CustomerModalForm
 from authentication.models import User
 
 @login_required
+@attendance_required
 def customer_list(request):
     # Initialize the form (default to empty)
     modal_form = CustomerModalForm()
@@ -725,7 +910,7 @@ def hostinger_user_list(request):
     users_qs = HostingerUser.objects.all().order_by('-created_at')
     
     # Search logic
-    query = request.GET.get('q')
+    query = request.GET.get('q', '')
     if query:
         users_qs = users_qs.filter(
             Q(name__icontains=query) | 
@@ -736,7 +921,7 @@ def hostinger_user_list(request):
     # Since 'Admin' is a separate table, we might want to show it as well
     hostinger_admins = HostingerAdmin.objects.all()
 
-    paginator = Paginator(users_qs, 20)
+    paginator = Paginator(users_qs, 15)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -745,6 +930,9 @@ def hostinger_user_list(request):
         'hostinger_admins': hostinger_admins,
         'query': query,
     }
+
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'hostinger-user-table-wrapper':
+        return render(request, 'core/partials/hostinger_user_table.html', context)
 
     return render(request, 'core/hostinger_user_list.html', context)
 
@@ -834,27 +1022,141 @@ def slider_list(request):
     return render(request, 'core/slider_list.html', context)
 
 
+@login_required
+@user_passes_test(is_admin)
+def app_category_list(request):
+    """View to show all application categories."""
+    main_categories = MainCategories.objects.all().order_by('sequence')
+    categories = Categories.objects.all().order_by('sequence')
+    sub_categories = SubCategories.objects.all().order_by('name')
+    
+    # Prefix for images
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    for item in main_categories:
+        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
+    for item in categories:
+        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
+        item.main_category_name = MainCategories.objects.filter(id=item.maincategory_id).values_list('name', flat=True).first()
+    for item in sub_categories:
+        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
+        item.category_name = Categories.objects.filter(id=item.category_id).values_list('name', flat=True).first()
+
+    context = {
+        'main_categories': main_categories,
+        'categories': categories,
+        'sub_categories': sub_categories,
+    }
+    return render(request, 'core/app_category_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_brand_list(request):
+    """View to show all application brands."""
+    brands = AppBrands.objects.all().order_by('name')
+    
+    # Prefix for images
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    for brand in brands:
+        brand.image_url = f"{IMAGE_PREFIX}{brand.image}" if brand.image else None
+        brand.company_name = AppCompanies.objects.filter(id=brand.company_id).values_list('name', flat=True).first()
+        
+    context = {
+        'brands': brands,
+    }
+    return render(request, 'core/app_brand_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_company_list(request):
+    """View to show all application companies/vendors."""
+    companies = AppCompanies.objects.all().order_by('-created_at')
+    
+    context = {
+        'companies': companies,
+    }
+    return render(request, 'core/app_company_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_ticket_list(request):
+    """View to show all support tickets."""
+    tickets = AppTickets.objects.all().order_by('-created_at')
+    
+    context = {
+        'tickets': tickets,
+    }
+    return render(request, 'core/app_ticket_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_wallet_transactions(request):
+    """View to show all wallet transactions."""
+    transactions = AppWallet.objects.all().order_by('-created_at')
+    
+    context = {
+        'transactions': transactions,
+    }
+    return render(request, 'core/app_wallet_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_faq_list(request):
+    """View to show all FAQs."""
+    faqs = AppFaqs.objects.all().order_by('-created_at')
+    
+    context = {
+        'faqs': faqs,
+    }
+    return render(request, 'core/app_faq_list.html', context)
+
+
 # ==========================================
 #         INVOICE MANAGEMENT
 # ==========================================
 
 @login_required
 def invoice_list(request):
-    """Lists all invoices."""
+    """Lists all invoices with filters and search."""
     invoices = Invoice.objects.all().order_by('-created_at')
     
-    # Search logic
-    query = request.GET.get('q')
+    # 1. Search logic
+    query = request.GET.get('q', '')
     if query:
         invoices = invoices.filter(
             Q(invoice_no__icontains=query) | 
             Q(client_name__icontains=query)
         )
+
+    # 2. Status filter
+    status_filter = request.GET.get('status', '')
+    if status_filter == 'finalized':
+        invoices = invoices.filter(is_finalized=True)
+    elif status_filter == 'draft':
+        invoices = invoices.filter(is_finalized=False)
         
-    paginator = Paginator(invoices, 20)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    # 3. Pagination
+    paginator = Paginator(invoices, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+        'selected_status': status_filter,
+    }
     
-    return render(request, 'core/invoice_list.html', {'page_obj': page_obj, 'query': query})
+    # 4. HTMX Integration
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'invoice-table-wrapper':
+        return render(request, 'core/partials/invoice_table.html', context)
+    
+    return render(request, 'core/invoice_list.html', context)
 
 @login_required
 def create_invoice(request):
@@ -1332,3 +1634,196 @@ def process_conversation(phone, profile_name, message):
 def send_reply_text(lead, text):
     send_text_message(lead.phone_number, text)
     WhatsAppChat.objects.create(customer=lead.customer, message=text, direction='outgoing')
+
+
+@login_required
+@user_passes_test(is_admin)
+def manage_leaves(request):
+    """Enables admins to view and approve/reject employee leave requests."""
+    pending_leaves = LeaveRequest.objects.filter(status='pending').order_by('-created_at')
+    completed_leaves = LeaveRequest.objects.exclude(status='pending').order_by('-created_at')
+    
+    context = {
+        'pending_leaves': pending_leaves,
+        'completed_leaves': completed_leaves,
+    }
+    return render(request, 'core/manage_leaves.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_leave(request, leave_id):
+    """Approves a leave request and notifies the employee."""
+    if request.method != 'POST':
+        return HttpResponse("Method Not Allowed", status=405)
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    if leave.status == 'pending':
+        leave.status = 'approved'
+        leave.approved_by = request.user
+        leave.save()
+        
+        # Notify the employee
+        Notification.objects.create(
+            recipient=leave.employee,
+            message=f"Your leave request for {leave.get_leave_type_display()} from {leave.start_date} to {leave.end_date} has been Approved.",
+            is_read=False
+        )
+        
+        messages.success(request, f"Approved leave request for {leave.employee.username}.")
+    else:
+        messages.info(request, "Leave request is already processed.")
+        
+    return redirect('manage_leaves')
+
+
+@login_required
+@user_passes_test(is_admin)
+def reject_leave(request, leave_id):
+    """Rejects a leave request and notifies the employee."""
+    if request.method != 'POST':
+        return HttpResponse("Method Not Allowed", status=405)
+    leave = get_object_or_404(LeaveRequest, id=leave_id)
+    if leave.status == 'pending':
+        leave.status = 'rejected'
+        leave.approved_by = request.user
+        leave.save()
+        
+        # Notify the employee
+        Notification.objects.create(
+            recipient=leave.employee,
+            message=f"Your leave request for {leave.get_leave_type_display()} from {leave.start_date} to {leave.end_date} has been Rejected.",
+            is_read=False
+        )
+        
+        messages.warning(request, f"Rejected leave request for {leave.employee.username}.")
+    else:
+        messages.info(request, "Leave request is already processed.")
+        
+    return redirect('manage_leaves')
+
+
+def is_admin_or_manager(user):
+    return user.is_superuser or user.role in ['admin', 'manager']
+
+
+@login_required
+@user_passes_test(is_admin_or_manager)
+def lead_kanban(request):
+    """Enables admins to view and manage leads in a Kanban column layout."""
+    from .forms import CustomerModalForm
+    
+    if request.method == 'POST':
+        form = CustomerModalForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.created_by = request.user
+            customer.save()
+            messages.success(request, f"Lead {customer.first_name} manually added successfully.")
+            return redirect('lead_kanban')
+        else:
+            messages.error(request, "Failed to create lead. Please check the form errors.")
+    else:
+        form = CustomerModalForm()
+        
+    customers = Customer.objects.all().select_related('assigned_to')
+    
+    # Filter customers by column
+    leads = customers.filter(status='lead')
+    prospects = customers.filter(status='prospect')
+    active_customers = customers.filter(status='customer')
+    inactive = customers.filter(status='inactive')
+    lost = customers.filter(status='lost')
+    
+    employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
+    
+    context = {
+        'leads': leads,
+        'prospects': prospects,
+        'active_customers': active_customers,
+        'inactive': inactive,
+        'lost': lost,
+        'employees': employees,
+        'form': form,
+    }
+    return render(request, 'core/lead_kanban.html', context)
+
+
+@login_required
+def update_customer_status(request, customer_id):
+    """Enables quick status updates via HTMX request."""
+    customer = get_object_or_404(Customer, id=customer_id)
+    old_status = customer.get_status_display()
+    new_status_val = request.POST.get('status') or request.GET.get('status')
+    
+    if new_status_val in dict(Customer.STATUS_CHOICES):
+        customer.status = new_status_val
+        customer.save()
+        
+        CustomerActivityLog.objects.create(
+            customer=customer,
+            employee=request.user,
+            action="Status Updated (Kanban)",
+            description=f"Status transitioned from {old_status} to {customer.get_status_display()}."
+        )
+        
+        if request.headers.get('HX-Request') == 'true':
+            if request.GET.get('board') == 'true':
+                if request.GET.get('employee') == 'true':
+                    return redirect('employee_portal:lead_kanban')
+                return redirect('lead_kanban')
+            # Returns a small HTML badge response for HTMX updates
+            badge_color = 'success' if new_status_val == 'customer' else 'info' if new_status_val == 'lead' else 'warning' if new_status_val == 'prospect' else 'danger'
+            return HttpResponse(f'<span class="badge badge-phoenix badge-phoenix-{badge_color} text-capitalize fs-11">{customer.get_status_display()}</span>')
+            
+        messages.success(request, f"Successfully updated status for {customer.first_name}.")
+    else:
+        messages.error(request, "Invalid status choice.")
+        
+    return redirect('customer_detail', customer_id=customer.id)
+
+
+@login_required
+def global_search(request):
+    """Universal instant autocomplete search for Customers, Users, Orders, Products."""
+    query = request.GET.get('q', '').strip()
+    if not query or len(query) < 2:
+        return HttpResponse('')
+        
+    # Search Customers
+    customers = Customer.objects.filter(
+        Q(first_name__icontains=query) |
+        Q(last_name__icontains=query) |
+        Q(email__icontains=query) |
+        Q(phone__icontains=query)
+    ).select_related('assigned_to')[:5]
+    
+    # Search Orders (Admins and Managers only)
+    orders = []
+    if request.user.is_superuser or request.user.role in ['admin', 'manager']:
+        orders = Orders.objects.filter(
+            Q(orderno__icontains=query) |
+            Q(address__icontains=query)
+        )[:5]
+        
+    # Search Users (Admins and Managers only)
+    users = []
+    if request.user.is_superuser or request.user.role in ['admin', 'manager']:
+        users = User.objects.filter(
+            Q(username__icontains=query) |
+            Q(email__icontains=query)
+        )[:5]
+        
+    # Search Products
+    products = Products.objects.filter(
+        Q(name__icontains=query) |
+        Q(title__icontains=query)
+    )[:5]
+    
+    context = {
+        'customers': customers,
+        'orders': orders,
+        'users': users,
+        'products': products,
+        'query': query,
+    }
+    return render(request, 'core/partials/global_search_results.html', context)

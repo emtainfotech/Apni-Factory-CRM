@@ -198,6 +198,75 @@ class OrderStatusHistory(models.Model):
         return f"{self.order.order_number} - {self.status}"
 
 
+# --- 5. APP DATA CRM SYNC ---
+class CompanyAssignment(models.Model):
+    """Allows assigning Application Companies to CRM Team Members"""
+    company_id = models.IntegerField(unique=True, help_text="ID from App Database (hostinger_data.Companies)")
+    company_name = models.CharField(max_length=255)
+    
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_companies')
+    crm_notes = models.TextField(blank=True)
+    
+    last_sync = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.company_name
+
+
+class TicketInternalNote(models.Model):
+    """Allows CRM team to add internal notes to Support Tickets"""
+    ticket_id = models.IntegerField(help_text="ID from App Database (hostinger_data.Tickets)")
+    note = models.TextField()
+    
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Note on Ticket #{self.ticket_id} by {self.created_by}"
+
+
+# --- 6. ATTENDANCE SYSTEM ---
+class Attendance(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendances')
+    date = models.DateField(auto_now_add=True)
+    punch_in = models.DateTimeField(null=True, blank=True)
+    punch_out = models.DateTimeField(null=True, blank=True)
+    
+    # Track working status
+    is_punched_in = models.BooleanField(default=False)
+    on_break = models.BooleanField(default=False)
+    
+    # Audit trail & Accuracy
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True, null=True)
+    is_late = models.BooleanField(default=False)
+    
+    # Totals
+    total_working_hours = models.DurationField(null=True, blank=True)
+    total_break_duration = models.DurationField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = "Attendances"
+        ordering = ['-date', '-punch_in']
+
+    def __str__(self):
+        return f"{self.user.username} - {self.date}"
+
+
+class Break(models.Model):
+    attendance = models.ForeignKey(Attendance, on_delete=models.CASCADE, related_name='breaks')
+    break_start = models.DateTimeField(auto_now_add=True)
+    break_end = models.DateTimeField(null=True, blank=True)
+    duration = models.DurationField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Break for {self.attendance.user.username} on {self.attendance.date}"
+
+
 class CallLog(models.Model):
     CALL_STATUS_CHOICES = (
         ('connected', 'Connected'),
@@ -353,3 +422,33 @@ class Transaction(models.Model):
 #     marketing_sms_opt_in = models.BooleanField(default=True)
 #     created_at = models.DateTimeField(auto_now_add=True)
 #     updated_at = models.DateTimeField(auto_now=True)
+
+
+class LeaveRequest(models.Model):
+    LEAVE_TYPE_CHOICES = (
+        ('casual', 'Casual Leave'),
+        ('sick', 'Sick Leave'),
+        ('earned', 'Earned Leave'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    
+    employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='leave_requests')
+    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPE_CHOICES, default='casual')
+    
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.TextField()
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_leaves')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.employee.username} - {self.get_leave_type_display()} ({self.start_date} to {self.end_date})"

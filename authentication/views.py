@@ -31,8 +31,10 @@ class CustomLoginView(LoginView):
         elif getattr(user, 'role', '') == 'field_agent':
             return reverse_lazy('dashboard_agent')
             
+        elif getattr(user, 'role', '') == 'employee':
+            return reverse_lazy('employee_portal:dashboard')
+            
         else:
-            # Default fallback for employees or undefined roles
             return reverse_lazy('dashboard_employee')
         
 # IMPORT THE SIGNAL

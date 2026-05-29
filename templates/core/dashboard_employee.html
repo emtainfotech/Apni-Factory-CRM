@@ -1,0 +1,215 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0">Employee Dashboard</h2>
+            <p class="text-body-tertiary mb-0">Welcome back, {{ request.user.username }}! Here is your daily overview.</p>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex gap-2">
+                {% if not attendance or not attendance.is_punched_in %}
+                <form action="{% url 'punch_in' %}" method="post">
+                    {% csrf_token %}
+                    <button class="btn btn-success btn-lg px-5 shadow-sm" type="submit">
+                        <i class="fas fa-sign-in-alt me-2"></i>Punch In
+                    </button>
+                </form>
+                {% else %}
+                <div class="d-flex gap-2">
+                    <form action="{% url 'toggle_break' %}" method="post">
+                        {% csrf_token %}
+                        <button class="btn btn-{% if attendance.on_break %}warning{% else %}outline-warning{% endif %} btn-lg px-4" type="submit">
+                            <i class="fas fa-coffee me-2"></i>{% if attendance.on_break %}End Break{% else %}Take Break{% endif %}
+                        </button>
+                    </form>
+                    <form action="{% url 'punch_out' %}" method="post">
+                        {% csrf_token %}
+                        <button class="btn btn-danger btn-lg px-4" type="submit">
+                            <i class="fas fa-sign-out-alt me-2"></i>Punch Out
+                        </button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if attendance and attendance.is_punched_in %}
+    <!-- Active Session Info -->
+    <div class="card shadow-sm border-0 mb-4 bg-primary-subtle border-start border-primary border-4">
+        <div class="card-body py-3">
+            <div class="row align-items-center">
+                <div class="col-auto">
+                    <div class="avatar avatar-l bg-primary text-white rounded-circle">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                </div>
+                <div class="col">
+                    <h5 class="mb-0 text-primary">Active Session</h5>
+                    <p class="mb-0 fs-10 text-body-tertiary">Punched in at {{ attendance.punch_in|date:"H:i" }}</p>
+                </div>
+                {% if attendance.on_break %}
+                <div class="col-auto">
+                    <span class="badge bg-warning text-dark p-2 fs-10">
+                        <i class="fas fa-spinner fa-spin me-2"></i>Currently on Break
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Grid -->
+    <div class="row g-4 mb-5">
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-info-subtle text-info me-3">
+                            <i class="fas fa-bullhorn"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ assigned_leads }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Assigned Leads</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-success-subtle text-success me-3">
+                            <i class="fas fa-phone-alt"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ today_calls }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Calls Today</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-3">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-warning-subtle text-warning me-3">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div>
+                            <h3 class="mb-0">{{ active_customers }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Converted Leads</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Lead Management -->
+        <div class="col-12 col-xl-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Recent Call Logs</h5>
+                    <a href="{% url 'customer_list' %}" class="btn btn-sm btn-link">View Leads</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead>
+                                <tr>
+                                    <th class="ps-4">Lead Name</th>
+                                    <th>Status</th>
+                                    <th>Remark</th>
+                                    <th class="text-end pe-4">Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_calls %}
+                                <tr class="align-middle">
+                                    <td class="ps-4">
+                                        <div class="fw-bold text-primary">{{ log.customer.first_name }} {{ log.customer.last_name }}</div>
+                                        <small class="text-body-tertiary">{{ log.customer.phone }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-{% if log.call_status == 'connected' %}success{% elif log.call_status == 'follow_up' %}warning{% else %}danger{% endif %} fs-11">
+                                            {{ log.get_call_status_display }}
+                                        </span>
+                                    </td>
+                                    <td><div class="line-clamp-1 text-body-tertiary" title="{{ log.remark }}">{{ log.remark }}</div></td>
+                                    <td class="text-end pe-4">{{ log.created_at|date:"H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center py-5 text-body-tertiary">No calls logged today.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Working Hours Sidebar -->
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0">Today's Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        <div class="timeline-item border-start border-translucent ps-4 pb-4 position-relative ms-2">
+                            <div class="timeline-dot bg-success"></div>
+                            <h6 class="mb-1">Punched In</h6>
+                            <p class="fs-10 text-body-tertiary mb-0">{{ attendance.punch_in|date:"H:i" }}</p>
+                        </div>
+                        {% for break in attendance.breaks.all %}
+                        <div class="timeline-item border-start border-translucent ps-4 pb-4 position-relative ms-2">
+                            <div class="timeline-dot bg-warning"></div>
+                            <h6 class="mb-1">Break Started</h6>
+                            <p class="fs-10 text-body-tertiary mb-0">{{ break.break_start|date:"H:i" }}</p>
+                        </div>
+                        {% if break.break_end %}
+                        <div class="timeline-item border-start border-translucent ps-4 pb-4 position-relative ms-2">
+                            <div class="timeline-dot bg-info"></div>
+                            <h6 class="mb-1">Break Ended</h6>
+                            <p class="fs-10 text-body-tertiary mb-0">{{ break.break_end|date:"H:i" }} ({{ break.duration }})</p>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <!-- Restricted View -->
+    <div class="card shadow-sm border-0 py-8 bg-body-tertiary">
+        <div class="card-body text-center">
+            <div class="avatar avatar-4xl bg-warning-subtle text-warning mb-4 mx-auto">
+                <i class="fas fa-lock fs-3"></i>
+            </div>
+            <h3 class="mb-2">Dashboard Locked</h3>
+            <p class="text-body-tertiary mb-4">Please punch-in to access your leads, calls, and dashboard features.</p>
+            <form action="{% url 'punch_in' %}" method="post">
+                {% csrf_token %}
+                <button class="btn btn-success btn-lg px-5 shadow-sm" type="submit">
+                    <i class="fas fa-sign-in-alt me-2"></i>Punch In Now
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.icon-circle { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; }
+.timeline-dot { width: 12px; height: 12px; border-radius: 50%; position: absolute; left: -6px; top: 4px; z-index: 1; }
+.line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+{% endblock %}

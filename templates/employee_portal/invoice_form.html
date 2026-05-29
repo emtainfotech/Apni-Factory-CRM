@@ -1,0 +1,187 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <!-- Header -->
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:invoice_list' %}" class="btn btn-link p-0 mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+            </a>
+            <h2 class="mb-0">Generate Marketing Invoice</h2>
+            <p class="text-body-tertiary mb-0">Generate a custom GST-compliant invoice for your assigned client accounts.</p>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+            <form method="post" action="{% url 'employee_portal:create_invoice' %}">
+                {% csrf_token %}
+                
+                <h4 class="mb-3 text-primary border-bottom pb-2"><i class="fas fa-file-invoice me-2"></i>Invoice Basics</h4>
+                
+                <div class="row g-3 mb-4">
+                    <!-- Customer Dropdown -->
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fs-10 fw-bold text-uppercase">Assigned CRM Customer</label>
+                        <select name="customer" class="form-select form-select-sm" required>
+                            <option value="">-- Select Customer --</option>
+                            {% for cust in customers %}
+                            <option value="{{ cust.id }}" {% if request.GET.customer|add:"0" == cust.id %}selected{% endif %}>
+                                {{ cust.first_name }} {{ cust.last_name }} ({{ cust.company_name|default:"No Company" }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Supply Type -->
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fs-10 fw-bold text-uppercase">Supply Category Type</label>
+                        <select name="supply_type" class="form-select form-select-sm" required>
+                            <option value="B2B">B2B (Business to Business)</option>
+                            <option value="B2C">B2C (Business to Consumer)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Place of Supply -->
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fs-10 fw-bold text-uppercase">Place of Supply (State)</label>
+                        <select name="place_of_supply" class="form-select form-select-sm" required>
+                            {% for st in states %}
+                            <option value="{{ st }}" {% if st == 'Delhi' %}selected{% endif %}>{{ st }}</option>
+                            {% endwith %}
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Payment Mode -->
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fs-10 fw-bold text-uppercase">Payment Method / Mode</label>
+                        <select name="payment_mode" class="form-select form-select-sm" required>
+                            <option value="UPI">UPI Payment</option>
+                            <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                            <option value="Cheque">Corporate Cheque</option>
+                            <option value="Cash">Cash Ledger</option>
+                        </select>
+                    </div>
+
+                    <!-- Reverse Charge -->
+                    <div class="col-12 col-md-4 d-flex align-items-end pb-1">
+                        <div class="form-check form-switch mb-2">
+                            <input class="form-check-input" type="checkbox" id="reverse_charge" name="reverse_charge">
+                            <label class="form-check-input-label fs-9 fw-bold text-uppercase ms-2" for="reverse_charge">Subject to Reverse Charge</label>
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="mb-3 text-primary border-bottom pb-2"><i class="fas fa-th-list me-2"></i>Invoice Product Items</h4>
+                
+                <div class="table-responsive mb-4">
+                    <table class="table table-sm fs-9" id="items-table">
+                        <thead>
+                            <tr class="bg-light">
+                                <th style="width: 40%;">Item Description</th>
+                                <th style="width: 15%;">SAC / HSN Code</th>
+                                <th style="width: 20%;">Taxable Value (INR)</th>
+                                <th style="width: 15%;">GST Rate (%)</th>
+                                <th class="text-end" style="width: 10%;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="item-row align-middle">
+                                <td>
+                                    <input type="text" name="description[]" class="form-control form-control-sm" placeholder="e.g. Graphic Designing and Digital Promotions" required />
+                                </td>
+                                <td>
+                                    <input type="text" name="sac_code[]" class="form-control form-control-sm" value="998361" placeholder="998361" required />
+                                </td>
+                                <td>
+                                    <input type="number" name="taxable_value[]" step="0.01" class="form-control form-control-sm" placeholder="0.00" required />
+                                </td>
+                                <td>
+                                    <select name="gst_rate[]" class="form-select form-select-sm" required>
+                                        <option value="18.00">18% (Standard Services)</option>
+                                        <option value="12.00">12%</option>
+                                        <option value="5.00">5%</option>
+                                        <option value="28.00">28%</option>
+                                        <option value="0.00">0% (Exempt)</option>
+                                    </select>
+                                </td>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-outline-danger btn-xs btn-delete-row" disabled>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex justify-content-between mb-4">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm" id="btn-add-item">
+                        <i class="fas fa-plus me-1"></i>Add New Item Row
+                    </button>
+                </div>
+
+                <div class="row pt-3 border-top justify-content-end">
+                    <div class="col-12 col-md-4">
+                        <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm">
+                            <i class="fas fa-save me-2"></i>Save & Generate Draft Invoice
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Dynamic Row JavaScript Controls -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnAddItem = document.getElementById('btn-add-item');
+    const itemsTableBody = document.querySelector('#items-table tbody');
+    
+    // Add Item Row Event Listener
+    btnAddItem.addEventListener('click', function() {
+        const rows = document.querySelectorAll('.item-row');
+        const firstRow = rows[0];
+        
+        // Clone the first row as template
+        const newRow = firstRow.cloneNode(true);
+        
+        // Reset values of cloned inputs
+        newRow.querySelectorAll('input').forEach(input => {
+            if (input.name === 'sac_code[]') {
+                input.value = '998361';
+            } else {
+                input.value = '';
+            }
+        });
+        
+        // Enable Delete Button for cloned row
+        const btnDelete = newRow.querySelector('.btn-delete-row');
+        btnDelete.removeAttribute('disabled');
+        
+        // Append row
+        itemsTableBody.appendChild(newRow);
+        
+        // Bind delete row listener
+        btnDelete.addEventListener('click', function() {
+            newRow.remove();
+        });
+    });
+    
+    // Initial Bind Delete Listeners for rows (if more than one row exists)
+    document.querySelectorAll('.btn-delete-row').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = btn.closest('.item-row');
+            if (document.querySelectorAll('.item-row').length > 1) {
+                row.remove();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

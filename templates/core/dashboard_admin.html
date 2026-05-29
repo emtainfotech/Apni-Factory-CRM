@@ -2,68 +2,288 @@
 
 {% block content %}
 <div class="pb-5">
-    <div class="row g-4">
-        <div class="col-12 col-xxl-6">
-            <div class="mb-8">
-                <h2 class="mb-2">Admin Dashboard</h2>
-                <h5 class="text-body-tertiary fw-semibold">Overview of CRM and External Sales Data</h5>
+    <!-- Header Block -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2 text-bold text-body-highlight">Admin Command Center</h2>
+                    <h5 class="text-body-tertiary fw-semibold">Premium ERP, CRM & E-Commerce Control Panel</h5>
+                </div>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'lead_kanban' %}" class="btn btn-phoenix-primary btn-sm px-3">
+                        <span class="fas fa-columns me-2"></span>Lead Kanban
+                    </a>
+                    <a href="{% url 'manage_leaves' %}" class="btn btn-phoenix-warning btn-sm px-3">
+                        <span class="fas fa-calendar-alt me-2"></span>Leave Manager
+                        {% if pending_leaves_count > 0 %}
+                        <span class="badge bg-warning ms-1">{{ pending_leaves_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="{% url 'create_crm_user' %}" class="btn btn-primary btn-sm px-3">
+                        <span class="fas fa-plus me-2"></span>Add Employee
+                    </a>
+                </div>
             </div>
-            
-            <!-- Statistics Cards -->
-            <div class="row g-3 mb-5">
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card shadow-sm border-0 bg-primary-subtle">
-                        <div class="card-body">
-                            <h5 class="card-title text-primary fs-9 mb-2">Total Customers</h5>
-                            <h3 class="mb-0">{{ total_customers }}</h3>
+        </div>
+    </div>
+
+    <!-- Metrics Cards Grid -->
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
+            <div class="card shadow-sm border-0 h-100 bg-primary-subtle">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title text-primary fs-9 mb-0 text-uppercase fw-bold">Total Sales Volume</h6>
+                            <span class="uil uil-usd-square text-primary fs-3"></span>
                         </div>
+                        <h2 class="text-body-highlight fw-bolder mb-1">₹{{ total_sales|floatformat:2 }}</h2>
+                    </div>
+                    <p class="text-primary-emphasis fs-10 mb-0"><span class="fas fa-chart-line me-1"></span>Live E-commerce volume</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
+            <div class="card shadow-sm border-0 h-100 bg-success-subtle">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title text-success fs-9 mb-0 text-uppercase fw-bold">App Purchases</h6>
+                            <span class="uil uil-shopping-cart text-success fs-3"></span>
+                        </div>
+                        <h2 class="text-body-highlight fw-bolder mb-1">{{ total_orders }}</h2>
+                    </div>
+                    <p class="text-success-emphasis fs-10 mb-0"><span class="fas fa-check-circle me-1"></span>Transactions completed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
+            <div class="card shadow-sm border-0 h-100 bg-info-subtle">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title text-info fs-9 mb-0 text-uppercase fw-bold">CRM Leads & Clients</h6>
+                            <span class="uil uil-users-alt text-info fs-3"></span>
+                        </div>
+                        <h2 class="text-body-highlight fw-bolder mb-1">{{ total_customers }}</h2>
+                    </div>
+                    <p class="text-info-emphasis fs-10 mb-0"><span class="fas fa-address-book me-1"></span>Leads assigned & active</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
+            <div class="card shadow-sm border-0 h-100 bg-warning-subtle">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title text-warning fs-9 mb-0 text-uppercase fw-bold">WhatsApp Enquiries</h6>
+                            <span class="uil uil-whatsapp text-warning fs-3"></span>
+                        </div>
+                        <h2 class="text-body-highlight fw-bolder mb-1">{{ total_whatsapp_leads }}</h2>
+                    </div>
+                    <p class="text-warning-emphasis fs-10 mb-0"><span class="fas fa-robot me-1"></span>Captured by WhatsApp Bot</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
+            <div class="card shadow-sm border-0 h-100 bg-danger-subtle">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="card-title text-danger fs-9 mb-0 text-uppercase fw-bold">HRMS Pending Leaves</h6>
+                            <span class="uil uil-calendar-slash text-danger fs-3"></span>
+                        </div>
+                        <h2 class="text-body-highlight fw-bolder mb-1">{{ pending_leaves_count }}</h2>
+                    </div>
+                    <p class="text-danger-emphasis fs-10 mb-0"><span class="fas fa-hourglass-half me-1"></span>Leaves awaiting audit</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Panel: WhatsApp Bot Needs Attention -->
+    {% if whatsapp_needs_human %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-1 border-warning bg-warning-subtle shadow-sm">
+                <div class="card-header bg-warning border-0 py-2 d-flex align-items-center justify-content-between">
+                    <h6 class="text-white mb-0 fw-bold"><span class="fab fa-whatsapp me-2"></span>WhatsApp Live Conversational Alerts (Human Required)</h6>
+                    <span class="badge bg-danger">Critical Attention</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary">
+                                <tr>
+                                    <th class="ps-3 py-2">Lead Phone</th>
+                                    <th class="py-2">Assigned Customer Profile</th>
+                                    <th class="py-2">Last Message Context / Stage</th>
+                                    <th class="py-2 text-center">Status</th>
+                                    <th class="pe-3 py-2 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for wl in whatsapp_needs_human %}
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ wl.phone_number }}</td>
+                                    <td>
+                                        {% if wl.customer %}
+                                        <a href="{% url 'customer_detail' wl.customer.id %}" class="fw-semibold text-primary">
+                                            {{ wl.customer.first_name }} {{ wl.customer.last_name }}
+                                        </a>
+                                        <span class="text-muted text-capitalize fs-10 ms-1">({{ wl.customer.status }})</span>
+                                        {% else %}
+                                        <span class="text-muted italic">Unlinked WhatsApp Lead</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-info text-uppercase fs-11 me-2">{{ wl.conversation_stage }}</span>
+                                        <span class="text-body-highlight">{{ wl.last_message|truncatechars:80 }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge badge-phoenix badge-phoenix-danger">Needs Intervention</span>
+                                    </td>
+                                    <td class="pe-3 text-end">
+                                        {% if wl.customer %}
+                                        <a href="{% url 'customer_detail' wl.customer.id %}" class="btn btn-phoenix-primary btn-xs">Take Control</a>
+                                        {% else %}
+                                        <span class="text-muted fs-10">Cannot Route</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card shadow-sm border-0 bg-success-subtle">
-                        <div class="card-body">
-                            <h5 class="card-title text-success fs-9 mb-2">Total Invoices</h5>
-                            <h3 class="mb-0">{{ total_invoices }}</h3>
-                        </div>
-                    </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Employee Performance & Punch Security Logs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-users-cog me-2"></span>CRM Employee Performance & Attendance Integrity Ledger</h5>
+                    <span class="badge badge-phoenix badge-phoenix-primary">Real-Time Sync</span>
                 </div>
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card shadow-sm border-0 bg-info-subtle">
-                        <div class="card-body">
-                            <h5 class="card-title text-info fs-9 mb-2">Hostinger Users</h5>
-                            <h3 class="mb-0">{{ total_hostinger_users }}</h3>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-md-6 col-lg-3">
-                    <div class="card shadow-sm border-0 bg-warning-subtle">
-                        <div class="card-body">
-                            <h5 class="card-title text-warning fs-9 mb-2">Total Orders</h5>
-                            <h3 class="mb-0">{{ total_orders }}</h3>
-                        </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-3 py-2">Employee</th>
+                                    <th class="py-2">Punch-In Status</th>
+                                    <th class="py-2">Integrity Details (IP / User-Agent)</th>
+                                    <th class="py-2 text-center">Assigned Leads</th>
+                                    <th class="py-2 text-center">Calls Made Today</th>
+                                    <th class="py-2 text-end">Attributed Sales Revenue</th>
+                                    <th class="pe-3 py-2 text-end">Quick Profile</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for emp in employees %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-s me-2">
+                                                <div class="avatar-name rounded-circle bg-primary-subtle text-primary">
+                                                    <span>{{ emp.username|slice:":1"|upper }}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold text-body-highlight">{{ emp.username }}</h6>
+                                                <span class="text-muted fs-10">Joined {{ emp.date_joined|date:"d M Y" }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if emp.today_attendance %}
+                                            {% if emp.today_attendance.is_punched_in %}
+                                                {% if emp.today_attendance.on_break %}
+                                                    <span class="badge badge-phoenix badge-phoenix-warning d-inline-block">ON BREAK</span>
+                                                {% else %}
+                                                    <span class="badge badge-phoenix badge-phoenix-success d-inline-block">PUNCHED IN</span>
+                                                {% endif %}
+                                                <div class="fs-10 text-body-tertiary mt-1">
+                                                    {{ emp.today_attendance.punch_in|date:"H:i" }} IST
+                                                    {% if emp.today_attendance.is_late %}
+                                                        <span class="badge badge-phoenix badge-phoenix-danger ms-1 px-1">LATE</span>
+                                                    {% else %}
+                                                        <span class="badge badge-phoenix badge-phoenix-success ms-1 px-1">ON-TIME</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <span class="badge badge-phoenix badge-phoenix-secondary d-inline-block">PUNCHED OUT</span>
+                                                <div class="fs-10 text-body-tertiary mt-1">Out: {{ emp.today_attendance.punch_out|date:"H:i" }} IST</div>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="badge badge-phoenix badge-phoenix-danger d-inline-block">ABSENT</span>
+                                            <div class="fs-10 text-muted mt-1">No punch logged today</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if emp.today_attendance %}
+                                            <div class="fw-semibold fs-10 text-body-highlight">
+                                                <span class="fas fa-network-wired me-1"></span>{{ emp.today_attendance.ip_address|default:"Unknown IP" }}
+                                            </div>
+                                            <div class="text-muted fs-10 text-truncate" style="max-width: 260px;" title="{{ emp.today_attendance.user_agent }}">
+                                                <span class="fas fa-mobile-alt me-1"></span>{{ emp.today_attendance.user_agent|default:"Unknown Browser" }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted fs-10 italic">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center font-monospace fw-bold">{{ emp.assigned_customers_count }}</td>
+                                    <td class="text-center">
+                                        {% if emp.today_calls_count > 0 %}
+                                            <span class="badge badge-phoenix badge-phoenix-primary fs-10">{{ emp.today_calls_count }} Calls</span>
+                                        {% else %}
+                                            <span class="text-muted fs-10">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end font-monospace fw-bold text-success">
+                                        ₹{{ emp.revenue_generated|floatformat:2 }}
+                                    </td>
+                                    <td class="pe-3 text-end">
+                                        <a href="{% url 'user_detail' emp.id %}" class="btn btn-phoenix-secondary btn-xs"><span class="fas fa-eye"></span></a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4 text-muted">No active employee members registered in CRM database.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Recent Orders & Recent Team Additions -->
     <div class="row g-4">
         <!-- Recent Orders -->
         <div class="col-12 col-xl-8">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Recent External Orders</h5>
-                    <a href="{% url 'order_list' %}" class="btn btn-sm btn-link">View All</a>
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-shopping-bag me-2"></span>Recent App Orders (Hostinger Sync)</h5>
+                    <a href="{% url 'order_list' %}" class="btn btn-xs btn-phoenix-primary">View All Orders</a>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm fs-9 mb-0">
-                            <thead>
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary">
                                 <tr>
-                                    <th class="ps-4">Order No</th>
-                                    <th>Amount</th>
-                                    <th>Date</th>
-                                    <th class="text-end pe-4">Status</th>
+                                    <th class="ps-4 py-2">Order No</th>
+                                    <th class="py-2">Grand Total</th>
+                                    <th class="py-2">Date / Time</th>
+                                    <th class="py-2">Customer Association</th>
+                                    <th class="text-end pe-4 py-2">Routing</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -71,13 +291,16 @@
                                 <tr class="align-middle">
                                     <td class="ps-4 fw-bold text-primary">{{ order.orderno }}</td>
                                     <td class="fw-bold">₹{{ order.grandtotal }}</td>
-                                    <td>{{ order.created_at|date:"d M, H:i" }}</td>
+                                    <td>{{ order.created_at|date:"d M Y, H:i" }}</td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-info text-capitalize fs-11">App Purchase</span>
+                                    </td>
                                     <td class="text-end pe-4">
-                                        <span class="badge badge-phoenix badge-phoenix-info">External</span>
+                                        <a href="{% url 'order_detail' order.id %}" class="btn btn-phoenix-secondary btn-xs">Invoice</a>
                                     </td>
                                 </tr>
                                 {% empty %}
-                                <tr><td colspan="4" class="text-center py-4 text-muted">No recent orders.</td></tr>
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No recent orders synced.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -86,27 +309,31 @@
             </div>
         </div>
 
-        <!-- Recent CRM Users -->
+        <!-- Recent Registrations & Quick stats -->
         <div class="col-12 col-xl-4">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0">New CRM Team Members</h5>
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-user-plus me-2"></span>New CRM Signups</h5>
                 </div>
                 <div class="card-body">
                     <ul class="list-group list-group-flush">
                         {% for user in recent_users %}
-                        <li class="list-group-item px-0 border-0">
+                        <li class="list-group-item px-0 py-2 border-0 {% if not forloop.last %}border-bottom{% endif %}">
                             <div class="d-flex align-items-center">
                                 <div class="avatar avatar-m me-3">
-                                    <div class="avatar-name rounded-circle"><span>{{ user.username|slice:":1" }}</span></div>
+                                    <div class="avatar-name rounded-circle bg-primary-subtle text-primary fw-bold">
+                                        <span>{{ user.username|slice:":1"|upper }}</span>
+                                    </div>
                                 </div>
                                 <div class="flex-grow-1">
-                                    <h6 class="mb-0">{{ user.username }}</h6>
-                                    <p class="text-body-tertiary fs-10 mb-0">{{ user.get_role_display }}</p>
+                                    <h6 class="mb-0 fw-bold text-body-highlight">{{ user.username }}</h6>
+                                    <p class="text-body-tertiary fs-10 mb-0 text-capitalize">{{ user.role|default:"User" }}</p>
                                 </div>
-                                <div class="text-body-tertiary fs-10">{{ user.date_joined|date:"d M" }}</div>
+                                <div class="text-body-tertiary fs-10 fw-semibold">{{ user.date_joined|date:"d M" }}</div>
                             </div>
                         </li>
+                        {% empty %}
+                        <li class="list-group-item px-0 border-0 text-center text-muted">No recent member signups.</li>
                         {% endfor %}
                     </ul>
                 </div>

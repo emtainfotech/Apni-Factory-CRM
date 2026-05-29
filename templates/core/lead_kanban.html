@@ -1,0 +1,198 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="pb-5" id="kanban-board-wrapper">
+    <!-- Header Area -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2 text-bold text-body-highlight"><span class="fas fa-columns me-2 text-primary"></span>Lead Kanban Command</h2>
+                    <h5 class="text-body-tertiary fw-semibold">Interactive Client Lifecycle Management & Status Progression</h5>
+                </div>
+                <div>
+                    <button class="btn btn-primary btn-sm px-4" data-bs-toggle="modal" data-bs-target="#quickAddLeadModal">
+                        <span class="fas fa-plus me-2"></span>Quick Add Lead
+                    </button>
+                    <a href="{% url 'dashboard_admin' %}" class="btn btn-phoenix-secondary btn-sm px-3 ms-2">
+                        <span class="fas fa-arrow-left me-2"></span>Back to Command Center
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Django Messages inside the board wrapper for HTMX feedback -->
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 5-Column Kanban Board -->
+    <div class="row g-3 flex-nowrap overflow-auto pb-4" style="min-height: 70vh;">
+        
+        <!-- COLUMN 1: LEADS -->
+        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
+            <div class="card h-100 bg-light border-light shadow-sm">
+                <div class="card-header bg-primary text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
+                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-bullhorn me-2"></span>Leads</h6>
+                    <span class="badge bg-white text-primary rounded-pill fw-bold">{{ leads.count }}</span>
+                </div>
+                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
+                    {% for c in leads %}
+                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='primary' %}
+                    {% empty %}
+                        <div class="text-center py-5 text-muted fs-10">No active leads.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMN 2: PROSPECTS -->
+        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
+            <div class="card h-100 bg-light border-light shadow-sm">
+                <div class="card-header bg-warning text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
+                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-hourglass-half me-2"></span>Prospects</h6>
+                    <span class="badge bg-white text-warning rounded-pill fw-bold">{{ prospects.count }}</span>
+                </div>
+                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
+                    {% for c in prospects %}
+                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='warning' %}
+                    {% empty %}
+                        <div class="text-center py-5 text-muted fs-10">No active prospects.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMN 3: CUSTOMERS (CONVERTED) -->
+        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
+            <div class="card h-100 bg-light border-light shadow-sm">
+                <div class="card-header bg-success text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
+                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-check-circle me-2"></span>Customers</h6>
+                    <span class="badge bg-white text-success rounded-pill fw-bold">{{ active_customers.count }}</span>
+                </div>
+                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
+                    {% for c in active_customers %}
+                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='success' %}
+                    {% empty %}
+                        <div class="text-center py-5 text-muted fs-10">No active customers.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMN 4: INACTIVE -->
+        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
+            <div class="card h-100 bg-light border-light shadow-sm">
+                <div class="card-header bg-secondary text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
+                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-user-slash me-2"></span>Inactive</h6>
+                    <span class="badge bg-white text-secondary rounded-pill fw-bold">{{ inactive.count }}</span>
+                </div>
+                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
+                    {% for c in inactive %}
+                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='secondary' %}
+                    {% empty %}
+                        <div class="text-center py-5 text-muted fs-10">No inactive items.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- COLUMN 5: LOST -->
+        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
+            <div class="card h-100 bg-light border-light shadow-sm">
+                <div class="card-header bg-danger text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
+                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-times-circle me-2"></span>Lost Leads</h6>
+                    <span class="badge bg-white text-danger rounded-pill fw-bold">{{ lost.count }}</span>
+                </div>
+                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
+                    {% for c in lost %}
+                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='danger' %}
+                    {% empty %}
+                        <div class="text-center py-5 text-muted fs-10">No lost items.</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- QUICK ADD LEAD MODAL -->
+    <div class="modal fade" id="quickAddLeadModal" tabindex="-1" aria-labelledby="quickAddLeadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-primary py-3">
+                    <h5 class="modal-title text-white fw-bold" id="quickAddLeadModalLabel"><span class="fas fa-user-plus me-2"></span>Quick Add E-Commerce Lead</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{% url 'lead_kanban' %}">
+                    {% csrf_token %}
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">First Name <span class="text-danger">*</span></label>
+                                {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                <div class="text-danger fs-10 mt-1">{{ form.first_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Last Name</label>
+                                {{ form.last_name }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Phone Number <span class="text-danger">*</span></label>
+                                {{ form.phone }}
+                                {% if form.phone.errors %}
+                                <div class="text-danger fs-10 mt-1">{{ form.phone.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Email Address</label>
+                                {{ form.email }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Lead Source</label>
+                                {{ form.lead_source }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Assign To Employee</label>
+                                {{ form.assigned_to }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Initial Lead Status</label>
+                                {{ form.status }}
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label fw-semibold text-body-highlight">Pincode</label>
+                                {{ form.pincode }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold text-body-highlight">Address Details</label>
+                                {{ form.address }}
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-semibold text-body-highlight">Lead Capture Notes</label>
+                                {{ form.notes }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-top-0 py-3">
+                        <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm px-4">Save & Route Lead</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

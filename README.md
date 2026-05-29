@@ -28,19 +28,47 @@ Integrated with `verifya2z` API to validate business credentials:
 - **Bulk Operations**: Supports CSV/Excel uploads for mass customer data importing.
 - **Assignment System**: Assigns customers to specific employees for personalized follow-ups.
 
+### 5. App Content Management
+Integrated with application database to manage user-facing content:
+- **Banner Management**: Monitor and organize active promotional banners (Advertisements) displayed in the application. Supports sequence control and date-based scheduling.
+- **Slider Management**: Manage high-impact sliders with image previews, company-specific filtering, and automated start/end date tracking.
+- **Status Filtering**: Only active content (status=1) is displayed to admins for streamlined oversight.
+
+### 6. Dedicated CRM Employee Portal
+Isolated employee portal workspace (`/employee/` prefix) designed strictly for client management:
+- **Duty Lock Enforcements**: Enforces punch-in controls, locking CRM customer listings, sales metrics, and invoice panels unless the employee has punched in for active duty.
+- **Attributed Sales Tracking**: Seamlessly maps local client assignments to remote e-commerce shopper transactions in real-time, displaying dynamic revenue analytics.
+- **Personal timelines**: Displays daily break timelines, attendance logs, and call tracking history on their personal dashboard.
+
+### 7. Interactive HTMX Lead Kanban Board
+A premium visual dashboard for lead lifecycle oversight:
+- **Five Progression Columns**: Maps clients across `Leads`, `Prospects`, `Customers`, `Inactive`, and `Lost Leads`.
+- **HTMX Progression Engine**: Supports moving cards across stages instantly via HTMX AJAX requests with zero full-page reload.
+- **Quick Lead Creation**: Enables rapid lead manual onboarding via an integrated Bootstrap modal.
+
+### 8. HRMS & Attendance Integrity Auditing
+Advanced duty integrity and leave tracking system:
+- **Integrity Capturing**: Captures the IP Address and browser User-Agent string on every punch event for administrative verification.
+- **IST Late Threshold**: Automatically checks punch-ins against 09:30 AM IST (Asia/Kolkata). Late logins are flagged and dispatch instant notifications to the Admin feed.
+- **Leave Request Engine**: Implements Casual, Sick, and Earned leave requests for employees, complete with an administrative approval auditing panel.
+
 ---
 
 ## 🛠️ Technical Architecture
 
 ### App Structure
 - **[authentication](file:///e:/APNI%20FACTORY/ApniFactoryCRM/authentication)**: Custom User model, role-based permissions, and invitation systems.
-- **[core](file:///e:/APNI%20FACTORY/ApniFactoryCRM/core)**: The engine of the CRM. Contains Customer models, WhatsApp bot logic, GST verification utilities, and API endpoints.
+- **[core](file:///e:/APNI%20FACTORY/ApniFactoryCRM/core)**: The engine of the CRM. Contains Customer models, WhatsApp bot qualification logic, GST verification utilities, API endpoints, and App Content (Banners/Sliders) views.
+- **[employee_portal](file:///e:/APNI%20FACTORY/ApniFactoryCRM/employee_portal)**: Isolated employee workspace, customer relationship operations, attendance timelines, and sales attributors.
+- **[hostinger_data](file:///e:/APNI%20FACTORY/ApniFactoryCRM/hostinger_data)**: Application-specific data like Products, Orders, Banners, and Sliders.
 - **[ApniFactoryCRM](file:///e:/APNI%20FACTORY/ApniFactoryCRM/ApniFactoryCRM)**: Project configuration, settings (with IST timezone support), and root URL routing.
 
-### Key API Endpoints
+### Key API & Content Endpoints
 - `/core/whatsapp/webhook/`: Handles incoming messages from the Meta WhatsApp API.
 - `/core/api/mobile/gst-check/`: Specialized JSON endpoint for the mobile application.
 - `/core/api/my-customers/`: Retrieves assigned customers for the logged-in user.
+- `/banners/`: View all active promotional banners.
+- `/sliders/`: View all active application sliders.
 
 ---
 

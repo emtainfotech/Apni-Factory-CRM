@@ -1,0 +1,132 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0">Customer Orders</h2>
+            <p class="text-body-tertiary mb-0">Browse and track e-commerce website orders placed by your assigned customers.</p>
+        </div>
+    </div>
+
+    <!-- Search Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form method="get" action="{% url 'employee_portal:order_list' %}" class="row g-3">
+                <div class="col-12 col-md-9">
+                    <div class="position-relative">
+                        <input class="form-control form-control-sm search-input ps-5" type="search" name="q" value="{{ query }}" placeholder="Search by order number or address details..." />
+                        <span class="fas fa-search position-absolute start-0 top-50 translate-middle-y ms-3 text-body-tertiary"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                        <i class="fas fa-search me-2"></i>Search
+                    </button>
+                    <a href="{% url 'employee_portal:order_list' %}" class="btn btn-outline-secondary btn-sm">
+                        Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead>
+                        <tr class="bg-body-tertiary">
+                            <th class="ps-4 py-3">Order Number</th>
+                            <th class="py-3">CRM Customer</th>
+                            <th class="py-3">Net Amount</th>
+                            <th class="py-3">Tax Amount</th>
+                            <th class="py-3">Grand Total</th>
+                            <th class="py-3">Delivery Status</th>
+                            <th class="py-3">Order Date</th>
+                            <th class="text-end pe-4 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for order in page_obj %}
+                        <tr class="align-middle">
+                            <!-- Order No -->
+                            <td class="ps-4 py-3">
+                                <a href="{% url 'employee_portal:order_detail' order.id %}" class="fw-bold text-primary text-decoration-none">
+                                    #{{ order.orderno }}
+                                </a>
+                            </td>
+                            <!-- CRM Customer -->
+                            <td>
+                                {% if order.crm_customer %}
+                                <a href="{% url 'employee_portal:customer_detail' order.crm_customer.id %}" class="fw-semibold text-dark text-decoration-none">
+                                    {{ order.crm_customer.first_name }} {{ order.crm_customer.last_name }}
+                                </a>
+                                <div class="text-body-tertiary fs-10">{{ order.crm_customer.phone }}</div>
+                                {% else %}
+                                <span class="text-body-quaternary italic">Unmapped (Cust ID: {{ order.customer_id }})</span>
+                                {% endif %}
+                            </td>
+                            <!-- Net Amount -->
+                            <td>₹{{ order.netamount|floatformat:2 }}</td>
+                            <!-- Tax Amount -->
+                            <td>₹{{ order.taxamount|floatformat:2 }}</td>
+                            <!-- Grand Total -->
+                            <td><strong class="text-dark">₹{{ order.grandtotal|floatformat:2 }}</strong></td>
+                            <!-- Status -->
+                            <td>
+                                <span class="badge bg-{% if order.current_status == 'Delivered' or order.current_status == 'shipped' %}success{% elif order.current_status == 'Cancelled' %}danger{% else %}warning{% endif %}-subtle text-{% if order.current_status == 'Delivered' or order.current_status == 'shipped' %}success{% elif order.current_status == 'Cancelled' %}danger{% else %}warning{% endif %}">
+                                    {{ order.current_status }}
+                                </span>
+                            </td>
+                            <!-- Date -->
+                            <td class="text-body-secondary">{{ order.created_at|date:"d M Y H:i" }}</td>
+                            <!-- Actions -->
+                            <td class="text-end pe-4">
+                                <a href="{% url 'employee_portal:order_detail' order.id %}" class="btn btn-phoenix-primary btn-xs">
+                                    <i class="fas fa-eye me-1"></i>Track Order
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-shopping-cart d-block fs-2 mb-3"></i>No e-commerce orders found for your assigned customers.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination Footer -->
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-body-tertiary py-3 d-flex justify-content-between align-items-center">
+                <span class="fs-10 text-body-tertiary">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}">Previous</a></li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}&q={{ query }}">{{ num }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}">Next</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

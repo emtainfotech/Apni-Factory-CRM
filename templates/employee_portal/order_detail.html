@@ -1,0 +1,210 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <!-- Header Navigation -->
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:order_list' %}" class="btn btn-link p-0 mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Customer Orders
+            </a>
+            <h2 class="mb-0">Order #{{ order.orderno }}</h2>
+            <p class="text-body-tertiary mb-0">E-commerce order details & delivery tracking logs.</p>
+        </div>
+        <div class="col-auto">
+            <span class="btn btn-{% if latest_status.status == 'Delivered' or latest_status.status == 'shipped' %}success{% else %}warning{% endif %} disabled">
+                Status: {{ latest_status.status|default:"Pending" }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Details Grid -->
+    <div class="row g-4">
+        <!-- Order Items Column -->
+        <div class="col-12 col-lg-8">
+            <!-- Items Table Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-list me-2 text-primary"></i>Ordered Product Items</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead>
+                                <tr class="bg-light">
+                                    <th class="ps-3 py-2">Image</th>
+                                    <th class="py-2">Product Name</th>
+                                    <th class="py-2">Attributes (Color, Pcs, Old Price)</th>
+                                    <th class="py-2">SAC/HSN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in order_details %}
+                                <tr class="align-middle">
+                                    <!-- Image -->
+                                    <td class="ps-3 py-2">
+                                        {% if item.product_image %}
+                                        <img src="{{ item.product_image }}" alt="product" class="rounded border" style="width: 45px; height: 45px; object-fit: cover;" />
+                                        {% else %}
+                                        <div class="rounded border d-flex align-items-center justify-content-center bg-light text-body-quaternary" style="width: 45px; height: 45px;">
+                                            <i class="fas fa-image fs-10"></i>
+                                        </div>
+                                        {% endif %}
+                                    </td>
+                                    <!-- Name -->
+                                    <td>
+                                        <div class="fw-bold text-dark">{{ item.productname }}</div>
+                                        <div class="text-body-tertiary fs-10">Product ID: {{ item.product_id }}</div>
+                                    </td>
+                                    <!-- Attribute -->
+                                    <td>
+                                        {% if item.parsed_attributes %}
+                                        <ul class="list-unstyled mb-0 fs-10">
+                                            {% for attr in item.parsed_attributes %}
+                                            <li>
+                                                <span class="badge bg-secondary-subtle text-secondary me-1">Qty: {{ attr.qty }}</span>
+                                                {% if attr.shadecardid %}<span class="badge bg-info-subtle text-info me-1">Shade ID: {{ attr.shadecardid }}</span>{% endif %}
+                                                {% if attr.oldprice %}<del class="text-danger me-1">₹{{ attr.oldprice }}</del>{% endif %}
+                                                <strong class="text-dark">₹{{ attr.price }}</strong>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                        {% else %}
+                                        <div class="text-body-secondary fs-10">{{ item.attribute|default:"-" }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <!-- HSN -->
+                                    <td><span class="badge bg-secondary-subtle text-secondary">{{ item.hsn|default:"-" }}</span></td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4 text-body-tertiary">No items associated with this order.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Courier Logistics Tracking Info -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-truck me-2 text-primary"></i>Logistics & LR Tracker</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Courier Transporter</label>
+                            <strong class="text-dark">{{ latest_track.transname|default:"Not Yet Dispatched" }}</strong>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">LR / Tracking Number</label>
+                            <strong class="text-dark">{{ latest_track.lrno|default:"-" }}</strong>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Courier Contact</label>
+                            <strong class="text-dark">{{ latest_track.transcontact|default:"-" }}</strong>
+                        </div>
+                        {% if latest_track.text %}
+                        <div class="col-12 mt-3 border-top pt-3">
+                            <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Logistics Status Message</label>
+                            <p class="text-body-secondary mb-0 italic fs-10">{{ latest_track.text }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Financial Summary & Address Column -->
+        <div class="col-12 col-lg-4">
+            <!-- Financial Pricing Summary Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2 text-primary"></i>Financial Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10">Net Total Amount:</span>
+                        <strong class="text-dark">₹{{ order.netamount|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10">GST Tax Amount:</span>
+                        <strong class="text-dark">₹{{ order.taxamount|floatformat:2 }}</strong>
+                    </div>
+                    {% if order.sellercouponamount %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10 text-danger">Seller Discount:</span>
+                        <strong class="text-danger">-₹{{ order.sellercouponamount|floatformat:2 }}</strong>
+                    </div>
+                    {% endif %}
+                    {% if order.admincouponamount %}
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10 text-danger">Coupon Discount:</span>
+                        <strong class="text-danger">-₹{{ order.admincouponamount|floatformat:2 }}</strong>
+                    </div>
+                    {% endif %}
+                    <hr class="my-2 border-translucent" />
+                    <div class="d-flex justify-content-between mb-0 py-1 bg-light px-2 rounded">
+                        <span class="text-dark fw-bold fs-9">Invoice Grand Total:</span>
+                        <strong class="text-primary fs-8">₹{{ order.grandtotal|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shipping & Billing Address Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-map-marked-alt me-2 text-primary"></i>Shipping Address</h5>
+                </div>
+                <div class="card-body">
+                    {% if address_data %}
+                    <div class="mb-2">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Recipient Name</label>
+                        <strong class="text-dark">{{ address_data.name }}</strong>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Contact Phone</label>
+                        <strong class="text-dark">{{ address_data.phoneno }}</strong>
+                    </div>
+                    <div class="mb-0">
+                        <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Delivery Address</label>
+                        <div class="text-dark">{{ address_data.landmark1 }}, {{ address_data.landmark2 }}</div>
+                        <div class="text-body-secondary fs-10">{{ address_data.city }}, {{ address_data.state }} - {{ address_data.pincode }}</div>
+                    </div>
+                    {% else %}
+                    <p class="text-body-tertiary mb-0 fs-10 italic">Address data not formatted correctly ({{ order.address[:50] }}...)</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tracking Status History Card -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>Status Timeline Logs</h5>
+                </div>
+                <div class="card-body py-3 ps-4">
+                    <div class="timeline position-relative">
+                        {% for st in order_statuses %}
+                        <div class="timeline-item border-start border-translucent ps-3 pb-3 position-relative ms-1 fs-10">
+                            <div class="timeline-dot bg-{% if st.status == 'Delivered' %}success{% else %}warning{% endif %}" style="width: 8px; height: 8px; left: -4px;"></div>
+                            <strong class="text-dark">{{ st.status }}</strong>
+                            <p class="text-body-tertiary mb-0 fs-11">{{ st.msg }}</p>
+                            <small class="text-body-quaternary fs-12">{{ st.created_at|date:"d M Y H:i" }}</small>
+                        </div>
+                        {% empty %}
+                        <p class="text-center text-body-tertiary mb-0 fs-10">No status logs synced yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.timeline-dot { border-radius: 50%; position: absolute; top: 4px; z-index: 1; }
+</style>
+{% endblock %}

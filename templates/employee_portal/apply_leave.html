@@ -1,0 +1,131 @@
+{% extends 'employee_portal/base.html' %}
+
+{% block content %}
+<div class="pb-5">
+    <!-- Header Block -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="mb-2">
+                <h2 class="mb-1 text-bold text-body-highlight"><span class="fas fa-calendar-plus me-2 text-warning"></span>HRMS Leave Request Panel</h2>
+                <h5 class="text-body-tertiary fw-semibold">Submit and Audit Your Official CRM Duty Leave Requests</h5>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Leave Application Form -->
+        <div class="col-12 col-xl-5">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-edit me-2"></span>Apply for Leave</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% url 'employee_portal:apply_leave' %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-body-highlight" for="leave_type">Leave Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="leave_type" name="leave_type" required>
+                                <option value="" selected disabled>Select leave category...</option>
+                                <option value="casual">Casual Leave</option>
+                                <option value="sick">Sick Leave</option>
+                                <option value="earned">Earned Leave</option>
+                            </select>
+                        </div>
+                        
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-body-highlight" for="start_date">Start Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="start_date" name="start_date" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold text-body-highlight" for="end_date">End Date <span class="text-danger">*</span></label>
+                                <input type="date" class="form-control" id="end_date" name="end_date" required>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-body-highlight" for="reason">Explanatory Reason <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="reason" name="reason" rows="4" placeholder="Detail the reason for your leave request..." required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-warning w-100 py-2 fw-bold text-dark">
+                            <span class="fas fa-paper-plane me-2"></span>Submit Request to Admin
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- My Leave History Table -->
+        <div class="col-12 col-xl-7">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-history me-2"></span>My Leave History Logs</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Category</th>
+                                    <th class="py-2">Start Date</th>
+                                    <th class="py-2">End Date</th>
+                                    <th class="py-2">Reason</th>
+                                    <th class="text-end pe-4 py-2">Audit Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leaves %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-s me-2">
+                                                <div class="avatar-name rounded-circle bg-warning-subtle text-warning fw-bold">
+                                                    <span>{{ leave.leave_type|slice:":1"|upper }}</span>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-0 fw-bold text-body-highlight text-capitalize">{{ leave.get_leave_type_display }}</h6>
+                                                <span class="text-muted fs-10">Logged {{ leave.created_at|date:"d M H:i" }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="fw-semibold text-body-highlight">{{ leave.start_date|date:"d M Y" }}</td>
+                                    <td class="fw-semibold text-body-highlight">{{ leave.end_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <div class="line-clamp-2 text-muted" style="max-width: 220px;" title="{{ leave.reason }}">
+                                            {{ leave.reason }}
+                                        </div>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        {% if leave.status == 'approved' %}
+                                        <span class="badge badge-phoenix badge-phoenix-success text-capitalize py-1 px-2">Approved</span>
+                                        <div class="fs-10 text-muted mt-1">Audit by {{ leave.approved_by.username }}</div>
+                                        {% elif leave.status == 'rejected' %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger text-capitalize py-1 px-2">Rejected</span>
+                                        <div class="fs-10 text-muted mt-1">Audit by {{ leave.approved_by.username }}</div>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-warning text-capitalize py-1 px-2">Pending Audit</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-muted">
+                                        <span class="fas fa-calendar-times d-block fs-3 mb-2"></span>No leave history found.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
+{% endblock %}

@@ -7,7 +7,6 @@ from . import mobile_api_views
 urlpatterns = [
     path('dashboard/admin/', views.admin_dashboard, name='dashboard_admin'),
     path('dashboard/manager/', views.manager_dashboard, name='dashboard_manager'),
-    path('dashboard/employee/', views.employee_dashboard, name='dashboard_employee'),
     path('dashboard/agent/', views.agent_dashboard, name='dashboard_agent'),
     path('users/', views.user_list, name='user_list'),
     path('users/create/', views.create_crm_user, name='create_crm_user'),
@@ -20,6 +19,14 @@ urlpatterns = [
     path('customers/upload/', views.bulk_upload_customers, name='bulk_upload_customers'),
     path('customers/download-sample/', views.download_sample_file, name='download_sample_file'),
     path('customers/<int:customer_id>/', views.customer_detail, name='customer_detail'),
+    path('customers/<int:customer_id>/log-call/', views.log_call, name='log_call'),
+    path('customers/<int:customer_id>/convert/', views.convert_lead, name='convert_lead'),
+    path('customers/<int:customer_id>/update-status/', views.update_customer_status, name='update_customer_status'),
+    path('leads/kanban/', views.lead_kanban, name='lead_kanban'),
+    path('global-search/', views.global_search, name='global_search'),
+    path('dashboard/admin/manage-leaves/', views.manage_leaves, name='manage_leaves'),
+    path('dashboard/admin/approve-leave/<int:leave_id>/', views.approve_leave, name='approve_leave'),
+    path('dashboard/admin/reject-leave/<int:leave_id>/', views.reject_leave, name='reject_leave'),
     
     # Order Routes
     path('orders/', views.order_list, name='order_list'),
@@ -32,6 +39,12 @@ urlpatterns = [
     path('hostinger/login/', views.hostinger_login, name='hostinger_login'),
     path('banners/', views.banner_list, name='banner_list'),
     path('sliders/', views.slider_list, name='slider_list'),
+    path('categories/', views.app_category_list, name='app_category_list'),
+    path('brands/', views.app_brand_list, name='app_brand_list'),
+    path('companies/', views.app_company_list, name='app_company_list'),
+    path('support/tickets/', views.app_ticket_list, name='app_ticket_list'),
+    path('wallet/transactions/', views.app_wallet_transactions, name='app_wallet_list'),
+    path('faqs/', views.app_faq_list, name='app_faq_list'),
 
     # Invoice Routes
     path('invoices/', views.invoice_list, name='invoice_list'),

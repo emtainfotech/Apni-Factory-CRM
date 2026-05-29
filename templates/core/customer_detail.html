@@ -10,13 +10,55 @@
         </div>
         <div class="col">
             <h2 class="mb-0">{{ customer.first_name }} {{ customer.last_name }}</h2>
-            <span class="badge badge-phoenix badge-phoenix-primary">{{ customer.get_status_display }}</span>
+            <div class="d-flex align-items-center gap-2 mt-1">
+                <span class="badge badge-phoenix badge-phoenix-primary">{{ customer.get_status_display }}</span>
+                {% if customer.status == 'lead' %}
+                <form action="{% url 'convert_lead' customer.id %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-link p-0 fs-10 text-success fw-bold text-decoration-none">
+                        <i class="fas fa-user-check me-1"></i>Convert to Customer
+                    </button>
+                </form>
+                {% endif %}
+            </div>
         </div>
     </div>
 
     <div class="row g-4">
         <!-- Sidebar: Contact Info -->
         <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0">Log New Call</h5>
+                </div>
+                <div class="card-body">
+                    <form action="{% url 'log_call' customer.id %}" method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label fs-10 fw-bold text-uppercase">Call Status</label>
+                            <select name="call_status" class="form-select form-select-sm" required>
+                                <option value="connected">Connected</option>
+                                <option value="busy">Busy</option>
+                                <option value="no_answer">No Answer</option>
+                                <option value="not_connected">Not Connected</option>
+                                <option value="follow_up">Follow Up Required</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fs-10 fw-bold text-uppercase">Remark / Notes</label>
+                            <textarea name="remark" class="form-control form-control-sm" rows="3" placeholder="Enter conversation details..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fs-10 fw-bold text-uppercase">Follow-up Date (Optional)</label>
+                            <input type="datetime-local" name="follow_up_date" class="form-control form-control-sm" />
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                            <i class="fas fa-phone-alt me-2"></i>Log Interaction
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-body">
                     <h5 class="card-title mb-4">Contact Details</h5>
@@ -82,6 +124,9 @@
                         </li>
                         <li class="nav-item">
                             <button class="nav-link py-3 px-4" data-bs-toggle="tab" data-bs-target="#activities" type="button">Activity</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-3 px-4" data-bs-toggle="tab" data-bs-target="#call-logs" type="button">Call Logs</button>
                         </li>
                     </ul>
                 </div>
@@ -226,6 +271,33 @@
                                 <li class="text-center py-4 text-muted">No activity recorded.</li>
                                 {% endfor %}
                             </ul>
+                        </div>
+
+                        <!-- Call Logs Tab -->
+                        <div class="tab-pane fade" id="call-logs">
+                            <div class="timeline mt-3">
+                                {% for log in call_logs %}
+                                <div class="timeline-item border-start border-translucent ps-4 pb-4 position-relative ms-2">
+                                    <div class="timeline-dot bg-{% if log.call_status == 'connected' %}success{% elif log.call_status == 'follow_up' %}warning{% else %}danger{% endif %}"></div>
+                                    <div class="d-flex justify-content-between mb-1">
+                                        <h6 class="mb-0 fw-bold">{{ log.get_call_status_display }}</h6>
+                                        <small class="text-body-tertiary">{{ log.created_at|date:"d M Y, H:i" }}</small>
+                                    </div>
+                                    <p class="text-body-highlight mb-2">{{ log.remark }}</p>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <small class="text-body-tertiary"><i class="fas fa-user me-1"></i>Logged by: {{ log.employee.username }}</small>
+                                        {% if log.follow_up_date %}
+                                        <small class="text-warning fw-bold"><i class="fas fa-calendar-alt me-1"></i>Follow-up: {{ log.follow_up_date|date:"d M, H:i" }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% empty %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-phone-slash fa-3x text-body-quaternary mb-3"></i>
+                                    <p class="text-body-tertiary">No call logs found for this customer.</p>
+                                </div>
+                                {% endfor %}
+                            </div>
                         </div>
                     </div>
                 </div>

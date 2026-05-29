@@ -1,0 +1,58 @@
+{% for order in page_obj %}
+<tr class="align-middle">
+    <td class="ps-4">
+        <a class="fw-bold text-primary text-decoration-none d-block fs-9" href="{% url 'order_detail' order.id %}">
+            <span class="fas fa-box-open me-1"></span>#{{ order.orderno }}
+        </a>
+        <small class="text-body-quaternary fs-10">DB ID: #{{ order.id }}</small>
+    </td>
+    
+    <td>
+        <div class="d-flex flex-column">
+            <span class="badge bg-primary-subtle text-primary fs-11 w-fit-content mb-1">
+                <span class="fas fa-user me-1"></span>User ID: #{{ order.user_id }}
+            </span>
+            {% if order.customer_id %}
+            <span class="badge bg-info-subtle text-info fs-11 w-fit-content">
+                <span class="fas fa-fingerprint me-1"></span>Cust ID: #{{ order.customer_id }}
+            </span>
+            {% endif %}
+        </div>
+    </td>
+    
+    <td>
+        <div class="text-body-highlight fw-medium fs-10" title="{{ order.address }}">
+            <span class="fas fa-map-marker-alt text-body-tertiary me-1"></span>
+            {{ order.address|truncatechars:70 }}
+        </div>
+    </td>
+    
+    <td class="text-end fw-bold text-body-highlight fs-9">
+        ₹{{ order.grandtotal|floatformat:2 }}
+    </td>
+    
+    <td class="text-center">
+        <span class="badge badge-phoenix fs-10 badge-phoenix-{% if 'success' in order.current_status|lower or 'delivered' in order.current_status|lower or 'completed' in order.current_status|lower %}success{% elif 'cancel' in order.current_status|lower or 'fail' in order.current_status|lower %}danger{% elif 'pending' in order.current_status|lower %}warning{% else %}info{% endif %}">
+            <span class="fas fa-circle me-1 fs-11"></span>{{ order.current_status }}
+        </span>
+    </td>
+    
+    <td class="fs-10 text-body-tertiary">
+        <div>{{ order.created_at|date:"d M Y" }}</div>
+        <div class="fs-11 text-body-quaternary">{{ order.created_at|date:"H:i" }} IST</div>
+    </td>
+    
+    <td class="text-end pe-4">
+        <a href="{% url 'order_detail' order.id %}" class="btn btn-sm btn-phoenix-secondary" title="View Full Details">
+            <i class="fas fa-eye me-1 fs-10"></i>Details
+        </a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" class="text-center py-5 text-body-tertiary">
+        <span class="fas fa-box-open fa-3x mb-3 text-body-quaternary d-block"></span>
+        <p class="mb-0 fs-9">No orders found matching criteria.</p>
+    </td>
+</tr>
+{% endfor %}

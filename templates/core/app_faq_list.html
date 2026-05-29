@@ -1,0 +1,51 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col">
+            <h2 class="mb-0">FAQ Management</h2>
+            <p class="text-body-tertiary mb-0">View and manage frequently asked questions for application users</p>
+        </div>
+        <div class="col-auto">
+            <span class="badge badge-phoenix badge-phoenix-secondary fs-8">App Knowledge Base</span>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead class="bg-body-tertiary">
+                        <tr>
+                            <th class="ps-4" style="width: 300px;">Question</th>
+                            <th>Answer</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-end pe-4">Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for faq in faqs %}
+                        <tr class="align-middle">
+                            <td class="ps-4 py-3 fw-bold text-primary">{{ faq.question }}</td>
+                            <td><p class="mb-0 text-body-highlight line-clamp-3">{{ faq.answer }}</p></td>
+                            <td class="text-center">
+                                {% if faq.status == 1 %}
+                                <span class="badge badge-phoenix badge-phoenix-success">Active</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-danger">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4 text-body-tertiary">{{ faq.updated_at|date:"d M Y" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-center py-5">No FAQs found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

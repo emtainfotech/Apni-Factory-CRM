@@ -1,0 +1,45 @@
+{% for h_user in page_obj %}
+<tr class="align-middle">
+    <td class="ps-4 py-3">
+        <div class="d-flex align-items-center">
+            <div class="avatar avatar-l me-3 rounded-circle bg-primary-subtle text-primary fw-bold text-center pt-1" style="width:32px; height:32px;">
+                {{ h_user.name|slice:":1"|upper }}
+            </div>
+            <div>
+                <a class="fw-bold text-body-emphasis text-decoration-none d-block" href="{% url 'hostinger_user_detail' h_user.id %}">
+                    {{ h_user.name }}
+                </a>
+                <small class="text-body-quaternary fs-10">DB ID: #{{ h_user.id }}</small>
+            </div>
+        </div>
+    </td>
+    <td>
+        <span class="text-body-highlight fw-medium fs-10">
+            <span class="fas fa-envelope text-body-tertiary me-1 fs-11"></span>{{ h_user.email }}
+        </span>
+    </td>
+    <td>
+        {% if h_user.email_verified_at %}
+        <span class="badge badge-phoenix badge-phoenix-success fs-11" title="{{ h_user.email_verified_at }}"><i class="fas fa-check-circle me-1"></i>Verified</span>
+        {% else %}
+        <span class="badge badge-phoenix badge-phoenix-secondary fs-11"><i class="fas fa-exclamation-circle me-1"></i>Not Verified</span>
+        {% endif %}
+    </td>
+    <td class="fs-10 text-body-tertiary">
+        <div>{{ h_user.created_at|date:"d M Y" }}</div>
+        <div class="fs-11 text-body-quaternary">{{ h_user.created_at|date:"H:i" }} IST</div>
+    </td>
+    <td class="text-end pe-4">
+        <a href="{% url 'hostinger_user_detail' h_user.id %}" class="btn btn-sm btn-phoenix-primary">
+            <i class="fas fa-eye me-1 fs-10"></i>Details
+        </a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="5" class="text-center py-5 text-body-tertiary">
+        <span class="fas fa-user-slash fa-3x mb-3 text-body-quaternary d-block"></span>
+        <p class="mb-0 fs-9">No external users found matching criteria.</p>
+    </td>
+</tr>
+{% endfor %}

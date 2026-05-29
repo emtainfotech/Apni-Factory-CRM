@@ -1,0 +1,103 @@
+<div class="card border border-2 border-{{ badge_color }} shadow-sm mb-2 hover-actions-trigger bg-white position-relative rounded-2">
+    <div class="card-body p-3">
+        <!-- Lead Title & link -->
+        <div class="d-flex justify-content-between align-items-start mb-1">
+            <a href="{% if is_employee %}{% url 'employee_portal:customer_detail' customer.id %}{% else %}{% url 'customer_detail' customer.id %}{% endif %}" class="fw-bold text-body-highlight fs-9 hover-primary text-decoration-none">
+                {{ customer.first_name }} {{ customer.last_name }}
+            </a>
+            {% if customer.is_gst_verified %}
+            <span class="badge bg-success-subtle text-success fs-11 px-1 ms-1" title="GST Verified"><span class="fas fa-check-double"></span></span>
+            {% endif %}
+        </div>
+        
+        <!-- Contact details -->
+        <p class="text-body-tertiary fs-10 mb-2 font-monospace">
+            <span class="fas fa-phone-alt me-1"></span>{{ customer.phone }}
+            {% if customer.city %}
+            <br><span class="fas fa-map-marker-alt me-1"></span>{{ customer.city }}, {{ customer.state }}
+            {% endif %}
+        </p>
+        
+        <!-- Assigned To employee info -->
+        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
+            <div class="d-flex align-items-center">
+                <span class="avatar avatar-xs rounded-circle bg-body-secondary text-body-tertiary d-flex align-items-center justify-content-center me-1" style="width: 18px; height: 18px; font-size: 8px;">
+                    {{ customer.assigned_to.username|slice:":1"|upper|default:"?" }}
+                </span>
+                <span class="fs-10 text-body-tertiary fw-semibold">
+                    {{ customer.assigned_to.username|default:"Unassigned" }}
+                </span>
+            </div>
+            
+            <!-- Quick Progress Dropdown (HTMX powered) -->
+            <div class="dropdown">
+                <button class="btn btn-phoenix-secondary btn-xs dropdown-toggle py-0 px-1 border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Progress Lead">
+                    <span class="fas fa-exchange-alt text-primary fs-11"></span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end fs-10 py-1 shadow-sm border-0">
+                    <li class="dropdown-header text-uppercase fs-11 py-1">Move To Status</li>
+                    {% if customer.status != 'lead' %}
+                    <li>
+                        <button class="dropdown-item py-1" 
+                                hx-post="{% url 'update_customer_status' customer.id %}?status=lead&board=true{% if is_employee %}&employee=true{% endif %}"
+                                hx-target="#kanban-board-wrapper"
+                                hx-select="#kanban-board-wrapper"
+                                hx-swap="outerHTML"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                            <span class="fas fa-bullhorn me-2 text-primary"></span>Lead
+                        </button>
+                    </li>
+                    {% endif %}
+                    {% if customer.status != 'prospect' %}
+                    <li>
+                        <button class="dropdown-item py-1" 
+                                hx-post="{% url 'update_customer_status' customer.id %}?status=prospect&board=true{% if is_employee %}&employee=true{% endif %}"
+                                hx-target="#kanban-board-wrapper"
+                                hx-select="#kanban-board-wrapper"
+                                hx-swap="outerHTML"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                            <span class="fas fa-hourglass-half me-2 text-warning"></span>Prospect
+                        </button>
+                    </li>
+                    {% endif %}
+                    {% if customer.status != 'customer' %}
+                    <li>
+                        <button class="dropdown-item py-1" 
+                                hx-post="{% url 'update_customer_status' customer.id %}?status=customer&board=true{% if is_employee %}&employee=true{% endif %}"
+                                hx-target="#kanban-board-wrapper"
+                                hx-select="#kanban-board-wrapper"
+                                hx-swap="outerHTML"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                            <span class="fas fa-check-circle me-2 text-success"></span>Customer
+                        </button>
+                    </li>
+                    {% endif %}
+                    {% if customer.status != 'inactive' %}
+                    <li>
+                        <button class="dropdown-item py-1" 
+                                hx-post="{% url 'update_customer_status' customer.id %}?status=inactive&board=true{% if is_employee %}&employee=true{% endif %}"
+                                hx-target="#kanban-board-wrapper"
+                                hx-select="#kanban-board-wrapper"
+                                hx-swap="outerHTML"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                            <span class="fas fa-user-slash me-2 text-secondary"></span>Inactive
+                        </button>
+                    </li>
+                    {% endif %}
+                    {% if customer.status != 'lost' %}
+                    <li>
+                        <button class="dropdown-item py-1" 
+                                hx-post="{% url 'update_customer_status' customer.id %}?status=lost&board=true{% if is_employee %}&employee=true{% endif %}"
+                                hx-target="#kanban-board-wrapper"
+                                hx-select="#kanban-board-wrapper"
+                                hx-swap="outerHTML"
+                                hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+                            <span class="fas fa-times-circle me-2 text-danger"></span>Lost Lead
+                        </button>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

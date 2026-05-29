@@ -1,0 +1,159 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <!-- Header -->
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:invoice_list' %}" class="btn btn-link p-0 mb-2">
+                <i class="fas fa-arrow-left me-2"></i>Back to Invoices
+            </a>
+            <h2 class="mb-0">Invoice {{ invoice.invoice_no }}</h2>
+            <p class="text-body-tertiary mb-0">Invoice details, items breakdown, and action dispatch controls.</p>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            {% if not invoice.is_finalized %}
+            <form action="{% url 'employee_portal:finalize_invoice' invoice.id %}" method="post">
+                {% csrf_token %}
+                <button class="btn btn-success" type="submit">
+                    <i class="fas fa-check-circle me-2"></i>Finalize & Post Ledger
+                </button>
+            </form>
+            {% else %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-10">
+                <i class="fas fa-lock me-1"></i>Finalized
+            </span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Invoice Grid -->
+    <div class="row g-4">
+        <!-- Main details -->
+        <div class="col-12 col-lg-8">
+            <!-- Details Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i>Invoice Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Client Details -->
+                    <div class="row g-3 mb-4 border-bottom pb-3">
+                        <div class="col-12 col-md-6">
+                            <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Billed To (Client)</label>
+                            <strong class="text-dark fs-8">{{ invoice.client_name }}</strong>
+                            {% if invoice.client_gstin %}
+                            <div class="text-body-secondary fs-10 mt-1">GSTIN: <strong>{{ invoice.client_gstin }}</strong></div>
+                            {% endif %}
+                        </div>
+                        <div class="col-12 col-md-6 text-md-end">
+                            <label class="text-body-quaternary fs-10 fw-bold text-uppercase d-block">Place of Supply</label>
+                            <strong class="text-dark">{{ invoice.place_of_supply }} (State Code: {{ invoice.client_state_code }})</strong>
+                            <div class="text-body-tertiary fs-10 mt-1">Supply Type: {{ invoice.supply_type }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Items Table -->
+                    <div class="table-responsive mb-4">
+                        <table class="table table-sm fs-9 mb-0">
+                            <thead>
+                                <tr class="bg-light">
+                                    <th class="ps-3 py-2">Item Description</th>
+                                    <th class="py-2">SAC/HSN</th>
+                                    <th class="py-2">Taxable Value</th>
+                                    <th class="py-2">GST Rate</th>
+                                    <th class="py-2">CGST</th>
+                                    <th class="py-2">SGST</th>
+                                    <th class="py-2">IGST</th>
+                                    <th class="text-end pe-3 py-2">Total Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in invoice.items.all %}
+                                <tr class="align-middle">
+                                    <td class="ps-3 py-3 fw-semibold text-dark">{{ item.description }}</td>
+                                    <td><span class="badge bg-light text-secondary">{{ item.sac_code }}</span></td>
+                                    <td>₹{{ item.taxable_value|floatformat:2 }}</td>
+                                    <td>{{ item.gst_rate }}%</td>
+                                    <td>₹{{ item.cgst|floatformat:2 }}</td>
+                                    <td>₹{{ item.sgst|floatformat:2 }}</td>
+                                    <td>₹{{ item.igst|floatformat:2 }}</td>
+                                    <td class="text-end pe-3"><strong class="text-dark">₹{{ item.total_amount|floatformat:2 }}</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar Summary & Action Panel -->
+        <div class="col-12 col-lg-4">
+            <!-- Invoice dispatch controls -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-paper-plane me-2 text-primary"></i>Invoice Actions</h5>
+                </div>
+                <div class="card-body d-flex flex-column gap-2">
+                    <!-- PDF Download -->
+                    <a href="{% url 'employee_portal:download_invoice_pdf' invoice.id %}" class="btn btn-phoenix-primary btn-sm w-100 text-start">
+                        <i class="fas fa-file-pdf me-2 text-danger"></i>Download PDF Invoice
+                    </a>
+                    
+                    <!-- Send Email -->
+                    {% if invoice.is_finalized %}
+                    <a href="{% url 'employee_portal:send_invoice_email' invoice.id %}" class="btn btn-phoenix-secondary btn-sm w-100 text-start">
+                        <i class="fas fa-envelope me-2 text-warning"></i>Email Invoice to Client
+                    </a>
+                    
+                    <!-- Send WhatsApp -->
+                    <a href="{% url 'employee_portal:send_invoice_whatsapp' invoice.id %}" class="btn btn-phoenix-secondary btn-sm w-100 text-start">
+                        <i class="fab fa-whatsapp me-2 text-success"></i>WhatsApp Invoice to Client
+                    </a>
+                    {% else %}
+                    <button class="btn btn-phoenix-secondary btn-sm w-100 text-start disabled" title="Finalize to dispatch invoice">
+                        <i class="fas fa-lock me-2"></i>Finalize to Enable Dispatch
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Financial Summary -->
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body-tertiary">
+                    <h5 class="mb-0"><i class="fas fa-receipt me-2 text-primary"></i>Billing Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10">Total Taxable Value:</span>
+                        <strong class="text-dark">₹{{ invoice.taxable_value|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10">CGST Amount:</span>
+                        <strong class="text-dark">₹{{ invoice.cgst|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10">SGST Amount:</span>
+                        <strong class="text-dark">₹{{ invoice.sgst|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10">IGST Amount:</span>
+                        <strong class="text-dark">₹{{ invoice.igst|floatformat:2 }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-10 fw-bold">Total GST Tax:</span>
+                        <strong class="text-dark">₹{{ invoice.gst_total|floatformat:2 }}</strong>
+                    </div>
+                    <hr class="my-2 border-translucent" />
+                    <div class="d-flex justify-content-between mb-0 py-1 bg-light px-2 rounded align-items-center">
+                        <span class="text-dark fw-bold fs-9">Invoice Grand Total:</span>
+                        <strong class="text-primary fs-8">₹{{ invoice.total_amount|floatformat:2 }}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

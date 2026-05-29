@@ -1,0 +1,114 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0">My Attendance History</h2>
+            <p class="text-body-tertiary mb-0">Review your punched hours, active timelines, and break logs history.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:dashboard' %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-home me-2"></i>Go to Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Attendance Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead>
+                        <tr class="bg-body-tertiary">
+                            <th class="ps-4 py-3">Attendance Date</th>
+                            <th class="py-3">Punched In</th>
+                            <th class="py-3">Punched Out</th>
+                            <th class="py-3">Breaks Taken Count</th>
+                            <th class="py-3">Total Break Duration</th>
+                            <th class="text-end pe-4 py-3">Total Working Hours</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for att in page_obj %}
+                        <tr class="align-middle">
+                            <!-- Date -->
+                            <td class="ps-4 py-3 fw-bold text-dark">
+                                {{ att.date|date:"l, d M Y" }}
+                            </td>
+                            <!-- Punch In -->
+                            <td>
+                                <span class="text-success"><i class="fas fa-sign-in-alt me-1"></i>{{ att.punch_in|date:"H:i"|default:"-" }}</span>
+                            </td>
+                            <!-- Punch Out -->
+                            <td>
+                                {% if att.punch_out %}
+                                <span class="text-danger"><i class="fas fa-sign-out-alt me-1"></i>{{ att.punch_out|date:"H:i" }}</span>
+                                {% else %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle"><i class="fas fa-spinner fa-spin me-1"></i>On Duty</span>
+                                {% endif %}
+                            </td>
+                            <!-- Breaks Taken -->
+                            <td>
+                                <span class="badge bg-light text-secondary px-2 py-1 fs-11">
+                                    {{ att.breaks.count }} Breaks
+                                </span>
+                            </td>
+                            <!-- Break Duration -->
+                            <td class="text-body-secondary">
+                                {% if att.total_break_duration %}
+                                {{ att.total_break_duration }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <!-- Total Working Hours -->
+                            <td class="text-end pe-4">
+                                {% if att.total_working_hours %}
+                                <strong class="text-primary">{{ att.total_working_hours }}</strong>
+                                {% else %}
+                                <span class="text-body-quaternary fs-10">-</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-clock d-block fs-2 mb-3"></i>No attendance logs recorded yet.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Footer -->
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-body-tertiary py-3 d-flex justify-content-between align-items-center">
+                <span class="fs-10 text-body-tertiary">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Previous</a></li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Next</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

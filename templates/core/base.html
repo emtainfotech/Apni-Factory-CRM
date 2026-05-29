@@ -35,6 +35,17 @@
     <link href="/static/assets/css/theme.min.css" type="text/css" rel="stylesheet" id="style-default">
     <link href="/static/assets/css/user-rtl.min.css" type="text/css" rel="stylesheet" id="user-style-rtl">
     <link href="/static/assets/css/user.min.css" type="text/css" rel="stylesheet" id="user-style-default">
+    <style>
+        .htmx-indicator {
+            display: none !important;
+        }
+        .htmx-request .htmx-indicator {
+            display: inline-block !important;
+        }
+        .htmx-request.htmx-indicator {
+            display: inline-block !important;
+        }
+    </style>
 
     <script>
         var phoenixIsRTL = window.config.config.phoenixIsRTL;
@@ -83,17 +94,56 @@
                                         data-bs-parent="#navbarVerticalCollapse" id="nv-home">
 
                                         <!-- CRM Section -->
+                                        {% if request.user.role == 'admin' or request.user.is_superuser %}
                                         <li class="nav-item">
                                             <div class="nav-item-wrapper">
                                                 <a class="nav-link {% if url_name == 'dashboard_admin' %}active{% endif %}"
                                                     href="{% url 'dashboard_admin' %}">
                                                     <div class="d-flex align-items-center">
                                                         <span class="nav-link-icon"><span data-feather="home"></span></span>
-                                                        <span class="nav-link-text">Dashboard</span>
+                                                        <span class="nav-link-text">Admin Dashboard</span>
                                                     </div>
                                                 </a>
                                             </div>
                                         </li>
+                                        {% endif %}
+
+                                        {% if request.user.role == 'manager' %}
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if url_name == 'dashboard_manager' %}active{% endif %}"
+                                                    href="{% url 'dashboard_manager' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="activity"></span></span>
+                                                        <span class="nav-link-text">Manager Dashboard</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+                                        {% elif request.user.role == 'agent' %}
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if url_name == 'dashboard_agent' %}active{% endif %}"
+                                                    href="{% url 'dashboard_agent' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="activity"></span></span>
+                                                        <span class="nav-link-text">Agent Dashboard</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+                                        {% elif request.user.role == 'employee' and not request.user.is_superuser %}
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link" href="{% url 'employee_portal:dashboard' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="activity"></span></span>
+                                                        <span class="nav-link-text">Employee Dashboard</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+                                        {% endif %}
 
                                         <li class="nav-item-wrapper py-2">
                                             <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Team & Customers</span>
@@ -119,8 +169,20 @@
                                             </a>
                                         </li>
 
+                                        {% if request.user.role == 'admin' or request.user.role == 'manager' or request.user.is_superuser %}
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'lead_kanban' %}active{% endif %}"
+                                                href="{% url 'lead_kanban' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="columns"></span></span>
+                                                    <span class="nav-link-text">Lead Kanban Board</span>
+                                                </div>
+                                            </a>
+                                        </li>
+                                        {% endif %}
+
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">External Data (Hostinger)</span>
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Application Data</span>
                                         </li>
 
                                         <li class="nav-item">
@@ -128,7 +190,7 @@
                                                 href="{% url 'hostinger_user_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="external-link"></span></span>
-                                                    <span class="nav-link-text">External Users</span>
+                                                    <span class="nav-link-text">App Users</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -138,7 +200,7 @@
                                                 href="{% url 'order_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="shopping-cart"></span></span>
-                                                    <span class="nav-link-text">External Orders</span>
+                                                    <span class="nav-link-text">App Orders</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -148,7 +210,7 @@
                                                 href="{% url 'product_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="package"></span></span>
-                                                    <span class="nav-link-text">External Products</span>
+                                                    <span class="nav-link-text">App Products</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -169,6 +231,70 @@
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="layers"></span></span>
                                                     <span class="nav-link-text">App Sliders</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'app_category_list' %}active{% endif %}"
+                                                href="{% url 'app_category_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="grid"></span></span>
+                                                    <span class="nav-link-text">App Categories</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'app_brand_list' %}active{% endif %}"
+                                                href="{% url 'app_brand_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="award"></span></span>
+                                                    <span class="nav-link-text">App Brands</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'app_company_list' %}active{% endif %}"
+                                                href="{% url 'app_company_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="briefcase"></span></span>
+                                                    <span class="nav-link-text">App Companies</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item-wrapper py-2">
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Support & Finance</span>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'app_ticket_list' %}active{% endif %}"
+                                                href="{% url 'app_ticket_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="help-circle"></span></span>
+                                                    <span class="nav-link-text">Support Tickets</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'app_wallet_list' %}active{% endif %}"
+                                                href="{% url 'app_wallet_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="credit-card"></span></span>
+                                                    <span class="nav-link-text">Wallet History</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'app_faq_list' %}active{% endif %}"
+                                                href="{% url 'app_faq_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="message-circle"></span></span>
+                                                    <span class="nav-link-text">App FAQs</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -222,22 +348,22 @@
                         </div>
                     </a>
                 </div>
-                <div class="search-box navbar-top-search-box d-none d-lg-block" data-list='{"valueNames":["title"]}'
-                    style="width:25rem;">
-                    <form class="position-relative" data-bs-toggle="search" data-bs-display="static"><input
-                            class="form-control search-input fuzzy-search rounded-pill form-control-sm" type="search"
-                            placeholder="Search..." aria-label="Search" />
-                        <span class="fas fa-search search-box-icon"></span>
+                <div class="search-box navbar-top-search-box d-none d-lg-block position-relative" style="width:25rem;">
+                    <form method="GET" action="{% url 'customer_list' %}" class="position-relative">
+                        <input class="form-control search-input rounded-pill form-control-sm" type="search"
+                            name="q" placeholder="Search everything..." aria-label="Search" value="{{ query|default:'' }}" 
+                            hx-get="{% url 'global_search' %}"
+                            hx-trigger="keyup changed delay:300ms, focus"
+                            hx-target="#global-search-results"
+                            hx-indicator="#global-search-spinner"
+                            autocomplete="off"
+                            onblur="setTimeout(() => { document.getElementById('global-search-results').innerHTML = ''; }, 300)" />
+                        <button type="submit" class="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-body-tertiary">
+                            <span class="fas fa-search"></span>
+                        </button>
+                        <div class="spinner-border spinner-border-sm text-primary htmx-indicator position-absolute end-0 top-50 translate-middle-y me-5" role="status" id="global-search-spinner" style="width: 0.9rem; height: 0.9rem; z-index: 10;"></div>
                     </form>
-                    <div class="btn-close position-absolute end-0 top-50 translate-middle cursor-pointer shadow-none"
-                        data-bs-dismiss="search"><button class="btn btn-link p-0" aria-label="Close"></button></div>
-                    <div class="dropdown-menu border start-0 py-0 overflow-hidden w-100">
-                        <div class="scrollbar-overlay" style="max-height: 30rem;">
-                            <div class="text-center">
-                                <p class="fallback fw-bold fs-7 d-none">No Result Found.</p>
-                            </div>
-                        </div>
-                    </div>
+                    <div id="global-search-results" class="position-absolute mt-2 shadow-lg border rounded-3 bg-body-highlight" style="z-index: 1050; width: 100%; left: 0;"></div>
                 </div>
                 <ul class="navbar-nav navbar-nav-icons flex-row">
                     <li class="nav-item">

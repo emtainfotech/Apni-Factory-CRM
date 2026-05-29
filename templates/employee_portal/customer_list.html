@@ -1,0 +1,151 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0">My Customers</h2>
+            <p class="text-body-tertiary mb-0">Manage customer relationships and leads assigned directly to you.</p>
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <form method="get" action="{% url 'employee_portal:customer_list' %}" class="row g-3">
+                <div class="col-12 col-md-5">
+                    <div class="position-relative">
+                        <input class="form-control form-control-sm search-input ps-5" type="search" name="q" value="{{ query }}" placeholder="Search by name, email, phone, or company..." />
+                        <span class="fas fa-search position-absolute start-0 top-50 translate-middle-y ms-3 text-body-tertiary"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <select name="status" class="form-select form-select-sm">
+                        <option value="">All Statuses</option>
+                        <option value="lead" {% if status_filter == 'lead' %}selected{% endif %}>Lead</option>
+                        <option value="prospect" {% if status_filter == 'prospect' %}selected{% endif %}>Prospect</option>
+                        <option value="customer" {% if status_filter == 'customer' %}selected{% endif %}>Customer</option>
+                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="lost" {% if status_filter == 'lost' %}selected{% endif %}>Lost</option>
+                    </select>
+                </div>
+                <div class="col-12 col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+                        <i class="fas fa-filter me-2"></i>Filter
+                    </button>
+                    <a href="{% url 'employee_portal:customer_list' %}" class="btn btn-outline-secondary btn-sm flex-grow-1">
+                        Clear
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Customer Table Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead>
+                        <tr class="bg-body-tertiary">
+                            <th class="ps-4 py-3">Customer Name</th>
+                            <th class="py-3">Company Details</th>
+                            <th class="py-3">Contact</th>
+                            <th class="py-3">Lead Source</th>
+                            <th class="py-3">Status</th>
+                            <th class="py-3">Created Date</th>
+                            <th class="text-end pe-4 py-3">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in page_obj %}
+                        <tr class="align-middle">
+                            <!-- Name -->
+                            <td class="ps-4 py-3">
+                                <a href="{% url 'employee_portal:customer_detail' customer.id %}" class="fw-bold text-primary text-decoration-none">
+                                    {{ customer.first_name }} {{ customer.last_name }}
+                                </a>
+                                {% if customer.is_gst_verified %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 ms-1" style="font-size: 8px;">
+                                    <i class="fas fa-check-circle me-1"></i>GST Verified
+                                </span>
+                                {% endif %}
+                            </td>
+                            <!-- Company -->
+                            <td>
+                                {% if customer.company_name %}
+                                <div class="text-dark fw-semibold">{{ customer.company_name }}</div>
+                                <div class="text-body-tertiary fs-10">{{ customer.city }}, {{ customer.state }}</div>
+                                {% else %}
+                                <span class="text-body-quaternary italic">-</span>
+                                {% endif %}
+                            </td>
+                            <!-- Contact -->
+                            <td>
+                                <div class="text-dark"><i class="fas fa-phone-alt me-1 text-body-tertiary"></i>{{ customer.phone }}</div>
+                                {% if customer.email %}
+                                <div class="text-body-tertiary fs-10"><i class="fas fa-envelope me-1 text-body-tertiary"></i>{{ customer.email }}</div>
+                                {% endif %}
+                            </td>
+                            <!-- Lead Source -->
+                            <td>
+                                <span class="badge badge-phoenix badge-phoenix-secondary fs-10 text-capitalize">
+                                    {{ customer.lead_source }}
+                                </span>
+                            </td>
+                            <!-- Status -->
+                            <td>
+                                <span class="badge badge-phoenix badge-phoenix-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}info{% elif customer.status == 'prospect' %}warning{% else %}danger{% endif %} fs-10 text-capitalize">
+                                    {{ customer.get_status_display }}
+                                </span>
+                            </td>
+                            <!-- Created Date -->
+                            <td class="text-body-secondary">{{ customer.created_at|date:"d M Y" }}</td>
+                            <!-- Actions -->
+                            <td class="text-end pe-4">
+                                <a href="{% url 'employee_portal:customer_detail' customer.id %}" class="btn btn-phoenix-primary btn-xs" title="View 360 Card">
+                                    <i class="fas fa-eye me-1"></i>View Profile
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-6 text-body-tertiary">
+                                <i class="fas fa-user-friends d-block fs-2 mb-3"></i>No assigned customers or leads match your filters.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination Footer -->
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer bg-body-tertiary py-3 d-flex justify-content-between align-items-center">
+                <span class="fs-10 text-body-tertiary">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                <nav>
+                    <ul class="pagination pagination-sm mb-0">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}&status={{ status_filter }}">Previous</a></li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item"><a class="page-link" href="?page={{ num }}&q={{ query }}&status={{ status_filter }}">{{ num }}</a></li>
+                        {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}&status={{ status_filter }}">Next</a></li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

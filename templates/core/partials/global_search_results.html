@@ -1,0 +1,110 @@
+<div class="card border-0 shadow-lg" style="max-height: 450px; overflow-y: auto;">
+    <div class="card-body p-3">
+        <h6 class="text-body-tertiary fs-10 text-uppercase fw-bold border-bottom pb-2 mb-3">
+            Search Results for "{{ query }}"
+        </h6>
+
+        {% if not customers and not orders and not users and not products %}
+        <div class="text-center py-4">
+            <span class="fas fa-search fa-2x text-body-quaternary mb-2"></span>
+            <p class="text-body-tertiary mb-0 fs-9">No matching records found.</p>
+        </div>
+        {% endif %}
+
+        <!-- CRM Customers -->
+        {% if customers %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center mb-2">
+                <span class="fas fa-user-friends text-primary me-2 fs-10"></span>
+                <span class="fw-bold fs-9 text-body-highlight">CRM Customers ({{ customers|length }})</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for c in customers %}
+                <a href="{% url 'customer_detail' c.id %}" class="list-group-item list-group-item-action border-0 px-2 py-1.5 rounded-2 fs-9">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold text-primary">{{ c.first_name }} {{ c.last_name }}</span>
+                            <span class="text-body-tertiary mx-1">|</span>
+                            <span class="text-body-highlight fs-10">{{ c.phone }}</span>
+                        </div>
+                        <span class="badge bg-primary-subtle text-primary fs-11 text-capitalize">{{ c.status }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Hostinger Orders -->
+        {% if orders %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center mb-2">
+                <span class="fas fa-shopping-cart text-success me-2 fs-10"></span>
+                <span class="fw-bold fs-9 text-body-highlight">Hostinger Orders ({{ orders|length }})</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for o in orders %}
+                <a href="{% url 'order_detail' o.id %}" class="list-group-item list-group-item-action border-0 px-2 py-1.5 rounded-2 fs-9">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold text-success">Order #{{ o.orderno }}</span>
+                            <span class="text-body-tertiary mx-1">|</span>
+                            <span class="text-body-highlight fs-10">{{ o.address|truncatechars:40 }}</span>
+                        </div>
+                        <span class="fw-bold text-success">₹{{ o.grandtotal|floatformat:2 }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- CRM Team / Users -->
+        {% if users %}
+        <div class="mb-3">
+            <div class="d-flex align-items-center mb-2">
+                <span class="fas fa-users-cog text-info me-2 fs-10"></span>
+                <span class="fw-bold fs-9 text-body-highlight">CRM Team Members ({{ users|length }})</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for u in users %}
+                <a href="{% url 'user_detail' u.id %}" class="list-group-item list-group-item-action border-0 px-2 py-1.5 rounded-2 fs-9">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold text-info">{{ u.username }}</span>
+                            <span class="text-body-tertiary mx-1">|</span>
+                            <span class="text-body-highlight fs-10">{{ u.email }}</span>
+                        </div>
+                        <span class="badge bg-info-subtle text-info fs-11 text-capitalize">{{ u.get_role_display }}</span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- App Products -->
+        {% if products %}
+        <div>
+            <div class="d-flex align-items-center mb-2">
+                <span class="fas fa-box text-warning me-2 fs-10"></span>
+                <span class="fw-bold fs-9 text-body-highlight">App Products ({{ products|length }})</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for p in products %}
+                <div class="list-group-item border-0 px-2 py-1.5 rounded-2 fs-9">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="fw-semibold text-warning">{{ p.name }}</span>
+                            <span class="text-body-tertiary mx-1">|</span>
+                            <small class="text-body-tertiary">HSN: {{ p.hsncode|default:"-" }}</small>
+                        </div>
+                        <small class="text-body-quaternary">ID: #{{ p.id }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>

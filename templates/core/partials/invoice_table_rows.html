@@ -1,0 +1,81 @@
+{% for invoice in page_obj %}
+<tr class="align-middle">
+    <td class="ps-4">
+        <a class="fw-bold text-primary text-decoration-none d-block fs-9" href="{% url 'invoice_detail' invoice.id %}">
+            <span class="fas fa-file-invoice me-1"></span>{{ invoice.invoice_no }}
+        </a>
+        <small class="text-body-quaternary fs-10">ID: #{{ invoice.id }}</small>
+    </td>
+    
+    <td class="fs-10 text-body-tertiary">
+        {{ invoice.invoice_date|date:"d M Y" }}
+    </td>
+    
+    <td>
+        <div class="d-flex flex-column">
+            <span class="text-body-highlight fw-bold fs-9">{{ invoice.client_name }}</span>
+            <div class="d-flex align-items-center gap-1 mt-1">
+                <span class="badge bg-primary-subtle text-primary fs-11">{{ invoice.supply_type }}</span>
+                {% if invoice.client_gstin %}
+                <span class="badge bg-secondary-subtle text-secondary fs-11" title="GSTIN"><i class="fas fa-percent me-1"></i>{{ invoice.client_gstin }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </td>
+    
+    <td>
+        {% if invoice.created_by %}
+        <div class="d-flex align-items-center">
+            <div class="avatar avatar-s me-2 rounded-circle bg-info-subtle text-info text-center pt-0.5" style="width: 22px; height: 22px; font-size: 0.7rem;">
+                {{ invoice.created_by.username|slice:":1"|upper }}
+            </div>
+            <span class="text-body-highlight fw-semibold fs-10">{{ invoice.created_by.username }}</span>
+        </div>
+        {% else %}
+        <span class="text-body-tertiary fs-10 italic">System / Unknown</span>
+        {% endif %}
+    </td>
+    
+    <td class="text-end fw-bold text-body-highlight fs-9">
+        ₹{{ invoice.total_amount|floatformat:2 }}
+    </td>
+    
+    <td class="text-center">
+        <div class="d-flex flex-column align-items-center gap-1">
+            {% if invoice.is_finalized %}
+                <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-lock me-1"></i>Locked</span>
+            {% else %}
+                <span class="badge badge-phoenix badge-phoenix-warning fs-11"><i class="fas fa-edit me-1"></i>Draft</span>
+            {% endif %}
+
+            <span class="badge badge-phoenix fs-11 badge-phoenix-{% if invoice.payment_status == 'paid' %}success{% elif invoice.payment_status == 'pending' %}warning{% else %}danger{% endif %}">
+                {{ invoice.get_payment_status_display }}
+            </span>
+        </div>
+    </td>
+    
+    <td class="text-end pe-4">
+        <div class="btn-group btn-group-sm">
+            <a href="{% url 'invoice_detail' invoice.id %}" class="btn btn-phoenix-secondary" title="View details">
+                <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'download_invoice_pdf' invoice.id %}" class="btn btn-phoenix-primary" target="_blank" title="Download PDF">
+                <i class="fas fa-file-pdf"></i>
+            </a>
+            <a href="{% url 'send_invoice_email' invoice.id %}" class="btn btn-phoenix-info" title="Send Email">
+                <i class="fas fa-envelope"></i>
+            </a>
+            <a href="{% url 'send_invoice_whatsapp' invoice.id %}" class="btn btn-phoenix-success" title="Send WhatsApp">
+                <i class="fab fa-whatsapp"></i>
+            </a>
+        </div>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" class="text-center py-5 text-body-tertiary">
+        <span class="fas fa-file-excel fa-3x mb-3 text-body-quaternary d-block"></span>
+        <p class="mb-0 fs-9">No invoices found matching criteria.</p>
+    </td>
+</tr>
+{% endfor %}

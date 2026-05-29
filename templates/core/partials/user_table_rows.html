@@ -1,60 +1,78 @@
 {% for user in page_obj %}
 <tr class="align-middle">
-    <td class="ps-4">
+    <td class="ps-4 py-3">
         <div class="d-flex align-items-center">
-            <a class="fw-bold text-body-emphasis text-decoration-none" href="{% url 'user_detail' user.id %}">
-                <div class="avatar avatar-m me-2">
-                    <div class="avatar-name rounded-circle"><span>{{ user.username|slice:":1"|upper }}</span></div>
+            <div class="avatar avatar-l me-3">
+                <div class="avatar-name rounded-circle bg-primary-subtle text-primary fs-9 fw-bold pt-1 text-center" style="width:35px; height:35px;">
+                    <span>{{ user.username|slice:":1"|upper }}</span>
                 </div>
-                {{ user.username }}
-            </a>
+            </div>
+            <div>
+                <a href="{% url 'user_detail' user.id %}" class="fw-bold text-primary mb-1 d-block text-decoration-none">{{ user.username }}</a>
+                <small class="text-body-quaternary fs-10">Joined: {{ user.date_joined|date:"d M Y" }}</small>
+            </div>
         </div>
     </td>
-    
-    <td>{{ user.email }}</td>
-    <td><span class="badge badge-phoenix badge-phoenix-info">{{ user.get_role_display }}</span></td>
-    
     <td>
-        {% if user.is_active %}
-            <span class="badge badge-phoenix badge-phoenix-success"><i class="fas fa-check me-1"></i>Active</span>
-        {% else %}
-            <span class="badge badge-phoenix badge-phoenix-warning"><i class="fas fa-clock me-1"></i>Pending</span>
-        {% endif %}
+        <div class="d-flex flex-column">
+            <span class="text-body-highlight fw-semibold fs-10">
+                <span class="fas fa-envelope text-body-tertiary me-1 fs-11"></span>{{ user.email }}
+            </span>
+            <small class="text-body-tertiary fs-10">
+                <span class="fas fa-phone text-body-tertiary me-1 fs-11"></span>{{ user.phone_number|default:"No Phone" }}
+            </small>
+        </div>
     </td>
-
+    <td>
+        <div class="d-flex flex-column">
+            <span class="badge badge-phoenix badge-phoenix-info mb-1 w-fit-content text-capitalize">
+                {{ user.get_role_display }}
+            </span>
+            <small class="text-body-tertiary fs-10">
+                <span class="fas fa-map-marker-alt text-body-tertiary me-1 fs-11"></span>{{ user.region|default:"Universal" }}
+            </small>
+        </div>
+    </td>
+    <td class="text-center">
+        <div>
+            {% if user.is_active %}
+            <span class="badge badge-phoenix badge-phoenix-success fs-10">Active</span>
+            {% else %}
+            <span class="badge badge-phoenix badge-phoenix-danger fs-10">Inactive</span>
+            {% endif %}
+        </div>
+        <div class="mt-1 fs-11 text-body-tertiary">
+            {% if user.last_login %}
+            <span>Login: {{ user.last_login|date:"d M H:i" }}</span>
+            {% else %}
+            <span class="text-muted">Never Logged In</span>
+            {% endif %}
+        </div>
+    </td>
     <td class="text-end pe-4">
-        <div class="btn-group">
-            <a href="{% url 'user_detail' user.id %}" class="btn btn-sm btn-phoenix-secondary" title="View Profile">
-                <i class="fas fa-eye"></i>
-            </a>
-            
-            <button class="btn btn-sm btn-phoenix-danger" 
-                    type="button" 
-                    data-bs-toggle="modal" 
-                    data-bs-target="#deleteUserModal"
-                    data-username="{{ user.username }}"
-                    data-delete-url="{% url 'delete_user' user.id %}">
-                <i class="fas fa-trash"></i>
+        <div class="btn-reveal-trigger position-static">
+            <button class="btn btn-sm dropdown-toggle dropdown-caret-none transition-none btn-reveal fs-10" type="button" data-bs-toggle="dropdown" data-boundary="window">
+                <i class="fas fa-ellipsis-h"></i>
             </button>
+            <div class="dropdown-menu dropdown-menu-end py-2">
+                <a class="dropdown-item" href="{% url 'user_detail' user.id %}"><i class="fas fa-eye me-2 fs-10"></i>View Profile</a>
+                <div class="dropdown-divider"></div>
+                <button class="dropdown-item text-danger" type="button" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#deleteUserModal" 
+                        data-username="{{ user.username }}" 
+                        data-delete-url="{% url 'delete_user' user.id %}">
+                    <i class="fas fa-trash-alt me-2 fs-10"></i>Delete Member
+                </button>
+            </div>
         </div>
     </td>
 </tr>
 {% empty %}
-<tr><td colspan="5" class="text-center py-4 text-muted">No users found.</td></tr>
-{% endfor %}
-
-{% if page_obj.has_other_pages %}
-<tr class="bg-light">
-    <td colspan="5" class="py-2 text-center">
-         <div class="btn-group btn-group-sm">
-            {% if page_obj.has_previous %}
-                <button class="btn btn-outline-secondary" hx-get="{% url 'user_list' %}?page={{ page_obj.previous_page_number }}" hx-target="#user-table-body">Prev</button>
-            {% endif %}
-            <button class="btn btn-outline-secondary disabled">Page {{ page_obj.number }}</button>
-            {% if page_obj.has_next %}
-                <button class="btn btn-outline-secondary" hx-get="{% url 'user_list' %}?page={{ page_obj.next_page_number }}" hx-target="#user-table-body">Next</button>
-            {% endif %}
-         </div>
+<tr>
+    <td colspan="5" class="text-center py-5 text-body-tertiary">
+        <span class="fas fa-users-slash fa-3x mb-3 text-body-quaternary d-block"></span>
+        <p class="mb-0 fs-9">No team members match the filters.</p>
     </td>
 </tr>
-{% endif %}
+{% endfor %}
