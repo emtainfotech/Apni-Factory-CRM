@@ -15,7 +15,7 @@ from django.utils import timezone
 # Import Models & Forms
 from authentication.models import User, Notification
 from authentication.tokens import account_activation_token
-from .forms import UserInviteForm
+from .forms import UserInviteForm, BannerForm, SliderForm
 from .models import Customer, WhatsAppLead
 
 # Import Hostinger Data Models
@@ -29,7 +29,7 @@ from hostinger_data.models import (
 )
 
 # Import Invoice Utils & Models
-from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest
+from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest, EmployeeProfile
 from .invoice_utils import calculate_gst_values, get_next_invoice_number
 
 from datetime import datetime, timedelta
@@ -86,10 +86,16 @@ def admin_dashboard(request):
     # Local CRM Counts
     total_customers = Customer.objects.count()
     total_invoices = Invoice.objects.count()
+    total_employees = User.objects.exclude(Q(role='admin') | Q(is_superuser=True)).count()
     
     # Remote E-commerce Counts & Sales (synced dynamically from hostinger_db)
     total_hostinger_users = HostingerUser.objects.count()
+    total_hostinger_customers = HostingerCustomer.objects.count()
     total_orders = Orders.objects.count()
+    total_products = Products.objects.count()
+    total_tickets = Tickets.objects.count()
+    total_companies = Companies.objects.count()
+    total_brands = Brands.objects.count()
     
     # Calculate Total E-commerce Business Sales Volume
     total_sales = Orders.objects.aggregate(total=Sum('grandtotal'))['total'] or 0
@@ -144,8 +150,14 @@ def admin_dashboard(request):
     context = {
         'total_customers': total_customers,
         'total_invoices': total_invoices,
+        'total_employees': total_employees,
         'total_hostinger_users': total_hostinger_users,
+        'total_hostinger_customers': total_hostinger_customers,
         'total_orders': total_orders,
+        'total_products': total_products,
+        'total_tickets': total_tickets,
+        'total_companies': total_companies,
+        'total_brands': total_brands,
         'total_sales': total_sales,
         'recent_orders': recent_orders,
         'recent_users': User.objects.order_by('-date_joined')[:5],
@@ -302,7 +314,7 @@ def user_list(request):
     target_id = request.headers.get('HX-Target')
 
     # Only return partial if specifically updating the table wrapper
-    if is_htmx and target_id == 'user-table-wrapper':
+    if is_htmx and target_id in ['user-table-wrapper', 'user-table-body']:
         return render(request, 'core/partials/user_table.html', context)
 
     # Otherwise return full page
@@ -324,9 +336,102 @@ def delete_user(request, user_id):
 
 
 @login_required
+def user_profile(request):
+    """Profile details page where employees can view and edit their details, documents, and family members."""
+    profile, created = EmployeeProfile.objects.get_or_create(user=request.user)
+    
+    if request.method == 'POST':
+        # Personal Details
+        profile.dob = request.POST.get('dob') or None
+        profile.gender = request.POST.get('gender')
+        profile.marital_status = request.POST.get('marital_status')
+        profile.blood_group = request.POST.get('blood_group')
+        profile.current_address = request.POST.get('current_address')
+        profile.permanent_address = request.POST.get('permanent_address')
+        profile.emergency_contact_name = request.POST.get('emergency_contact_name')
+        profile.emergency_contact_phone = request.POST.get('emergency_contact_phone')
+        
+        # Education Details
+        profile.qualification = request.POST.get('qualification')
+        profile.institution = request.POST.get('institution')
+        profile.passing_year = request.POST.get('passing_year')
+        
+        # Experience Details
+        profile.previous_company = request.POST.get('previous_company')
+        profile.previous_designation = request.POST.get('previous_designation')
+        profile.experience_duration = request.POST.get('experience_duration')
+        
+        # Documents text fields
+        profile.aadhar_number = request.POST.get('aadhar_number')
+        profile.pan_number = request.POST.get('pan_number')
+        
+        # File Uploads
+        if 'photo' in request.FILES:
+            profile.photo = request.FILES['photo']
+        if 'aadhar_file' in request.FILES:
+            profile.aadhar_file = request.FILES['aadhar_file']
+        if 'pan_file' in request.FILES:
+            profile.pan_file = request.FILES['pan_file']
+        if 'resume' in request.FILES:
+            profile.resume = request.FILES['resume']
+        if 'previous_month_salary_slip' in request.FILES:
+            profile.previous_month_salary_slip = request.FILES['previous_month_salary_slip']
+            
+        # Family members JSON parsing
+        family_members_raw = request.POST.get('family_members_json_raw', '[]')
+        try:
+            profile.family_members_json = json.loads(family_members_raw)
+        except Exception:
+            pass
+            
+        profile.save()
+        messages.success(request, "Your profile details have been updated successfully.")
+        return redirect('user_profile')
+        
+    # Get attendance & leave records for dashboard components
+    attendances = Attendance.objects.filter(user=request.user).order_by('-date')[:15]
+    leaves = LeaveRequest.objects.filter(employee=request.user).order_by('-created_at')[:15]
+    
+    # Calculate statistics
+    total_leaves = LeaveRequest.objects.filter(employee=request.user, status='approved').count()
+    pending_leaves = LeaveRequest.objects.filter(employee=request.user, status='pending').count()
+    
+    context = {
+        'profile': profile,
+        'attendances': attendances,
+        'leaves': leaves,
+        'total_leaves': total_leaves,
+        'pending_leaves': pending_leaves,
+    }
+    return render(request, 'core/employee_profile.html', context)
+
+
+@login_required
 def user_detail(request, user_id):
+    """Admin view to show full employee details, files, attendance, and modify salary/details."""
     user_profile = get_object_or_404(User, pk=user_id)
-    return render(request, 'core/user_detail.html', {'user_profile': user_profile})
+    profile, created = EmployeeProfile.objects.get_or_create(user=user_profile)
+    
+    # Admin can update user's salary or other details
+    if request.method == 'POST' and (request.user.role == 'admin' or request.user.is_superuser):
+        action = request.POST.get('action')
+        if action == 'update_salary':
+            profile.salary = request.POST.get('salary', 0.00)
+            profile.save()
+            messages.success(request, f"Salary updated for {user_profile.username}.")
+            return redirect('user_detail', user_id=user_id)
+            
+    attendances = Attendance.objects.filter(user=user_profile).order_by('-date')
+    leaves = LeaveRequest.objects.filter(employee=user_profile).order_by('-created_at')
+    
+    context = {
+        'user_profile': user_profile,
+        'profile': profile,
+        'attendances': attendances,
+        'leaves': leaves,
+    }
+    return render(request, 'core/user_detail.html', context)
+
 
 
 @login_required
@@ -337,6 +442,18 @@ def customer_detail(request, customer_id):
     whatsapp chats, and transactions.
     """
     customer = get_object_or_404(Customer, id=customer_id)
+    from .forms import CustomerEditForm
+    
+    if request.method == 'POST' and request.POST.get('action') == 'edit_customer':
+        edit_form = CustomerEditForm(request.POST, instance=customer)
+        if edit_form.is_valid():
+            edit_form.save()
+            messages.success(request, "Buyer profile updated successfully.")
+            return redirect('customer_detail', customer_id=customer.id)
+        else:
+            messages.error(request, "Failed to update buyer profile. Please check the errors.")
+    else:
+        edit_form = CustomerEditForm(instance=customer)
     
     # Fetch related data with prefetching for performance
     orders = customer.orders.all().prefetch_related('status_history').order_by('-created_at')
@@ -355,6 +472,7 @@ def customer_detail(request, customer_id):
         'activities': activities,
         'call_logs': call_logs,
         'total_spent': sum(o.total_amount for o in orders if o.status != 'cancelled'),
+        'edit_form': edit_form,
     }
     
     return render(request, 'core/customer_detail.html', context)
@@ -362,7 +480,16 @@ def customer_detail(request, customer_id):
 @login_required
 def order_list(request):
     """Global list of all orders from Hostinger Database with filters and pagination."""
-    orders_qs = Orders.objects.all().order_by('-created_at')
+    from django.db.models import Subquery, OuterRef
+    
+    # Subquery to get the latest status for each order to filter and display efficiently
+    latest_status_subquery = OrderStatus.objects.filter(
+        order_id=OuterRef('id')
+    ).order_by('-created_at', '-id').values('status')[:1]
+
+    orders_qs = Orders.objects.all().annotate(
+        latest_status=Subquery(latest_status_subquery)
+    ).order_by('-created_at')
     
     # 1. Search logic
     query = request.GET.get('q', '')
@@ -371,30 +498,34 @@ def order_list(request):
             Q(orderno__icontains=query) | 
             Q(address__icontains=query)
         )
+
+    # 2. Address search logic
+    address_query = request.GET.get('address_q', '')
+    if address_query:
+        orders_qs = orders_qs.filter(address__icontains=address_query)
         
-    # 2. Status filter
+    # 3. Status filter
     status_filter = request.GET.get('status', '')
     if status_filter:
-        order_ids = OrderStatus.objects.filter(status__icontains=status_filter).values_list('order_id', flat=True).distinct()
-        orders_qs = orders_qs.filter(id__in=order_ids)
+        orders_qs = orders_qs.filter(latest_status__icontains=status_filter)
         
-    # 3. Pagination
+    # 4. Pagination
     paginator = Paginator(orders_qs, 15)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     # Inject latest status for each order in the page
     for order in page_obj:
-        latest_status = OrderStatus.objects.filter(order_id=order.id).order_by('-created_at').first()
-        order.current_status = latest_status.status if latest_status else "Pending"
+        order.current_status = order.latest_status if order.latest_status else "Pending"
         
     context = {
         'page_obj': page_obj,
         'query': query,
+        'address_query': address_query,
         'selected_status': status_filter,
     }
     
-    # 4. HTMX Integration
+    # 5. HTMX Integration
     if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'order-table-wrapper':
         return render(request, 'core/partials/order_table.html', context)
     
@@ -696,17 +827,37 @@ def customer_list(request):
             Q(phone__icontains=query)
         )
 
+    # 2. Filters
+    status_filter = request.GET.get('status', '')
+    source_filter = request.GET.get('lead_source', '')
+    assignee_filter = request.GET.get('assigned_to', '')
+
+    if status_filter:
+        qs = qs.filter(status=status_filter)
+    if source_filter:
+        qs = qs.filter(lead_source=source_filter)
+    if assignee_filter:
+        qs = qs.filter(assigned_to_id=assignee_filter)
+
     # ... (Pagination logic remains same) ...
     paginator = Paginator(qs, 10)
     page_obj = paginator.get_page(request.GET.get('page'))
 
     employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
 
+    existing_sources = list(Customer.objects.exclude(lead_source__isnull=True).exclude(lead_source='').values_list('lead_source', flat=True).distinct().order_by('lead_source'))
+    source_choices = [(src, src.replace('_', ' ').title()) for src in existing_sources if src]
+
     context = {
         'customers': page_obj, 
         'modal_form': modal_form, # This now contains errors if POST failed
         'employees': employees,
         'query': query,
+        'status_choices': Customer.STATUS_CHOICES,
+        'source_choices': source_choices,
+        'selected_status': status_filter,
+        'selected_source': source_filter,
+        'selected_assignee': assignee_filter,
     }
 
     if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'customer-table-content':
@@ -903,9 +1054,9 @@ def process_import(data, request):
 
 @login_required
 @user_passes_test(is_admin)
-def hostinger_user_list(request):
+def app_user_list(request):
     """
-    Lists users from the external Hostinger database.
+    Lists users from the App database.
     """
     users_qs = HostingerUser.objects.all().order_by('-created_at')
     
@@ -917,34 +1068,141 @@ def hostinger_user_list(request):
             Q(email__icontains=query)
         )
 
-    # Include Admin details if requested (Addressing the "admin missing" part)
-    # Since 'Admin' is a separate table, we might want to show it as well
+    # Role filter logic
+    role_filter = request.GET.get('role', '')
+    if role_filter == 'admin':
+        users_qs = users_qs.filter(Q(name__icontains='admin') | Q(email__icontains='admin'))
+    elif role_filter == 'seller':
+        users_qs = users_qs.exclude(Q(name__icontains='admin') | Q(email__icontains='admin'))
+
+    # Include Admin details if requested
     hostinger_admins = HostingerAdmin.objects.all()
 
     paginator = Paginator(users_qs, 15)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Compute computed_role and GST verification status for the current page
+    from .models import VerifiedGST
+    for h_user in page_obj:
+        if 'admin' in h_user.name.lower() or 'admin' in h_user.email.lower():
+            h_user.computed_role = 'Admin'
+            h_user.gst_verified = False
+        else:
+            h_user.computed_role = 'Seller'
+            company_gsts = list(Companies.objects.filter(user_id=h_user.id).exclude(gst='').exclude(gst__isnull=True).values_list('gst', flat=True))
+            if company_gsts:
+                normalized_gsts = [g.strip().upper() for g in company_gsts if g]
+                h_user.gst_verified = VerifiedGST.objects.filter(gst_number__in=normalized_gsts).exists()
+            else:
+                h_user.gst_verified = False
+
     context = {
         'page_obj': page_obj,
         'hostinger_admins': hostinger_admins,
         'query': query,
+        'selected_role': role_filter,
     }
 
-    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'hostinger-user-table-wrapper':
-        return render(request, 'core/partials/hostinger_user_table.html', context)
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'app-user-table-wrapper':
+        return render(request, 'core/partials/app_user_table.html', context)
 
-    return render(request, 'core/hostinger_user_list.html', context)
+    return render(request, 'core/app_user_list.html', context)
 
 
 @login_required
 @user_passes_test(is_admin)
-def hostinger_user_detail(request, user_id):
+def app_customer_list(request):
     """
-    Detailed view of a Hostinger user and all related data.
+    Lists customers (App Buyers) from the App database.
+    """
+    from hostinger_data.models import Customers as HostingerCustomer
+    from .models import VerifiedGST
+    
+    customers_qs = HostingerCustomer.objects.all().order_by('-created_at')
+    
+    # Search logic
+    query = request.GET.get('q', '').strip()
+    if query:
+        customers_qs = customers_qs.filter(
+            Q(name__icontains=query) | 
+            Q(email__icontains=query) |
+            Q(mobile__icontains=query)
+        )
+
+    paginator = Paginator(customers_qs, 15)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Compute GST verification status for the current page
+    for cust in page_obj:
+        if cust.gstorpan:
+            cust.gst_verified = VerifiedGST.objects.filter(gst_number=cust.gstorpan.strip().upper()).exists()
+        else:
+            cust.gst_verified = False
+
+    context = {
+        'page_obj': page_obj,
+        'query': query,
+    }
+
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'app-customer-table-wrapper':
+        return render(request, 'core/partials/app_customer_table.html', context)
+
+    return render(request, 'core/app_customer_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_user_detail(request, user_id):
+    """
+    Detailed view of an App user and all related data.
     """
     h_user = get_object_or_404(HostingerUser, pk=user_id)
     
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'edit_basic':
+            h_user.name = request.POST.get('name')
+            h_user.email = request.POST.get('email')
+            h_user.save()
+            messages.success(request, "Seller basic info updated successfully.")
+            return redirect('app_user_detail', user_id=user_id)
+            
+        elif action == 'edit_company':
+            company_id = request.POST.get('company_id')
+            company = get_object_or_404(Companies, id=company_id, user_id=user_id)
+            company.name = request.POST.get('name')
+            company.status = int(request.POST.get('status', 0))
+            company.email = request.POST.get('email')
+            company.mobile = request.POST.get('mobile')
+            company.maincategory_id = int(request.POST.get('maincategory_id', 0))
+            company.gst = request.POST.get('gst', '')
+            company.crn = request.POST.get('crn', '')
+            company.minordervalue = int(request.POST.get('minordervalue', 0))
+            company.city = request.POST.get('city', '')
+            company.state = request.POST.get('state', '')
+            company.pincode = int(request.POST.get('pincode') or 0)
+            company.comission = int(request.POST.get('comission') or 0)
+            company.restricted_city = request.POST.get('restricted_city', '')
+            company.save()
+            messages.success(request, "Company details updated successfully.")
+            return redirect('app_user_detail', user_id=user_id)
+            
+        elif action == 'edit_bank':
+            bank_id = request.POST.get('bank_id')
+            bank = get_object_or_404(BankDetails, id=bank_id, user_id=user_id)
+            bank.accountholder = request.POST.get('accountholder')
+            bank.accountno = request.POST.get('accountno')
+            bank.bankname = request.POST.get('bankname')
+            bank.branch = request.POST.get('branch')
+            bank.ifsc = request.POST.get('ifsc')
+            bank.isprimary = request.POST.get('isprimary', '0')
+            bank.status = request.POST.get('status', 'active')
+            bank.save()
+            messages.success(request, "Bank details updated successfully.")
+            return redirect('app_user_detail', user_id=user_id)
+            
     # Get related data from all identified tables
     context = {
         'h_user': h_user,
@@ -962,41 +1220,31 @@ def hostinger_user_detail(request, user_id):
         'bank_details': BankDetails.objects.filter(user_id=user_id),
     }
     
-    return render(request, 'core/hostinger_user_detail.html', context)
-
-
-def hostinger_login(request):
-    """
-    Backend login view for Hostinger users.
-    """
-    if request.method == 'POST':
-        email = request.POST.get('email')
-        password = request.POST.get('password') # Note: In production, use proper password verification
-        
-        try:
-            h_user = HostingerUser.objects.using('hostinger_db').get(email=email)
-            # Simulating login by setting session variable
-            request.session['hostinger_user_id'] = h_user.id
-            request.session['hostinger_user_email'] = h_user.email
-            messages.success(request, f"Successfully logged in as {h_user.name}")
-            return redirect('hostinger_user_detail', user_id=h_user.id)
-        except HostingerUser.DoesNotExist:
-            messages.error(request, "Invalid email or password.")
-            
-    return render(request, 'core/hostinger_login.html')
+    return render(request, 'core/app_user_detail.html', context)
 
 
 @login_required
 @user_passes_test(is_admin)
 def banner_list(request):
-    """View to show all active banners."""
-    banners = Advertisements.objects.filter(status=1).order_by('sequence')
+    """View to show all banners with pagination and categories."""
+    banners_qs = Advertisements.objects.all().order_by('sequence')
+    
+    # Pagination
+    paginator = Paginator(banners_qs, 10)
+    page_number = request.GET.get('page')
+    banners = paginator.get_page(page_number)
     
     # Prefix for images/files
     IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
     
     for banner in banners:
         banner.image_url = f"{IMAGE_PREFIX}{banner.file}" if banner.file else None
+        # Map category name
+        try:
+            cat_id = int(banner.content)
+            banner.category_name = Categories.objects.filter(id=cat_id).values_list('name', flat=True).first()
+        except (ValueError, TypeError):
+            banner.category_name = None
         
     context = {
         'banners': banners,
@@ -1007,14 +1255,24 @@ def banner_list(request):
 @login_required
 @user_passes_test(is_admin)
 def slider_list(request):
-    """View to show all active sliders."""
-    sliders = Sliders.objects.filter(status=1).order_by('-created_at')
+    """View to show all sliders with pagination."""
+    sliders_qs = Sliders.objects.all().order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(sliders_qs, 10)
+    page_number = request.GET.get('page')
+    sliders = paginator.get_page(page_number)
     
     # Prefix for images
     IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
     
     for slider in sliders:
         slider.image_url = f"{IMAGE_PREFIX}{slider.image}" if slider.image else None
+        # Map category name
+        if slider.company_id:
+            slider.category_name = Categories.objects.filter(id=slider.company_id).values_list('name', flat=True).first()
+        else:
+            slider.category_name = None
         
     context = {
         'sliders': sliders,
@@ -1024,30 +1282,129 @@ def slider_list(request):
 
 @login_required
 @user_passes_test(is_admin)
+def add_banner(request):
+    """View to add a new banner."""
+    if request.method == 'POST':
+        form = BannerForm(request.POST)
+        if form.is_valid():
+            banner = form.save(commit=False)
+            banner.user_id = 1  # Default admin/vendor ID
+            banner.save()
+            messages.success(request, "Banner created successfully.")
+            return redirect('banner_list')
+    else:
+        form = BannerForm()
+    return render(request, 'core/banner_form.html', {'form': form, 'title': 'Add New Banner'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def edit_banner(request, banner_id):
+    """View to edit an existing banner."""
+    banner = get_object_or_404(Advertisements, pk=banner_id)
+    if request.method == 'POST':
+        form = BannerForm(request.POST, instance=banner)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Banner updated successfully.")
+            return redirect('banner_list')
+    else:
+        form = BannerForm(instance=banner)
+    return render(request, 'core/banner_form.html', {'form': form, 'title': 'Edit Banner', 'banner': banner})
+
+
+@login_required
+@user_passes_test(is_admin)
+def add_slider(request):
+    """View to add a new slider."""
+    if request.method == 'POST':
+        form = SliderForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Slider created successfully.")
+            return redirect('slider_list')
+    else:
+        form = SliderForm()
+    return render(request, 'core/slider_form.html', {'form': form, 'title': 'Add New Slider'})
+
+
+@login_required
+@user_passes_test(is_admin)
+def edit_slider(request, slider_id):
+    """View to edit an existing slider."""
+    slider = get_object_or_404(Sliders, pk=slider_id)
+    if request.method == 'POST':
+        form = SliderForm(request.POST, instance=slider)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Slider updated successfully.")
+            return redirect('slider_list')
+    else:
+        form = SliderForm(instance=slider)
+    return render(request, 'core/slider_form.html', {'form': form, 'title': 'Edit Slider', 'slider': slider})
+
+
+
+@login_required
+@user_passes_test(is_admin)
 def app_category_list(request):
-    """View to show all application categories."""
+    """View to show all application main categories."""
     main_categories = MainCategories.objects.all().order_by('sequence')
-    categories = Categories.objects.all().order_by('sequence')
-    sub_categories = SubCategories.objects.all().order_by('name')
     
     # Prefix for images
     IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
     
     for item in main_categories:
         item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
-    for item in categories:
-        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
-        item.main_category_name = MainCategories.objects.filter(id=item.maincategory_id).values_list('name', flat=True).first()
-    for item in sub_categories:
-        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
-        item.category_name = Categories.objects.filter(id=item.category_id).values_list('name', flat=True).first()
 
     context = {
         'main_categories': main_categories,
-        'categories': categories,
-        'sub_categories': sub_categories,
     }
     return render(request, 'core/app_category_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_category_detail(request, main_category_id):
+    """View to show categories related to a specific main category."""
+    main_category = get_object_or_404(MainCategories, pk=main_category_id)
+    categories = Categories.objects.filter(maincategory_id=main_category_id).order_by('sequence')
+    
+    # Prefix for images
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    for item in categories:
+        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
+        item.main_category_name = main_category.name
+
+    context = {
+        'main_category': main_category,
+        'categories': categories,
+    }
+    return render(request, 'core/app_category_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_subcategory_list(request, category_id):
+    """View to show sub categories related to a specific category."""
+    category = get_object_or_404(Categories, pk=category_id)
+    main_category = get_object_or_404(MainCategories, pk=category.maincategory_id)
+    sub_categories = SubCategories.objects.filter(category_id=category_id).order_by('name')
+    
+    # Prefix for images
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    
+    for item in sub_categories:
+        item.image_url = f"{IMAGE_PREFIX}{item.image}" if item.image else None
+        item.category_name = category.name
+
+    context = {
+        'main_category': main_category,
+        'category': category,
+        'sub_categories': sub_categories,
+    }
+    return render(request, 'core/app_subcategory_list.html', context)
 
 
 @login_required
@@ -1600,6 +1957,8 @@ def process_conversation(phone, profile_name, message):
         is_valid, gst_data = verify_gst_number_live(clean_msg)
         
         if is_valid:
+            from .models import VerifiedGST
+            VerifiedGST.objects.get_or_create(gst_number=clean_msg.strip().upper())
             lead.gst_status = 'verified'
             lead.conversation_stage = 'S-005'
             
@@ -1827,3 +2186,83 @@ def global_search(request):
         'query': query,
     }
     return render(request, 'core/partials/global_search_results.html', context)
+
+
+@login_required
+def verify_gst_ajax(request):
+    gst_number = request.GET.get('gst_number', '').strip().upper()
+    customer_id = request.GET.get('customer_id')
+    company_id = request.GET.get('company_id')
+    
+    if not gst_number:
+        return JsonResponse({'success': False, 'message': 'No GST number provided.'})
+        
+    from .utils import verify_gst_number_live
+    is_valid, gst_data = verify_gst_number_live(gst_number)
+    
+    if is_valid:
+        from .models import VerifiedGST
+        VerifiedGST.objects.get_or_create(gst_number=gst_number)
+        if customer_id:
+            try:
+                customer = Customer.objects.get(id=customer_id)
+                customer.is_gst_verified = True
+                if gst_data.get('legal_name'):
+                    customer.company_name = gst_data['trade_name'] or gst_data['legal_name']
+                if gst_data.get('address'):
+                    customer.address = gst_data['address']
+                if gst_data.get('city'):
+                    customer.city = gst_data['city']
+                if gst_data.get('state'):
+                    customer.state = gst_data['state']
+                if gst_data.get('pincode'):
+                    customer.pincode = gst_data['pincode']
+                customer.save()
+                
+                CustomerActivityLog.objects.create(
+                    customer=customer,
+                    employee=request.user,
+                    action="GST Verified",
+                    description=f"GST {gst_number} verified successfully. Company Name: {customer.company_name}."
+                )
+            except Customer.DoesNotExist:
+                pass
+                
+        elif company_id:
+            try:
+                company = Companies.objects.get(id=company_id)
+                if gst_data.get('legal_name'):
+                    company.name = gst_data['trade_name'] or gst_data['legal_name']
+                if gst_data.get('city'):
+                    company.city = gst_data['city']
+                if gst_data.get('state'):
+                    company.state = gst_data['state']
+                if gst_data.get('pincode'):
+                    try:
+                        company.pincode = int(gst_data['pincode'])
+                    except (ValueError, TypeError):
+                        pass
+                company.save()
+            except Companies.DoesNotExist:
+                pass
+        
+        html_response = f"""
+        <div class="alert alert-success mt-2 mb-0 p-2">
+            <h6 class="alert-heading fw-bold mb-1 text-success fs-10"><i class="fas fa-check-circle me-1"></i>GST Verified (UAT Registry)</h6>
+            <ul class="list-unstyled mb-0 fs-10 text-success">
+                <li><strong>Legal Name:</strong> {gst_data.get('legal_name')}</li>
+                <li><strong>Trade Name:</strong> {gst_data.get('trade_name')}</li>
+                <li><strong>Address:</strong> {gst_data.get('address')}</li>
+                <li><strong>City/State/Pin:</strong> {gst_data.get('city')}, {gst_data.get('state')} - {gst_data.get('pincode')}</li>
+            </ul>
+        </div>
+        """
+        return HttpResponse(html_response)
+    else:
+        html_response = f"""
+        <div class="alert alert-danger mt-2 mb-0 p-2">
+            <h6 class="alert-heading fw-bold mb-1 text-danger fs-10"><i class="fas fa-times-circle me-1"></i>GST Verification Failed</h6>
+            <p class="mb-0 fs-10 text-danger">The GST number "{gst_number}" could not be verified.</p>
+        </div>
+        """
+        return HttpResponse(html_response)

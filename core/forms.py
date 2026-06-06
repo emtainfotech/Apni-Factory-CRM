@@ -125,3 +125,37 @@ class SliderForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+class CustomerEditForm(forms.ModelForm):
+    class Meta:
+        model = Customer
+        fields = [
+            'first_name', 'last_name', 'phone', 'whatsapp_number', 'email',
+            'company_name', 'gst_number', 'is_gst_verified',
+            'address', 'city', 'state', 'pincode', 'country',
+            'lead_source', 'status', 'assigned_to', 'notes'
+        ]
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control'}),
+            'whatsapp_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'company_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'gst_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'is_gst_verified': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'city': forms.TextInput(attrs={'class': 'form-control'}),
+            'state': forms.TextInput(attrs={'class': 'form-control'}),
+            'pincode': forms.TextInput(attrs={'class': 'form-control'}),
+            'country': forms.TextInput(attrs={'class': 'form-control'}),
+            'lead_source': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'assigned_to': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['assigned_to'].empty_label = "Unassigned"

@@ -106,7 +106,7 @@
                                         </li>
 
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Customers & Sales</span>
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Buyers & Sales</span>
                                         </li>
 
                                         <li class="nav-item">
@@ -114,7 +114,7 @@
                                                 href="{% url 'employee_portal:customer_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="user"></span></span>
-                                                    <span class="nav-link-text">My Customers</span>
+                                                    <span class="nav-link-text">My Buyers</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -134,7 +134,7 @@
                                                 href="{% url 'employee_portal:order_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="shopping-cart"></span></span>
-                                                    <span class="nav-link-text">Customer Orders</span>
+                                                    <span class="nav-link-text">Buyer Orders</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -212,7 +212,7 @@
                 <div class="search-box navbar-top-search-box d-none d-lg-block position-relative" style="width:25rem;">
                     <form method="GET" action="{% url 'employee_portal:customer_list' %}" class="position-relative">
                         <input class="form-control search-input rounded-pill form-control-sm" type="search"
-                            name="q" placeholder="Search my customers..." aria-label="Search" value="{{ query|default:'' }}" 
+                            name="q" placeholder="Search my buyers..." aria-label="Search" value="{{ query|default:'' }}" 
                             hx-get="{% url 'global_search' %}"
                             hx-trigger="keyup changed delay:300ms, focus"
                             hx-target="#global-search-results"
@@ -248,7 +248,11 @@
                             role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-haspopup="true"
                             aria-expanded="false">
                             <div class="avatar avatar-l ">
-                                <img class="rounded-circle " src="/static/assets/img/team/40x40/57.webp" alt="" />
+                                {% if request.user.employee_profile.photo %}
+                                    <img class="rounded-circle " src="{{ request.user.employee_profile.photo.url }}" alt="" style="width: 40px; height: 40px; object-fit: cover;" />
+                                {% else %}
+                                    <img class="rounded-circle " src="/static/assets/img/team/40x40/57.webp" alt="" />
+                                {% endif %}
                             </div>
                         </a>
                         <div class="dropdown-menu dropdown-menu-end navbar-dropdown-caret py-0 dropdown-profile shadow border"
@@ -257,8 +261,11 @@
                                 <div class="card-body p-0">
                                     <div class="text-center pt-4 pb-3">
                                         <div class="avatar avatar-xl ">
-                                            <img class="rounded-circle " src="/static/assets/img/team/72x72/57.webp"
-                                                alt="" />
+                                            {% if request.user.employee_profile.photo %}
+                                                <img class="rounded-circle " src="{{ request.user.employee_profile.photo.url }}" alt="" style="width: 80px; height: 80px; object-fit: cover;" />
+                                            {% else %}
+                                                <img class="rounded-circle " src="/static/assets/img/team/72x72/57.webp" alt="" />
+                                            {% endif %}
                                         </div>
                                         <h6 class="mt-2 text-body-emphasis">{{ request.user.username|default:"Employee" }}</h6>
                                         <p class="fs-10 text-body-tertiary mb-0">{{ request.user.get_role_display }}</p>

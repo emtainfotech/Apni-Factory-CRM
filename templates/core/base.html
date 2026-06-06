@@ -39,9 +39,11 @@
         .htmx-indicator {
             display: none !important;
         }
+
         .htmx-request .htmx-indicator {
             display: inline-block !important;
         }
+
         .htmx-request.htmx-indicator {
             display: inline-block !important;
         }
@@ -100,7 +102,8 @@
                                                 <a class="nav-link {% if url_name == 'dashboard_admin' %}active{% endif %}"
                                                     href="{% url 'dashboard_admin' %}">
                                                     <div class="d-flex align-items-center">
-                                                        <span class="nav-link-icon"><span data-feather="home"></span></span>
+                                                        <span class="nav-link-icon"><span
+                                                                data-feather="home"></span></span>
                                                         <span class="nav-link-text">Admin Dashboard</span>
                                                     </div>
                                                 </a>
@@ -114,7 +117,8 @@
                                                 <a class="nav-link {% if url_name == 'dashboard_manager' %}active{% endif %}"
                                                     href="{% url 'dashboard_manager' %}">
                                                     <div class="d-flex align-items-center">
-                                                        <span class="nav-link-icon"><span data-feather="activity"></span></span>
+                                                        <span class="nav-link-icon"><span
+                                                                data-feather="activity"></span></span>
                                                         <span class="nav-link-text">Manager Dashboard</span>
                                                     </div>
                                                 </a>
@@ -126,7 +130,8 @@
                                                 <a class="nav-link {% if url_name == 'dashboard_agent' %}active{% endif %}"
                                                     href="{% url 'dashboard_agent' %}">
                                                     <div class="d-flex align-items-center">
-                                                        <span class="nav-link-icon"><span data-feather="activity"></span></span>
+                                                        <span class="nav-link-icon"><span
+                                                                data-feather="activity"></span></span>
                                                         <span class="nav-link-text">Agent Dashboard</span>
                                                     </div>
                                                 </a>
@@ -137,7 +142,8 @@
                                             <div class="nav-item-wrapper">
                                                 <a class="nav-link" href="{% url 'employee_portal:dashboard' %}">
                                                     <div class="d-flex align-items-center">
-                                                        <span class="nav-link-icon"><span data-feather="activity"></span></span>
+                                                        <span class="nav-link-icon"><span
+                                                                data-feather="activity"></span></span>
                                                         <span class="nav-link-text">Employee Dashboard</span>
                                                     </div>
                                                 </a>
@@ -146,14 +152,17 @@
                                         {% endif %}
 
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Team & Customers</span>
+                                            <span
+                                                class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Team
+                                                & Customers</span>
                                         </li>
 
                                         <li class="nav-item">
                                             <a class="nav-link {% if 'user' in request.path and 'hostinger' not in request.path %}active{% endif %}"
                                                 href="{% url 'user_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="users"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="users"></span></span>
                                                     <span class="nav-link-text">Employees</span>
                                                 </div>
                                             </a>
@@ -164,7 +173,7 @@
                                                 href="{% url 'customer_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span data-feather="user"></span></span>
-                                                    <span class="nav-link-text">CRM Customers</span>
+                                                    <span class="nav-link-text">Buyers</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -174,7 +183,8 @@
                                             <a class="nav-link {% if url_name == 'lead_kanban' %}active{% endif %}"
                                                 href="{% url 'lead_kanban' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="columns"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="columns"></span></span>
                                                     <span class="nav-link-text">Lead Kanban Board</span>
                                                 </div>
                                             </a>
@@ -182,15 +192,29 @@
                                         {% endif %}
 
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Application Data</span>
+                                            <span
+                                                class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Application
+                                                Data</span>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'hostinger' in request.path %}active{% endif %}"
-                                                href="{% url 'hostinger_user_list' %}">
+                                            <a class="nav-link {% if 'hostinger/users' in request.path %}active{% endif %}"
+                                                href="{% url 'app_user_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="external-link"></span></span>
-                                                    <span class="nav-link-text">App Users</span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="external-link"></span></span>
+                                                    <span class="nav-link-text">Sellers</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'hostinger/customers' in request.path %}active{% endif %}"
+                                                href="{% url 'app_customer_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="users"></span></span>
+                                                    <span class="nav-link-text">App Buyers</span>
                                                 </div>
                                             </a>
                                         </li>
@@ -199,7 +223,8 @@
                                             <a class="nav-link {% if 'orders' in request.path %}active{% endif %}"
                                                 href="{% url 'order_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="shopping-cart"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="shopping-cart"></span></span>
                                                     <span class="nav-link-text">App Orders</span>
                                                 </div>
                                             </a>
@@ -209,7 +234,8 @@
                                             <a class="nav-link {% if 'products' in request.path %}active{% endif %}"
                                                 href="{% url 'product_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="package"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="package"></span></span>
                                                     <span class="nav-link-text">App Products</span>
                                                 </div>
                                             </a>
@@ -219,7 +245,8 @@
                                             <a class="nav-link {% if url_name == 'banner_list' %}active{% endif %}"
                                                 href="{% url 'banner_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="image"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="image"></span></span>
                                                     <span class="nav-link-text">App Banners</span>
                                                 </div>
                                             </a>
@@ -229,7 +256,8 @@
                                             <a class="nav-link {% if url_name == 'slider_list' %}active{% endif %}"
                                                 href="{% url 'slider_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="layers"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="layers"></span></span>
                                                     <span class="nav-link-text">App Sliders</span>
                                                 </div>
                                             </a>
@@ -249,7 +277,8 @@
                                             <a class="nav-link {% if url_name == 'app_brand_list' %}active{% endif %}"
                                                 href="{% url 'app_brand_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="award"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="award"></span></span>
                                                     <span class="nav-link-text">App Brands</span>
                                                 </div>
                                             </a>
@@ -259,21 +288,25 @@
                                             <a class="nav-link {% if url_name == 'app_company_list' %}active{% endif %}"
                                                 href="{% url 'app_company_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="briefcase"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="briefcase"></span></span>
                                                     <span class="nav-link-text">App Companies</span>
                                                 </div>
                                             </a>
                                         </li>
 
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Support & Finance</span>
+                                            <span
+                                                class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Support
+                                                & Finance</span>
                                         </li>
 
                                         <li class="nav-item">
                                             <a class="nav-link {% if url_name == 'app_ticket_list' %}active{% endif %}"
                                                 href="{% url 'app_ticket_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="help-circle"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="help-circle"></span></span>
                                                     <span class="nav-link-text">Support Tickets</span>
                                                 </div>
                                             </a>
@@ -283,7 +316,8 @@
                                             <a class="nav-link {% if url_name == 'app_wallet_list' %}active{% endif %}"
                                                 href="{% url 'app_wallet_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="credit-card"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="credit-card"></span></span>
                                                     <span class="nav-link-text">Wallet History</span>
                                                 </div>
                                             </a>
@@ -293,21 +327,24 @@
                                             <a class="nav-link {% if url_name == 'app_faq_list' %}active{% endif %}"
                                                 href="{% url 'app_faq_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="message-circle"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="message-circle"></span></span>
                                                     <span class="nav-link-text">App FAQs</span>
                                                 </div>
                                             </a>
                                         </li>
 
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Billing</span>
+                                            <span
+                                                class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Billing</span>
                                         </li>
 
                                         <li class="nav-item">
                                             <a class="nav-link {% if 'invoices' in request.path %}active{% endif %}"
                                                 href="{% url 'invoice_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="file-text"></span></span>
+                                                    <span class="nav-link-icon"><span
+                                                            data-feather="file-text"></span></span>
                                                     <span class="nav-link-text">Marketing Invoices</span>
                                                 </div>
                                             </a>
@@ -350,20 +387,22 @@
                 </div>
                 <div class="search-box navbar-top-search-box d-none d-lg-block position-relative" style="width:25rem;">
                     <form method="GET" action="{% url 'customer_list' %}" class="position-relative">
-                        <input class="form-control search-input rounded-pill form-control-sm" type="search"
-                            name="q" placeholder="Search everything..." aria-label="Search" value="{{ query|default:'' }}" 
-                            hx-get="{% url 'global_search' %}"
-                            hx-trigger="keyup changed delay:300ms, focus"
-                            hx-target="#global-search-results"
-                            hx-indicator="#global-search-spinner"
-                            autocomplete="off"
+                        <input class="form-control search-input rounded-pill form-control-sm" type="search" name="q"
+                            placeholder="Search everything..." aria-label="Search" value="{{ query|default:'' }}"
+                            hx-get="{% url 'global_search' %}" hx-trigger="keyup changed delay:300ms, focus"
+                            hx-target="#global-search-results" hx-indicator="#global-search-spinner" autocomplete="off"
                             onblur="setTimeout(() => { document.getElementById('global-search-results').innerHTML = ''; }, 300)" />
-                        <button type="submit" class="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-body-tertiary">
+                        <button type="submit"
+                            class="position-absolute end-0 top-50 translate-middle-y border-0 bg-transparent pe-3 text-body-tertiary">
                             <span class="fas fa-search"></span>
                         </button>
-                        <div class="spinner-border spinner-border-sm text-primary htmx-indicator position-absolute end-0 top-50 translate-middle-y me-5" role="status" id="global-search-spinner" style="width: 0.9rem; height: 0.9rem; z-index: 10;"></div>
+                        <div class="spinner-border spinner-border-sm text-primary htmx-indicator position-absolute end-0 top-50 translate-middle-y me-5"
+                            role="status" id="global-search-spinner"
+                            style="width: 0.9rem; height: 0.9rem; z-index: 10;"></div>
                     </form>
-                    <div id="global-search-results" class="position-absolute mt-2 shadow-lg border rounded-3 bg-body-highlight" style="z-index: 1050; width: 100%; left: 0;"></div>
+                    <div id="global-search-results"
+                        class="position-absolute mt-2 shadow-lg border rounded-3 bg-body-highlight"
+                        style="z-index: 1050; width: 100%; left: 0;"></div>
                 </div>
                 <ul class="navbar-nav navbar-nav-icons flex-row">
                     <li class="nav-item">
@@ -480,7 +519,12 @@
                             role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-haspopup="true"
                             aria-expanded="false">
                             <div class="avatar avatar-l ">
+                                {% if request.user.employee_profile.photo %}
+                                <img class="rounded-circle " src="{{ request.user.employee_profile.photo.url }}" alt=""
+                                    style="width: 40px; height: 40px; object-fit: cover;" />
+                                {% else %}
                                 <img class="rounded-circle " src="/static/assets/img/team/40x40/57.webp" alt="" />
+                                {% endif %}
                             </div>
                         </a>
                         <div class="dropdown-menu dropdown-menu-end navbar-dropdown-caret py-0 dropdown-profile shadow border"
@@ -489,8 +533,14 @@
                                 <div class="card-body p-0">
                                     <div class="text-center pt-4 pb-3">
                                         <div class="avatar avatar-xl ">
+                                            {% if request.user.employee_profile.photo %}
+                                            <img class="rounded-circle "
+                                                src="{{ request.user.employee_profile.photo.url }}" alt=""
+                                                style="width: 80px; height: 80px; object-fit: cover;" />
+                                            {% else %}
                                             <img class="rounded-circle " src="/static/assets/img/team/72x72/57.webp"
                                                 alt="" />
+                                            {% endif %}
                                         </div>
                                         <h6 class="mt-2 text-body-emphasis">{{ request.user.username|default:"User" }}
                                         </h6>
@@ -500,12 +550,61 @@
                                 </div>
                                 <div class="overflow-auto scrollbar" style="height: 10rem;">
                                     <ul class="nav d-flex flex-column mb-2 pb-1">
-                                        <li class="nav-item"><a class="nav-link px-3 d-block" href="#!"> <span
+                                        <li class="nav-item"><a class="nav-link px-3 d-block"
+                                                href="{% url 'user_profile' %}"> <span
                                                     class="me-2 text-body align-bottom"
                                                     data-feather="user"></span><span>Profile</span></a></li>
 
                                     </ul>
                                 </div>
+
+                                <!-- Global Punch In/Out System for Employees -->
+                                {% if request.user.is_authenticated and request.user.role == 'employee' %}
+                                <div class="px-3 py-2 border-top border-translucent bg-body-highlight">
+                                    <div class="bg-body-emphasis rounded p-3 text-center border shadow-sm">
+                                        {% with latest_att=request.user.attendances.all.0 %}
+                                        {% if latest_att and latest_att.is_punched_in %}
+                                        <div class="fs-10 fw-bold text-success mb-2">
+                                            <span class="spinner-grow spinner-grow-sm text-success me-1" role="status"
+                                                style="width: 8px; height: 8px;"></span>
+                                            Active - Punched In since {{ latest_att.punch_in|date:"H:i" }}
+                                        </div>
+                                        {% if latest_att.on_break %}
+                                        <div class="badge bg-warning-subtle text-warning mb-2 fs-11 w-100"><i
+                                                class="fas fa-coffee me-1"></i>On Break</div>
+                                        {% endif %}
+                                        <div class="d-flex gap-2">
+                                            <form method="post" action="{% url 'employee_portal:punch_out' %}"
+                                                style="flex: 1;">
+                                                {% csrf_token %}
+                                                <button type="submit"
+                                                    class="btn btn-xs btn-danger w-100 rounded-pill"><i
+                                                        class="fas fa-sign-out-alt me-1"></i>Punch Out</button>
+                                            </form>
+                                            <form method="post" action="{% url 'employee_portal:toggle_break' %}"
+                                                style="flex: 1;">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-xs btn-warning w-100 rounded-pill">
+                                                    {% if latest_att.on_break %}<i class="fas fa-play me-1"></i>Resume{%
+                                                    else %}<i class="fas fa-pause me-1"></i>Break{% endif %}
+                                                </button>
+                                            </form>
+                                        </div>
+                                        {% else %}
+                                        <div class="fs-10 fw-bold text-body-tertiary mb-2"><i
+                                                class="fas fa-user-slash me-1"></i>Punched Out</div>
+                                        <form method="post" action="{% url 'employee_portal:punch_in' %}">
+                                            {% csrf_token %}
+                                            <button type="submit"
+                                                class="btn btn-xs btn-success w-100 rounded-pill py-1"><i
+                                                    class="fas fa-sign-in-alt me-1"></i>Punch In Now</button>
+                                        </form>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
                                 <div class="card-footer p-0 border-top border-translucent">
                                     <ul class="nav d-flex flex-column my-3">
                                         <li class="nav-item"><a class="nav-link px-3 d-block" href="#!"> <span
@@ -558,7 +657,8 @@
             <footer class="footer position-absolute">
                 <div class="row g-0 justify-content-between align-items-center h-100">
                     <div class="col-12 col-sm-auto text-center">
-                        <p class="mb-0 mt-2 mt-sm-0 text-body">2026 &copy; <span class="fw-bold">H Bose E Commerce Pvt Ltd</span></p>
+                        <p class="mb-0 mt-2 mt-sm-0 text-body">2026 &copy; <span class="fw-bold">H Bose E Commerce Pvt
+                                Ltd</span></p>
                     </div>
                     <div class="col-12 col-sm-auto text-center">
                         <p class="mb-0 text-body-tertiary text-opacity-85">v1.24.0</p>

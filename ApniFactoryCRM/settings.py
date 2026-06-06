@@ -195,3 +195,7 @@ GST_LIVE_URL = os.environ.get('GST_LIVE_URL', 'https://api.verifya2z.com/api/v1/
 # Meta WhatsApp API Configuration
 META_API_URL = os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages')
 META_ACCESS_TOKEN = os.environ.get('META_ACCESS_TOKEN', '')
+
+# Media Files Configurations
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

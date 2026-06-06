@@ -4,7 +4,7 @@
 <div class="mb-9">
     <div class="row g-3 mb-4">
         <div class="col-auto">
-            <h2 class="mb-0">Customers</h2>
+            <h2 class="mb-0">Buyers</h2>
         </div>
     </div>
 
@@ -34,23 +34,59 @@
             <div id="customersTable">
                 
                 <div class="p-4 row align-items-center justify-content-between g-3">
-                    <div class="col-12 col-md-auto d-flex align-items-center gap-3">
-                        <div class="search-box">
-                            <form class="position-relative">
-                                <input class="form-control search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search customers..." 
-                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-indicator="#search-spinner" />
-                                <span class="fas fa-search search-box-icon"></span>
-                                <div class="spinner-border spinner-border-sm text-primary htmx-indicator position-absolute end-0 top-50 translate-middle-y me-3" role="status" id="search-spinner" style="width: 1rem; height: 1rem; z-index: 10;"></div>
-                            </form>
-                        </div>
+                    <div class="col-12 col-xl-9">
+                        <form class="row g-2 align-items-center" id="customer-filter-form">
+                            <!-- Search Input -->
+                            <div class="col-12 col-md-3">
+                                <div class="search-box position-relative">
+                                    <input class="form-control search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search buyers..." 
+                                           hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
+                                    <span class="fas fa-search search-box-icon"></span>
+                                </div>
+                            </div>
+                            
+                            <!-- Status Filter -->
+                            <div class="col-6 col-md-3">
+                                <select class="form-select form-select-sm" name="status"
+                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                    <option value="">All Statuses</option>
+                                    {% for code, label in status_choices %}
+                                        <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Lead Source Filter -->
+                            <div class="col-6 col-md-3">
+                                <select class="form-select form-select-sm" name="lead_source"
+                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                    <option value="">All Sources</option>
+                                    {% for code, label in source_choices %}
+                                        <option value="{{ code }}" {% if selected_source == code %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Assigned To Filter -->
+                            <div class="col-12 col-md-3">
+                                <select class="form-select form-select-sm" name="assigned_to"
+                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                    <option value="">All Assignees</option>
+                                    {% for emp in employees %}
+                                        <option value="{{ emp.id }}" {% if selected_assignee == emp.id|stringformat:"i" %}selected{% endif %}>{{ emp.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </form>
                     </div>
 
-                    <div class="col-12 col-md-auto d-flex gap-2">
-                        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                            <span class="fas fa-plus me-2"></span>Add Customer
+                    <div class="col-12 col-xl-3 d-flex gap-2 justify-content-xl-end justify-content-start align-items-center">
+                        <div class="spinner-border spinner-border-sm text-primary htmx-indicator me-2" role="status" id="search-spinner" style="width: 1rem; height: 1rem;"></div>
+                        <button class="btn btn-primary btn-sm white-space-nowrap" type="button" data-bs-toggle="modal" data-bs-target="#addBuyerModal">
+                            <span class="fas fa-plus me-2"></span>Add Buyer
                         </button>
-                        <a href="{% url 'bulk_upload_customers' %}" class="btn btn-phoenix-secondary">
-                            <span class="fas fa-file-export me-2"></span>Import Customers
+                        <a href="{% url 'bulk_upload_customers' %}" class="btn btn-phoenix-secondary btn-sm white-space-nowrap">
+                            <span class="fas fa-file-export me-2"></span>Import Buyers
                         </a>
                     </div>
                 </div>
@@ -64,19 +100,19 @@
     </div>
 </div>
 
-<div class="modal fade" id="addCustomerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+<div class="modal fade" id="addBuyerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addBuyerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content bg-body-highlight">
             
             <div class="modal-header justify-content-between border-0 px-6 pt-6 mb-2">
-                <h3 class="mb-0" id="addCustomerModalLabel">Add New Customer</h3>
+                <h3 class="mb-0" id="addBuyerModalLabel">Add New Buyer</h3>
                 <button class="btn btn-sm btn-phoenix-secondary" data-bs-dismiss="modal" aria-label="Close">
                     <span class="fas fa-times text-danger"></span>
                 </button>
             </div>
 
             <div class="modal-body px-6">
-                <form method="POST" id="addCustomerForm">
+                <form method="POST" id="addBuyerForm">
                     {% csrf_token %}
                     <input type="hidden" name="add_customer" value="true">
 
@@ -165,7 +201,7 @@
 
                     <div class="modal-footer border-0 pt-4 px-0 pb-0">
                         <button type="button" class="btn btn-link text-danger px-3 my-0" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary my-0">Create Customer</button>
+                        <button type="submit" class="btn btn-primary my-0">Create Buyer</button>
                     </div>
                 </form>
             </div>

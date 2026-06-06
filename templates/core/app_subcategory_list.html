@@ -3,46 +3,56 @@
 
 {% block content %}
 <div class="mb-9">
+    <!-- Breadcrumbs & Title -->
+    <nav class="mb-2" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Home</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'app_category_list' %}">Category Management</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'app_category_detail' main_category.id %}">{{ main_category.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ category.name }}</li>
+        </ol>
+    </nav>
+
     <div class="row g-3 mb-4 align-items-center">
         <div class="col">
-            <h2 class="mb-0">Category Management</h2>
-            <p class="text-body-tertiary mb-0">Browse application main categories. Click on a main category to drill down into its sub-categories.</p>
+            <h2 class="mb-0">{{ category.name }} - Sub Categories</h2>
+            <p class="text-body-tertiary mb-0">Browse sub categories related to <strong>{{ category.name }}</strong>.</p>
         </div>
         <div class="col-auto">
-            <span class="badge badge-phoenix badge-phoenix-info fs-8">Application Hierarchy</span>
+            <a href="{% url 'app_category_detail' main_category.id %}" class="btn btn-phoenix-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Back to {{ main_category.name }}
+            </a>
         </div>
     </div>
 
-    <!-- Main Categories List -->
+    <!-- Sub Categories List Card -->
     <div class="card shadow-sm border-0">
         <div class="card-header bg-body-emphasis border-bottom border-translucent py-3">
-            <h5 class="mb-0">Main Categories</h5>
+            <h5 class="mb-0">Sub Categories in {{ category.name }}</h5>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover table-sm fs-9 mb-0">
                     <thead class="bg-body-tertiary">
                         <tr>
-                            <th class="ps-4 py-3" style="width: 300px;">Main Category Name</th>
-                            <th class="py-3">Title Description</th>
-                            <th class="py-3 text-center" style="width: 100px;">Sequence</th>
+                            <th class="ps-4 py-3" style="width: 300px;">Sub Category Name</th>
+                            <th class="py-3">Parent Category</th>
                             <th class="py-3 text-center" style="width: 120px;">Status</th>
                             <th class="py-3 text-end pe-4" style="width: 150px;">Created Date</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in main_categories %}
+                        {% for item in sub_categories %}
                         <tr class="align-middle">
                             <td class="ps-4 py-3">
-                                <a href="{% url 'app_category_detail' item.id %}" class="d-flex align-items-center text-decoration-none">
+                                <div class="d-flex align-items-center">
                                     <div class="avatar avatar-l me-3">
                                         <img class="rounded" src="{{ item.image_url }}" alt="{{ item.name }}" style="object-fit: cover;" onerror="this.src='https://placehold.co/50x50?text=NA'"/>
                                     </div>
-                                    <div class="fw-bold text-primary-hover text-primary fs-8">{{ item.name }}</div>
-                                </a>
+                                    <div class="fw-bold text-dark fs-8">{{ item.name }}</div>
+                                </div>
                             </td>
-                            <td>{{ item.title }}</td>
-                            <td class="text-center fw-bold">{{ item.sequence }}</td>
+                            <td><span class="badge badge-phoenix badge-phoenix-info">{{ category.name }}</span></td>
                             <td class="text-center">
                                 {% if item.status == 1 %}
                                 <span class="badge badge-phoenix badge-phoenix-success">Active</span>
@@ -54,9 +64,9 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="5" class="text-center py-5 text-body-tertiary">
+                            <td colspan="4" class="text-center py-5 text-body-tertiary">
                                 <span class="fas fa-folder-open fa-3x mb-3 text-body-quaternary d-block"></span>
-                                <p class="mb-0 fs-9">No main categories found.</p>
+                                <p class="mb-0 fs-9">No sub categories found in this section.</p>
                             </td>
                         </tr>
                         {% endfor %}

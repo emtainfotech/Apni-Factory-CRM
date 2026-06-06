@@ -21,6 +21,8 @@ def mobile_gst_check(request):
     is_valid, data, error = verify_gst_for_mobile(gst_number)
 
     if is_valid:
+        from .models import VerifiedGST
+        VerifiedGST.objects.get_or_create(gst_number=gst_number.strip().upper())
         return Response({
             'status': True,
             'message': 'GST verified successfully',

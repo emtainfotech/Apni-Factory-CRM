@@ -53,7 +53,7 @@ def verify_gst_number_live(gst_number):
         
         headers = {
             "Token": token,
-            "User-Agent": PARTNER_ID,
+            "User-Agent": GST_PARTNER_ID,
             "Accept": "application/json",
             "Content-Type": "application/json"
         }

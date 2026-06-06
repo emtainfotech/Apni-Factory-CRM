@@ -39,6 +39,12 @@ class User(AbstractUser):
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
 
+    def save(self, *args, **kwargs):
+        if self.is_superuser:
+            self.role = self.ADMIN
+        super().save(*args, **kwargs)
+
+
 class Notification(models.Model):
     recipient = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='notifications')
     message = models.CharField(max_length=255)

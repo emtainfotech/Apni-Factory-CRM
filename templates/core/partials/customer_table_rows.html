@@ -7,7 +7,7 @@
                         <input class="form-check-input" type="checkbox" id="select-all-customers">
                     </div>
                 </th>
-                <th class="ps-2 py-3" style="min-width: 180px;">Customer Name</th>
+                <th class="ps-2 py-3" style="min-width: 180px;">Buyer Name</th>
                 <th class="py-3" style="min-width: 150px;">Contact Info</th>
                 <th class="py-3" style="min-width: 150px;">Location Details</th>
                 <th class="py-3" style="min-width: 120px;">Lead Source</th>
@@ -34,6 +34,11 @@
                         <div>
                             <a class="fw-bold text-body-emphasis text-decoration-none d-block" href="{% url 'customer_detail' customer.id %}">
                                 {{ customer.first_name }} {{ customer.last_name }}
+                                {% if customer.is_gst_verified %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 ms-1" style="font-size: 8px;">
+                                    <i class="fas fa-check-circle me-1"></i>GST Verified
+                                </span>
+                                {% endif %}
                             </a>
                             <small class="text-body-quaternary fs-10">ID: #{{ customer.id }}</small>
                         </div>
@@ -110,7 +115,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="9" class="text-center py-5 text-body-tertiary">No customers found matching criteria.</td></tr>
+            <tr><td colspan="9" class="text-center py-5 text-body-tertiary">No buyers found matching criteria.</td></tr>
             {% endfor %}
         </tbody>
     </table>
@@ -120,11 +125,11 @@
 <div class="d-flex justify-content-center py-3 bg-body-emphasis border-top">
      <div class="btn-group btn-group-sm">
         {% if customers.has_previous %}
-            <button class="btn btn-outline-secondary" hx-get="{% url 'customer_list' %}?page={{ customers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" hx-target="#customer-table-content" hx-indicator="#search-spinner">Prev</button>
+            <button class="btn btn-outline-secondary" hx-get="{% url 'customer_list' %}?page={{ customers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&lead_source={{ selected_source }}{% endif %}{% if selected_assignee %}&assigned_to={{ selected_assignee }}{% endif %}" hx-target="#customer-table-content" hx-indicator="#search-spinner">Prev</button>
         {% endif %}
         <button class="btn btn-outline-secondary disabled">Page {{ customers.number }} of {{ customers.paginator.num_pages }}</button>
         {% if customers.has_next %}
-            <button class="btn btn-outline-secondary" hx-get="{% url 'customer_list' %}?page={{ customers.next_page_number }}{% if query %}&q={{ query }}{% endif %}" hx-target="#customer-table-content" hx-indicator="#search-spinner">Next</button>
+            <button class="btn btn-outline-secondary" hx-get="{% url 'customer_list' %}?page={{ customers.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&lead_source={{ selected_source }}{% endif %}{% if selected_assignee %}&assigned_to={{ selected_assignee }}{% endif %}" hx-target="#customer-table-content" hx-indicator="#search-spinner">Next</button>
         {% endif %}
      </div>
 </div>

@@ -5,7 +5,7 @@
     <div class="row g-3 mb-4 align-items-center justify-content-between">
         <div class="col-auto">
             <h2 class="mb-0">App Order Management</h2>
-            <p class="text-body-tertiary mb-0">Browse and filter remote orders synced from the Hostinger Database.</p>
+            <p class="text-body-tertiary mb-0">Browse and filter remote orders synced from the App Database.</p>
         </div>
     </div>
 
@@ -13,18 +13,29 @@
     <div class="card shadow-sm border-0 mb-4">
         <div class="card-body">
             <form class="row g-3 align-items-center" hx-get="{% url 'order_list' %}" hx-target="#order-table-wrapper" hx-trigger="change, keyup changed delay:500ms" hx-indicator="#order-spinner">
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-4">
                     <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Search Orders</label>
                     <div class="search-box position-relative">
                         <input class="form-control rounded-pill ps-5" 
                                type="search" 
                                name="q" 
                                value="{{ query|default:'' }}"
-                               placeholder="Search by order number, address..." />
+                               placeholder="Search by order number, user ID..." />
                         <span class="fas fa-search search-box-icon position-absolute top-50 translate-middle-y ms-3 text-body-tertiary"></span>
                     </div>
                 </div>
                 <div class="col-12 col-md-4">
+                    <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Filter by Address/City</label>
+                    <div class="search-box position-relative">
+                        <input class="form-control rounded-pill ps-5" 
+                               type="search" 
+                               name="address_q" 
+                               value="{{ address_query|default:'' }}"
+                               placeholder="Search by city, state, landmark..." />
+                        <span class="fas fa-map-marker-alt search-box-icon position-absolute top-50 translate-middle-y ms-3 text-body-tertiary"></span>
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
                     <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Order Status</label>
                     <select class="form-select rounded-pill" name="status">
                         <option value="">All Statuses</option>
@@ -33,9 +44,10 @@
                         <option value="shipped" {% if selected_status == 'shipped' %}selected{% endif %}>Shipped</option>
                         <option value="delivered" {% if selected_status == 'delivered' %}selected{% endif %}>Delivered / Completed</option>
                         <option value="cancelled" {% if selected_status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                        <option value="returned" {% if selected_status == 'returned' %}selected{% endif %}>Returned</option>
                     </select>
                 </div>
-                <div class="col-12 col-md-2 d-flex align-items-end pt-4 justify-content-center">
+                <div class="col-12 col-md-1 d-flex align-items-center pt-4 justify-content-center">
                     <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status" id="order-spinner"></div>
                 </div>
             </form>

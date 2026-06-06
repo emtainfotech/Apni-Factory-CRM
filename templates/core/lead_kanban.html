@@ -1,6 +1,65 @@
 {% extends 'core/base.html' %}
+{% load static %}
+
 
 {% block content %}
+<style>
+    /* Lock layout to viewport height and disable outer scroll */
+    body, html {
+        overflow: hidden !important;
+    }
+    .content {
+        padding-bottom: 0 !important;
+        height: calc(100vh - 80px) !important;
+        display: flex !important;
+        flex-direction: column !important;
+        overflow: hidden !important;
+    }
+    #kanban-board-wrapper {
+        display: flex !important;
+        flex-direction: column !important;
+        flex-grow: 1 !important;
+        height: 100% !important;
+        overflow: hidden !important;
+    }
+    .kanban-container {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        gap: 1rem !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        flex-grow: 1 !important;
+        height: calc(100% - 90px) !important;
+        padding-bottom: 1rem !important;
+    }
+    .kanban-column {
+        display: flex !important;
+        flex-direction: column !important;
+        width: 300px !important;
+        min-width: 300px !important;
+        max-width: 300px !important;
+        height: 100% !important;
+        border-radius: 0.5rem !important;
+        background-color: var(--phoenix-kanban-column-bg) !important;
+        flex-shrink: 0 !important;
+        overflow: hidden !important;
+    }
+    .kanban-column-header {
+        flex-shrink: 0 !important;
+    }
+    .kanban-items-container {
+        flex-grow: 1 !important;
+        overflow-y: auto !important;
+        overflow-x: hidden !important;
+        padding: 0.5rem !important;
+        min-height: 150px !important;
+    }
+    /* Hide footer on Kanban page */
+    .footer {
+        display: none !important;
+    }
+</style>
 <div class="pb-5" id="kanban-board-wrapper">
     <!-- Header Area -->
     <div class="row g-4 mb-4">
@@ -36,91 +95,86 @@
     </div>
     {% endif %}
 
-    <!-- 5-Column Kanban Board -->
-    <div class="row g-3 flex-nowrap overflow-auto pb-4" style="min-height: 70vh;">
+    <!-- Phoenix-styled Kanban Board -->
+    <div class="kanban-container scrollbar" data-kanban-container="data-kanban-container">
         
         <!-- COLUMN 1: LEADS -->
-        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
-            <div class="card h-100 bg-light border-light shadow-sm">
-                <div class="card-header bg-primary text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
-                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-bullhorn me-2"></span>Leads</h6>
-                    <span class="badge bg-white text-primary rounded-pill fw-bold">{{ leads.count }}</span>
+        <div class="kanban-column scrollbar">
+            <div class="kanban-column-header px-4 hover-actions-trigger">
+                <div class="d-flex align-items-center border-bottom border-3 py-3 border-primary">
+                    <h5 class="mb-0 kanban-column-title">Leads<span class="kanban-title-badge">{{ leads.count }}</span></h5>
                 </div>
-                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
-                    {% for c in leads %}
-                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='primary' %}
-                    {% empty %}
-                        <div class="text-center py-5 text-muted fs-10">No active leads.</div>
-                    {% endfor %}
-                </div>
+            </div>
+            <div class="kanban-items-container" data-sortable="data-sortable" data-status="lead">
+                {% for c in leads %}
+                    {% include 'core/partials/kanban_card.html' with customer=c badge_color='primary' %}
+                {% empty %}
+                    <div class="text-center py-5 text-muted fs-10">No active leads.</div>
+                {% endfor %}
             </div>
         </div>
 
         <!-- COLUMN 2: PROSPECTS -->
-        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
-            <div class="card h-100 bg-light border-light shadow-sm">
-                <div class="card-header bg-warning text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
-                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-hourglass-half me-2"></span>Prospects</h6>
-                    <span class="badge bg-white text-warning rounded-pill fw-bold">{{ prospects.count }}</span>
+        <div class="kanban-column scrollbar">
+            <div class="kanban-column-header px-4 hover-actions-trigger">
+                <div class="d-flex align-items-center border-bottom border-3 py-3 border-warning">
+                    <h5 class="mb-0 kanban-column-title">Prospects<span class="kanban-title-badge">{{ prospects.count }}</span></h5>
                 </div>
-                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
-                    {% for c in prospects %}
-                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='warning' %}
-                    {% empty %}
-                        <div class="text-center py-5 text-muted fs-10">No active prospects.</div>
-                    {% endfor %}
-                </div>
+            </div>
+            <div class="kanban-items-container" data-sortable="data-sortable" data-status="prospect">
+                {% for c in prospects %}
+                    {% include 'core/partials/kanban_card.html' with customer=c badge_color='warning' %}
+                {% empty %}
+                    <div class="text-center py-5 text-muted fs-10">No active prospects.</div>
+                {% endfor %}
             </div>
         </div>
 
-        <!-- COLUMN 3: CUSTOMERS (CONVERTED) -->
-        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
-            <div class="card h-100 bg-light border-light shadow-sm">
-                <div class="card-header bg-success text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
-                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-check-circle me-2"></span>Customers</h6>
-                    <span class="badge bg-white text-success rounded-pill fw-bold">{{ active_customers.count }}</span>
+        <!-- COLUMN 3: BUYERS -->
+        <div class="kanban-column scrollbar">
+            <div class="kanban-column-header px-4 hover-actions-trigger">
+                <div class="d-flex align-items-center border-bottom border-3 py-3 border-success">
+                    <h5 class="mb-0 kanban-column-title">Buyers<span class="kanban-title-badge">{{ active_customers.count }}</span></h5>
                 </div>
-                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
-                    {% for c in active_customers %}
-                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='success' %}
-                    {% empty %}
-                        <div class="text-center py-5 text-muted fs-10">No active customers.</div>
-                    {% endfor %}
-                </div>
+            </div>
+            <div class="kanban-items-container" data-sortable="data-sortable" data-status="customer">
+                {% for c in active_customers %}
+                    {% include 'core/partials/kanban_card.html' with customer=c badge_color='success' %}
+                {% empty %}
+                    <div class="text-center py-5 text-muted fs-10">No active buyers.</div>
+                {% endfor %}
             </div>
         </div>
 
         <!-- COLUMN 4: INACTIVE -->
-        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
-            <div class="card h-100 bg-light border-light shadow-sm">
-                <div class="card-header bg-secondary text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
-                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-user-slash me-2"></span>Inactive</h6>
-                    <span class="badge bg-white text-secondary rounded-pill fw-bold">{{ inactive.count }}</span>
+        <div class="kanban-column scrollbar">
+            <div class="kanban-column-header px-4 hover-actions-trigger">
+                <div class="d-flex align-items-center border-bottom border-3 py-3 border-secondary">
+                    <h5 class="mb-0 kanban-column-title">Inactive<span class="kanban-title-badge">{{ inactive.count }}</span></h5>
                 </div>
-                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
-                    {% for c in inactive %}
-                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='secondary' %}
-                    {% empty %}
-                        <div class="text-center py-5 text-muted fs-10">No inactive items.</div>
-                    {% endfor %}
-                </div>
+            </div>
+            <div class="kanban-items-container" data-sortable="data-sortable" data-status="inactive">
+                {% for c in inactive %}
+                    {% include 'core/partials/kanban_card.html' with customer=c badge_color='secondary' %}
+                {% empty %}
+                    <div class="text-center py-5 text-muted fs-10">No inactive items.</div>
+                {% endfor %}
             </div>
         </div>
 
         <!-- COLUMN 5: LOST -->
-        <div class="col-12 col-md-4 col-lg-2.4" style="min-width: 280px; max-width: 320px;">
-            <div class="card h-100 bg-light border-light shadow-sm">
-                <div class="card-header bg-danger text-white py-2 px-3 d-flex justify-content-between align-items-center rounded-top">
-                    <h6 class="mb-0 text-white fw-bold"><span class="fas fa-times-circle me-2"></span>Lost Leads</h6>
-                    <span class="badge bg-white text-danger rounded-pill fw-bold">{{ lost.count }}</span>
+        <div class="kanban-column scrollbar">
+            <div class="kanban-column-header px-4 hover-actions-trigger">
+                <div class="d-flex align-items-center border-bottom border-3 py-3 border-danger">
+                    <h5 class="mb-0 kanban-column-title">Lost Leads<span class="kanban-title-badge">{{ lost.count }}</span></h5>
                 </div>
-                <div class="card-body p-2 overflow-auto" style="max-height: 60vh;">
-                    {% for c in lost %}
-                        {% include 'core/partials/kanban_card.html' with customer=c badge_color='danger' %}
-                    {% empty %}
-                        <div class="text-center py-5 text-muted fs-10">No lost items.</div>
-                    {% endfor %}
-                </div>
+            </div>
+            <div class="kanban-items-container" data-sortable="data-sortable" data-status="lost">
+                {% for c in lost %}
+                    {% include 'core/partials/kanban_card.html' with customer=c badge_color='danger' %}
+                {% empty %}
+                    <div class="text-center py-5 text-muted fs-10">No lost items.</div>
+                {% endfor %}
             </div>
         </div>
 
@@ -195,4 +249,58 @@
         </div>
     </div>
 </div>
+
+<script src="{% static 'vendors/sortablejs/Sortable.min.js' %}"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Apply kanban-content class to wrapper content div for theme styling
+        var contentDiv = document.querySelector('.content');
+        if (contentDiv) {
+            contentDiv.classList.add('kanban-content');
+        }
+
+        function initKanbanDrag() {
+            document.querySelectorAll('.kanban-items-container').forEach(function(el) {
+                new Sortable(el, {
+                    group: 'kanban-board',
+                    animation: 150,
+                    ghostClass: 'bg-primary-subtle',
+                    draggable: '.sortable-item-wrapper',
+                    onEnd: function(evt) {
+                        var itemEl = evt.item;
+                        var toEl = evt.to;
+                        var fromEl = evt.from;
+                        
+                        var customerId = itemEl.getAttribute('data-id');
+                        var newStatus = toEl.getAttribute('data-status');
+                        
+                        if (fromEl !== toEl) {
+                            var isEmployee = false;
+                            var statusUrl = "{% url 'update_customer_status' 0 %}".replace('0', customerId);
+                            var postUrl = statusUrl + '?board=true&status=' + newStatus + (isEmployee ? '&employee=true' : '');
+                            
+                            htmx.ajax('POST', postUrl, {
+                                headers: {'X-CSRFToken': '{{ csrf_token }}'},
+                                target: '#kanban-board-wrapper',
+                                select: '#kanban-board-wrapper',
+                                swap: 'outerHTML'
+                            }).then(() => {
+                                // Re-initialize dragging after HTMX swap
+                                initKanbanDrag();
+                            });
+                        }
+                    }
+                });
+            });
+        }
+        initKanbanDrag();
+        
+        // Listen to HTMX afterSwap to rebind Sortable if needed
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target.id === 'kanban-board-wrapper') {
+                initKanbanDrag();
+            }
+        });
+    });
+</script>
 {% endblock %}

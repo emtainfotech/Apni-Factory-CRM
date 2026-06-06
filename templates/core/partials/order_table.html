@@ -27,13 +27,13 @@
         <ul class="pagination pagination-sm mb-0">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <button class="page-link" hx-get="{% url 'order_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" hx-target="#order-table-wrapper" hx-indicator="#order-spinner">Previous</button>
+                <button class="page-link" hx-get="{% url 'order_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if address_query %}&address_q={{ address_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" hx-target="#order-table-wrapper" hx-indicator="#order-spinner">Previous</button>
             </li>
             {% endif %}
             <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
             {% if page_obj.has_next %}
             <li class="page-item">
-                <button class="page-link" hx-get="{% url 'order_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" hx-target="#order-table-wrapper" hx-indicator="#order-spinner">Next</button>
+                <button class="page-link" hx-get="{% url 'order_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if address_query %}&address_q={{ address_query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}" hx-target="#order-table-wrapper" hx-indicator="#order-spinner">Next</button>
             </li>
             {% endif %}
         </ul>

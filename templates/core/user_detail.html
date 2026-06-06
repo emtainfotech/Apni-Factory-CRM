@@ -1,82 +1,398 @@
 {% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Team Member Details | ApniFactory CRM{% endblock %}
 
 {% block content %}
 <div class="mb-9">
     <div class="mb-4">
         <a class="btn btn-link text-decoration-none p-0" href="{% url 'user_list' %}">
-            <i class="fas fa-chevron-left me-1"></i> Back to Users
+            <i class="fas fa-chevron-left me-1"></i> Back to Team Members
         </a>
     </div>
 
-    <div class="row g-5">
-        <div class="col-12 col-xl-4">
-            <div class="card mb-5">
-                <div class="card-body d-flex flex-column align-items-center text-center">
-                    <div class="avatar avatar-4xl mb-3">
-                        <div class="avatar-name rounded-circle bg-primary-subtle text-primary fs-3">
-                            {{ user_profile.username|slice:":1"|upper }}
+    <!-- Header Details Card -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body">
+            <div class="row g-4 align-items-center">
+                <div class="col-auto">
+                    <div class="avatar avatar-4xl">
+                        {% if profile.photo %}
+                            <img class="rounded-circle img-thumbnail" src="{{ profile.photo.url }}" alt="Photo" style="width: 100px; height: 100px; object-fit: cover;" />
+                        {% else %}
+                            <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 100px; height: 100px; font-size: 2rem; font-weight: bold;">
+                                {{ user_profile.username|slice:":1"|upper }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <h2 class="mb-0">{{ user_profile.username }}</h2>
+                        <span class="badge badge-phoenix badge-phoenix-info text-capitalize">{{ user_profile.get_role_display }}</span>
+                    </div>
+                    <p class="text-body-tertiary mb-0"><i class="fas fa-envelope me-1"></i>{{ user_profile.email }} | <i class="fas fa-phone me-1"></i>{{ user_profile.phone_number|default:"No Phone" }}</p>
+                    <small class="text-body-quaternary"><i class="fas fa-calendar-alt me-1"></i>Joined: {{ user_profile.date_joined|date:"d M Y" }}</small>
+                </div>
+                <div class="col-auto text-end">
+                    <h3 class="mb-0 text-success">₹{{ profile.salary|default:"0.00" }}</h3>
+                    <p class="text-body-tertiary fs-10 mb-2 fw-bold text-uppercase">Monthly Salary</p>
+                    {% if request.user.role == 'admin' or request.user.is_superuser %}
+                    <button class="btn btn-xs btn-phoenix-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#updateSalaryModal">
+                        <i class="fas fa-edit me-1"></i>Update Salary
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-underline fs-9 mb-4" id="employeeTab" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" id="overview-tab" data-bs-toggle="tab" href="#tab-overview" role="tab" aria-controls="tab-overview" aria-selected="true">
+                <i class="fas fa-info-circle me-1"></i>Overview
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="documents-tab" data-bs-toggle="tab" href="#tab-documents" role="tab" aria-controls="tab-documents" aria-selected="false">
+                <i class="fas fa-file-invoice me-1"></i>Documents & Salary Slip
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="family-tab" data-bs-toggle="tab" href="#tab-family" role="tab" aria-controls="tab-family" aria-selected="false">
+                <i class="fas fa-users me-1"></i>Family Members
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="attendance-tab" data-bs-toggle="tab" href="#tab-attendance" role="tab" aria-controls="tab-attendance" aria-selected="false">
+                <i class="fas fa-calendar-check me-1"></i>Attendance Logs
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" id="leaves-tab" data-bs-toggle="tab" href="#tab-leaves" role="tab" aria-controls="tab-leaves" aria-selected="false">
+                <i class="fas fa-plane-departure me-1"></i>Leave History
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tabs Content -->
+    <div class="tab-content" id="employeeTabContent">
+        <!-- Overview Tab -->
+        <div class="tab-pane fade show active" id="tab-overview" role="tabpanel" aria-labelledby="overview-tab">
+            <div class="row g-4">
+                <div class="col-12 col-lg-6">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-body border-bottom">
+                            <h5 class="mb-0">Personal Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless fs-9 mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="text-body-secondary py-2" style="width: 150px;">Date of Birth</td>
+                                        <td class="fw-semibold py-2">{{ profile.dob|date:"d M Y"|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Gender</td>
+                                        <td class="fw-semibold py-2">{{ profile.gender|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Marital Status</td>
+                                        <td class="fw-semibold py-2">{{ profile.marital_status|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Blood Group</td>
+                                        <td class="fw-semibold py-2"><span class="badge bg-danger-subtle text-danger">{{ profile.blood_group|default:"N/A" }}</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Emergency Contact</td>
+                                        <td class="fw-semibold py-2">
+                                            {% if profile.emergency_contact_name %}
+                                                {{ profile.emergency_contact_name }} ({{ profile.emergency_contact_phone }})
+                                            {% else %}
+                                                Not Provided
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Current Address</td>
+                                        <td class="py-2"><small class="text-body-highlight">{{ profile.current_address|default:"Not Provided" }}</small></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Permanent Address</td>
+                                        <td class="py-2"><small class="text-body-highlight">{{ profile.permanent_address|default:"Not Provided" }}</small></td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <h3 class="mb-1">{{ user_profile.username }}</h3>
-                    <span class="badge badge-phoenix badge-phoenix-info mb-3">{{ user_profile.get_role_display }}</span>
-                    
-                    <div class="d-flex gap-2">
-                        {% if user_profile.is_active %}
-                            <button class="btn btn-sm btn-outline-success disabled">Account Active</button>
-                        {% else %}
-                            <button class="btn btn-sm btn-outline-warning disabled">Account Pending</button>
-                        {% endif %}
+                </div>
+
+                <div class="col-12 col-lg-6">
+                    <div class="card shadow-sm border-0 mb-4">
+                        <div class="card-header bg-body border-bottom">
+                            <h5 class="mb-0">Education Details</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless fs-9 mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="text-body-secondary py-2" style="width: 150px;">Qualification</td>
+                                        <td class="fw-semibold py-2">{{ profile.qualification|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Institution</td>
+                                        <td class="fw-semibold py-2">{{ profile.institution|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Passing Year</td>
+                                        <td class="fw-semibold py-2">{{ profile.passing_year|default:"Not Provided" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-body border-bottom">
+                            <h5 class="mb-0">Previous Experience</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-sm table-borderless fs-9 mb-0">
+                                <tbody>
+                                    <tr>
+                                        <td class="text-body-secondary py-2" style="width: 150px;">Previous Company</td>
+                                        <td class="fw-semibold py-2">{{ profile.previous_company|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Designation</td>
+                                        <td class="fw-semibold py-2">{{ profile.previous_designation|default:"Not Provided" }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="text-body-secondary py-2">Experience Duration</td>
+                                        <td class="fw-semibold py-2">{{ profile.experience_duration|default:"Not Provided" }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="card bg-body shadow-sm border-0">
+                        <div class="card-body">
+                            <h5 class="mb-3 text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Danger Zone</h5>
+                            <p class="text-body-tertiary fs-10">Permanently delete this user account. This action is irreversible.</p>
+                            <button class="btn btn-sm btn-outline-danger rounded-pill" type="button" data-bs-toggle="modal" data-bs-target="#deleteUserModal" data-username="{{ user_profile.username }}" data-delete-url="{% url 'delete_user' user_profile.id %}">
+                                <i class="fas fa-trash me-2"></i>Delete This Employee Account
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-12 col-xl-8">
-            <div class="card">
-                <div class="card-header border-bottom bg-body">
-                    <h4 class="card-title mb-0">Profile Details</h4>
+        <!-- Documents Tab -->
+        <div class="tab-pane fade" id="tab-documents" role="tabpanel" aria-labelledby="documents-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body border-bottom">
+                    <h5 class="mb-0">Scanned Documents & Salary Slip</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <label class="form-label text-body-secondary">Email Address</label>
-                            <div class="form-control-plaintext fw-semibold">{{ user_profile.email }}</div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <label class="form-label text-body-secondary">Phone Number</label>
-                            <div class="form-control-plaintext fw-semibold">
-                                {{ user_profile.phone_number|default:"Not provided" }}
+                    <div class="row g-4">
+                        <div class="col-12 col-md-6 col-lg-3">
+                            <div class="border rounded p-3 text-center bg-body-tertiary">
+                                <i class="fas fa-id-card fa-3x text-primary mb-3"></i>
+                                <h6>Aadhar Card</h6>
+                                <p class="fs-10 text-body-tertiary mb-2">No: {{ profile.aadhar_number|default:"Not Provided" }}</p>
+                                {% if profile.aadhar_file %}
+                                    <a href="{{ profile.aadhar_file.url }}" target="_blank" class="btn btn-xs btn-phoenix-primary rounded-pill"><i class="fas fa-eye me-1"></i>View File</a>
+                                {% else %}
+                                    <span class="badge bg-body-emphasis text-body-tertiary">No Scan Uploaded</span>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label text-body-secondary">Region / Zone</label>
-                            <div class="form-control-plaintext fw-semibold">
-                                {{ user_profile.region|default:"Global" }}
+                        <div class="col-12 col-md-6 col-lg-3">
+                            <div class="border rounded p-3 text-center bg-body-tertiary">
+                                <i class="fas fa-id-badge fa-3x text-primary mb-3"></i>
+                                <h6>PAN Card</h6>
+                                <p class="fs-10 text-body-tertiary mb-2">No: {{ profile.pan_number|default:"Not Provided" }}</p>
+                                {% if profile.pan_file %}
+                                    <a href="{{ profile.pan_file.url }}" target="_blank" class="btn btn-xs btn-phoenix-primary rounded-pill"><i class="fas fa-eye me-1"></i>View File</a>
+                                {% else %}
+                                    <span class="badge bg-body-emphasis text-body-tertiary">No Scan Uploaded</span>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <div class="col-md-6">
-                            <label class="form-label text-body-secondary">Date Joined</label>
-                            <div class="form-control-plaintext fw-semibold">
-                                {{ user_profile.date_joined|date:"M d, Y" }}
+                        <div class="col-12 col-md-6 col-lg-3">
+                            <div class="border rounded p-3 text-center bg-body-tertiary">
+                                <i class="fas fa-file-pdf fa-3x text-primary mb-3"></i>
+                                <h6>Resume / CV</h6>
+                                <p class="fs-10 text-body-tertiary mb-2">Uploaded Document</p>
+                                {% if profile.resume %}
+                                    <a href="{{ profile.resume.url }}" target="_blank" class="btn btn-xs btn-phoenix-primary rounded-pill"><i class="fas fa-download me-1"></i>Download</a>
+                                {% else %}
+                                    <span class="badge bg-body-emphasis text-body-tertiary">No CV Uploaded</span>
+                                {% endif %}
                             </div>
                         </div>
 
-                        <div class="col-12">
-                            <hr class="my-4">
-                            <h5 class="mb-3">System Actions</h5>
-                            
-                            <button class="btn btn-danger" 
-                                    type="button" 
-                                    data-bs-toggle="modal" 
-                                    data-bs-target="#deleteUserModal"
-                                    data-username="{{ user_profile.username }}"
-                                    data-delete-url="{% url 'delete_user' user_profile.id %}">
-                                <i class="fas fa-trash me-2"></i>Delete This User
-                            </button>
+                        <div class="col-12 col-md-6 col-lg-3">
+                            <div class="border rounded p-3 text-center bg-body-tertiary">
+                                <i class="fas fa-file-invoice-dollar fa-3x text-primary mb-3"></i>
+                                <h6>Prev. Month Salary Slip</h6>
+                                <p class="fs-10 text-body-tertiary mb-2">Previous Month</p>
+                                {% if profile.previous_month_salary_slip %}
+                                    <a href="{{ profile.previous_month_salary_slip.url }}" target="_blank" class="btn btn-xs btn-phoenix-primary rounded-pill"><i class="fas fa-eye me-1"></i>View Slip</a>
+                                {% else %}
+                                    <span class="badge bg-body-emphasis text-body-tertiary">No Slip Uploaded</span>
+                                {% endif %}
+                            </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Family Tab -->
+        <div class="tab-pane fade" id="tab-family" role="tabpanel" aria-labelledby="family-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body border-bottom">
+                    <h5 class="mb-0">Family Details</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover fs-9 mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4 py-3">Member Name</th>
+                                    <th class="py-3">Relationship</th>
+                                    <th class="py-3">Age</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for member in profile.family_members_json %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3 fw-bold text-body-emphasis">{{ member.name }}</td>
+                                    <td class="py-3 text-body-highlight">{{ member.relation }}</td>
+                                    <td class="py-3 text-body-highlight">{{ member.age }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center py-5 text-body-tertiary">
+                                        <i class="fas fa-users fa-3x mb-3 text-body-quaternary"></i>
+                                        <p class="mb-0">No family members registered for this employee.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Logs Tab -->
+        <div class="tab-pane fade" id="tab-attendance" role="tabpanel" aria-labelledby="attendance-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body border-bottom">
+                    <h5 class="mb-0">Attendance Timeline</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover fs-9 mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4 py-3">Date</th>
+                                    <th class="py-3">Punch In</th>
+                                    <th class="py-3">Punch Out</th>
+                                    <th class="py-3 text-center">Status</th>
+                                    <th class="py-3">Total Working Hours</th>
+                                    <th class="py-3 pe-4">IP / User Agent</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for att in attendances %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3 fw-bold text-body-emphasis">{{ att.date|date:"d M Y" }}</td>
+                                    <td class="py-3 text-success fw-bold">{{ att.punch_in|date:"H:i:s"|default:"N/A" }}</td>
+                                    <td class="py-3 text-danger fw-bold">{{ att.punch_out|date:"H:i:s"|default:"Active / Not Punched Out" }}</td>
+                                    <td class="py-3 text-center">
+                                        {% if att.is_punched_in %}
+                                            <span class="badge badge-phoenix badge-phoenix-success fs-11">Punched In</span>
+                                        {% else %}
+                                            <span class="badge badge-phoenix badge-phoenix-secondary fs-11">Punched Out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3 text-body-highlight">{{ att.total_working_hours|default:"In Progress" }}</td>
+                                    <td class="py-3 pe-4">
+                                        <small class="text-body-tertiary d-block">IP: {{ att.ip_address|default:"N/A" }}</small>
+                                        <small class="text-body-quaternary d-block text-truncate" style="max-width: 250px;">{{ att.user_agent|default:"N/A" }}</small>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5 text-body-tertiary">
+                                        <i class="fas fa-fingerprint fa-3x mb-3 text-body-quaternary"></i>
+                                        <p class="mb-0">No attendance history logs found.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Leaves Tab -->
+        <div class="tab-pane fade" id="tab-leaves" role="tabpanel" aria-labelledby="leaves-tab">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-body border-bottom">
+                    <h5 class="mb-0">Leaves Mapped</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover fs-9 mb-0">
+                            <thead class="bg-body-tertiary">
+                                <tr>
+                                    <th class="ps-4 py-3">Leave Type</th>
+                                    <th class="py-3">Duration</th>
+                                    <th class="py-3">Reason</th>
+                                    <th class="py-3 text-center">Status</th>
+                                    <th class="py-3 text-end pe-4">Requested On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leaves %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3 fw-bold text-body-emphasis text-capitalize">{{ leave.get_leave_type_display }}</td>
+                                    <td class="py-3 text-body-highlight">{{ leave.start_date|date:"d M" }} to {{ leave.end_date|date:"d M Y" }}</td>
+                                    <td class="py-3 text-body-tertiary">{{ leave.reason }}</td>
+                                    <td class="py-3 text-center">
+                                        {% if leave.status == 'approved' %}
+                                            <span class="badge badge-phoenix badge-phoenix-success">Approved</span>
+                                        {% elif leave.status == 'rejected' %}
+                                            <span class="badge badge-phoenix badge-phoenix-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge badge-phoenix badge-phoenix-warning">Pending Approval</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3 text-end pe-4 text-body-quaternary">{{ leave.created_at|date:"d M Y, H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-body-tertiary">
+                                        <i class="fas fa-plane-slash fa-3x mb-3 text-body-quaternary"></i>
+                                        <p class="mb-0">No leave requests recorded.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -84,21 +400,53 @@
     </div>
 </div>
 
+<!-- Update Salary Modal -->
+<div class="modal fade" id="updateSalaryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <form method="post" action="{% url 'user_detail' user_profile.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_salary">
+                <div class="modal-header bg-body border-bottom py-3">
+                    <h5 class="modal-title"><i class="fas fa-edit me-2 text-primary"></i>Update Employee Salary</h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <label class="form-label fw-bold">Set Monthly Salary (INR)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">₹</span>
+                        <input type="number" class="form-control rounded-pill-end" name="salary" value="{{ profile.salary|default:'' }}" step="0.01" placeholder="e.g. 45000" required>
+                    </div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary rounded-pill" type="submit">Update Salary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header border-0 pb-0">
-                <h5 class="modal-title text-danger">Confirm Deletion</h5>
-                <button class="btn btn-close p-1" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content border-0">
+            <div class="modal-header bg-danger-subtle border-bottom py-3">
+                <h5 class="modal-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Delete User Account</h5>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p>Are you sure you want to delete <strong id="delete-username-placeholder">this user</strong>?</p>
+            <div class="modal-body text-center py-4">
+                <div class="avatar avatar-4xl bg-danger-subtle text-danger mb-3 mx-auto" style="width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-user-slash fs-5"></i>
+                </div>
+                <h5>Are you absolutely sure?</h5>
+                <p class="text-body-tertiary">You are about to permanently delete <strong id="delete-username-placeholder">this user</strong>. All of their attendance logs, profiles, and dashboard integrations will be permanently removed.</p>
             </div>
             <div class="modal-footer border-0">
-                <button class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
                 <form id="deleteUserForm" method="post" action="">
                     {% csrf_token %}
-                    <button class="btn btn-danger" type="submit">Yes, Delete</button>
+                    <button class="btn btn-danger rounded-pill px-4" type="submit">Yes, Delete Account</button>
                 </form>
             </div>
         </div>
@@ -106,23 +454,21 @@
 </div>
 
 <script>
-    var deleteModal = document.getElementById('deleteUserModal');
-    if(deleteModal){
-        deleteModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            
-            // Get Data Attributes
-            var username = button.getAttribute('data-username');
-            var deleteUrl = button.getAttribute('data-delete-url'); // <--- New Robust Way
-            
-            // Update Text
-            var modalTitle = deleteModal.querySelector('#delete-username-placeholder');
-            modalTitle.textContent = username;
-            
-            // Update Action
-            var form = deleteModal.querySelector('#deleteUserForm');
-            form.action = deleteUrl;
-        });
-    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var deleteModal = document.getElementById('deleteUserModal');
+        if(deleteModal){
+            deleteModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var username = button.getAttribute('data-username');
+                var deleteUrl = button.getAttribute('data-delete-url');
+                
+                var placeholder = deleteModal.querySelector('#delete-username-placeholder');
+                placeholder.textContent = username;
+                
+                var form = deleteModal.querySelector('#deleteUserForm');
+                form.action = deleteUrl;
+            });
+        }
+    });
 </script>
 {% endblock %}

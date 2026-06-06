@@ -232,7 +232,7 @@ def punch_in(request):
     else:
         messages.info(request, "You are already punched-in.")
         
-    return redirect('employee_portal:dashboard')
+    return redirect(request.META.get('HTTP_REFERER', 'employee_portal:dashboard'))
 
 
 @login_required
@@ -263,7 +263,7 @@ def punch_out(request):
     else:
         messages.error(request, "No active punch-in found for today.")
         
-    return redirect('employee_portal:dashboard')
+    return redirect(request.META.get('HTTP_REFERER', 'employee_portal:dashboard'))
 
 
 @login_required
@@ -294,7 +294,7 @@ def toggle_break(request):
         attendance.save()
         messages.success(request, "Break ended. Back to work.")
         
-    return redirect('employee_portal:dashboard')
+    return redirect(request.META.get('HTTP_REFERER', 'employee_portal:dashboard'))
 
 
 # ==========================================
@@ -308,6 +308,7 @@ def customer_list(request):
     """Lists only customers assigned to the logged-in employee."""
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
+    source_filter = request.GET.get('lead_source', '')
     
     qs = Customer.objects.filter(assigned_to=request.user).order_by('-created_at')
     
@@ -322,15 +323,23 @@ def customer_list(request):
         
     if status_filter:
         qs = qs.filter(status=status_filter)
+    if source_filter:
+        qs = qs.filter(lead_source=source_filter)
         
     paginator = Paginator(qs, 15)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
+    existing_sources = list(Customer.objects.exclude(lead_source__isnull=True).exclude(lead_source='').values_list('lead_source', flat=True).distinct().order_by('lead_source'))
+    source_choices = [(src, src.replace('_', ' ').title()) for src in existing_sources if src]
+
     context = {
         'page_obj': page_obj,
         'query': query,
         'status_filter': status_filter,
+        'source_filter': source_filter,
+        'status_choices': Customer.STATUS_CHOICES,
+        'source_choices': source_choices,
     }
     return render(request, 'employee_portal/customer_list.html', context)
 
@@ -341,7 +350,19 @@ def customer_list(request):
 def customer_detail(request, customer_id):
     """Comprehensive 360 view of a customer assigned to the employee."""
     customer = get_object_or_404(Customer, id=customer_id, assigned_to=request.user)
+    from core.forms import CustomerEditForm
     
+    if request.method == 'POST' and request.POST.get('action') == 'edit_customer':
+        edit_form = CustomerEditForm(request.POST, instance=customer)
+        if edit_form.is_valid():
+            edit_form.save()
+            messages.success(request, "Buyer profile updated successfully.")
+            return redirect('employee_portal:customer_detail', customer_id=customer.id)
+        else:
+            messages.error(request, "Failed to update buyer profile. Please check the errors.")
+    else:
+        edit_form = CustomerEditForm(instance=customer)
+        
     # Fetch local records
     invoices = customer.invoices.all().order_by('-created_at')
     transactions = customer.transactions.all().order_by('-transaction_date')
@@ -360,6 +381,7 @@ def customer_detail(request, customer_id):
         'activities': activities,
         'orders': remote_orders,
         'total_spent': total_spent,
+        'edit_form': edit_form,
     }
     return render(request, 'employee_portal/customer_detail.html', context)
 

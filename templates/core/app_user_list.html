@@ -4,8 +4,8 @@
 <div class="mb-9">
     <div class="row g-3 mb-4">
         <div class="col-auto">
-            <h2 class="mb-0">App User Management</h2>
-            <p class="text-body-tertiary mb-0">Browse and inspect remote registered application users synced from the Hostinger Database.</p>
+            <h2 class="mb-0">Seller Management</h2>
+            <p class="text-body-tertiary mb-0">Browse and inspect remote registered sellers synced from the App Database.</p>
         </div>
     </div>
 
@@ -44,19 +44,37 @@
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div class="p-4 border-bottom border-translucent">
-                <form class="row g-3 align-items-center" hx-get="{% url 'hostinger_user_list' %}" hx-target="#hostinger-user-table-wrapper" hx-trigger="keyup changed delay:500ms" hx-indicator="#hostinger-spinner">
-                    <div class="col-12 col-md-8">
-                        <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Search External Users</label>
+                <form class="row g-3 align-items-center" id="seller-filter-form">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Search Sellers</label>
                         <div class="search-box position-relative">
                             <input class="form-control rounded-pill ps-5" 
                                    type="search" 
                                    name="q" 
                                    value="{{ query|default:'' }}"
-                                   placeholder="Search by name or email address..." />
+                                   placeholder="Search by name or email address..."
+                                   hx-get="{% url 'hostinger_user_list' %}"
+                                   hx-trigger="keyup changed delay:500ms"
+                                   hx-target="#hostinger-user-table-wrapper"
+                                   hx-include="#seller-filter-form"
+                                   hx-indicator="#hostinger-spinner" />
                             <span class="fas fa-search search-box-icon position-absolute top-50 translate-middle-y ms-3 text-body-tertiary"></span>
                         </div>
                     </div>
-                    <div class="col-12 col-md-4 d-flex align-items-end pt-4 justify-content-center">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Role</label>
+                        <select class="form-select rounded-pill" name="role"
+                                hx-get="{% url 'hostinger_user_list' %}"
+                                hx-trigger="change"
+                                hx-target="#hostinger-user-table-wrapper"
+                                hx-include="#seller-filter-form"
+                                hx-indicator="#hostinger-spinner">
+                            <option value="">All Roles</option>
+                            <option value="seller" {% if selected_role == 'seller' %}selected{% endif %}>Seller</option>
+                            <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2 d-flex align-items-end justify-content-center pb-2">
                         <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status" id="hostinger-spinner"></div>
                     </div>
                 </form>

@@ -1,0 +1,417 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}My Profile | ApniFactory CRM{% endblock %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 justify-content-between align-items-center">
+        <div class="col-auto">
+            <h2 class="mb-0">My Employee Profile</h2>
+            <p class="text-body-tertiary mb-0">View, update, and manage your personal HRMS credentials and documents.</p>
+        </div>
+        <div class="col-auto">
+            <span class="badge badge-phoenix badge-phoenix-primary fs-8 text-uppercase">{{ request.user.get_role_display }}</span>
+        </div>
+    </div>
+
+    <!-- Stats Summary Widgets -->
+    <div class="row g-3 mb-5">
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-success-subtle text-success me-3" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">₹{{ profile.salary|default:"0.00" }}</h4>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Current Salary</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-primary-subtle text-primary me-3" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">{{ attendances.count }}</h4>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Punches (Recent)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-info-subtle text-info me-3" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-plane-departure"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">{{ total_leaves }}</h4>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Approved Leaves</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="icon-circle bg-warning-subtle text-warning me-3" style="width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                        <div>
+                            <h4 class="mb-0">{{ pending_leaves }}</h4>
+                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Pending Leaves</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" action="{% url 'user_profile' %}" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="hidden" name="family_members_json_raw" id="family-members-json-raw" value="[]">
+
+        <div class="row g-5">
+            <!-- Left Side: Profile Photo & Documents Upload -->
+            <div class="col-12 col-xl-4">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-body text-center py-5">
+                        <div class="avatar avatar-5xl mb-3 mx-auto">
+                            {% if profile.photo %}
+                                <img class="rounded-circle img-thumbnail" src="{{ profile.photo.url }}" alt="Photo" style="width: 140px; height: 140px; object-fit: cover;" />
+                            {% else %}
+                                <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center mx-auto" style="width: 140px; height: 140px; fs-1 fw-bold;">
+                                    {{ request.user.username|slice:":1"|upper }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <h4 class="mb-1">{{ request.user.username }}</h4>
+                        <p class="text-body-tertiary mb-3">{{ request.user.email }}</p>
+                        
+                        <div class="mb-3">
+                            <label class="form-label btn btn-sm btn-phoenix-secondary rounded-pill mb-0" for="photo-upload">
+                                <i class="fas fa-camera me-1"></i>Change Profile Photo
+                            </label>
+                            <input class="d-none" type="file" name="photo" id="photo-upload" accept="image/*">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documents Section -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-body border-bottom">
+                        <h5 class="mb-0"><i class="fas fa-file-invoice me-2 text-primary"></i>My Documents</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Aadhar Card Number</label>
+                            <input class="form-control rounded-pill" type="text" name="aadhar_number" value="{{ profile.aadhar_number|default:'' }}" placeholder="e.g. 1234 5678 9012">
+                            <div class="mt-2">
+                                <label class="form-label fs-10 text-primary mb-0 cursor-pointer" for="aadhar-file">
+                                    <i class="fas fa-cloud-upload-alt me-1"></i>Upload Aadhar PDF/Image
+                                </label>
+                                <input class="form-control d-none" type="file" name="aadhar_file" id="aadhar-file">
+                                {% if profile.aadhar_file %}
+                                    <a class="d-block fs-10 text-success mt-1" href="{{ profile.aadhar_file.url }}" target="_blank"><i class="fas fa-eye me-1"></i>View Uploaded Aadhar</a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">PAN Card Number</label>
+                            <input class="form-control rounded-pill" type="text" name="pan_number" value="{{ profile.pan_number|default:'' }}" placeholder="e.g. ABCDE1234F">
+                            <div class="mt-2">
+                                <label class="form-label fs-10 text-primary mb-0 cursor-pointer" for="pan-file">
+                                    <i class="fas fa-cloud-upload-alt me-1"></i>Upload PAN PDF/Image
+                                </label>
+                                <input class="form-control d-none" type="file" name="pan_file" id="pan-file">
+                                {% if profile.pan_file %}
+                                    <a class="d-block fs-10 text-success mt-1" href="{{ profile.pan_file.url }}" target="_blank"><i class="fas fa-eye me-1"></i>View Uploaded PAN</a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">My Resume (PDF)</label>
+                            <div class="mt-1">
+                                <input class="form-control" type="file" name="resume" accept=".pdf,.doc,.docx">
+                                {% if profile.resume %}
+                                    <a class="d-block fs-10 text-success mt-1" href="{{ profile.resume.url }}" target="_blank"><i class="fas fa-file-download me-1"></i>Download Resume</a>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-0">
+                            <label class="form-label fw-bold">Previous Month Salary Slip</label>
+                            <div class="mt-1">
+                                <input class="form-control" type="file" name="previous_month_salary_slip" accept=".pdf,.png,.jpg,.jpeg">
+                                {% if profile.previous_month_salary_slip %}
+                                    <a class="d-block fs-10 text-success mt-1" href="{{ profile.previous_month_salary_slip.url }}" target="_blank"><i class="fas fa-file-invoice-dollar me-1"></i>View Salary Slip</a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Personal details, Education, Experience, Family Members -->
+            <div class="col-12 col-xl-8">
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-body border-bottom">
+                        <h5 class="mb-0"><i class="fas fa-user-circle me-2 text-primary"></i>Personal Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Date of Birth</label>
+                                <input class="form-control rounded-pill" type="date" name="dob" value="{{ profile.dob|date:'Y-m-d' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Gender</label>
+                                <select class="form-select rounded-pill" name="gender">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male" {% if profile.gender == 'Male' %}selected{% endif %}>Male</option>
+                                    <option value="Female" {% if profile.gender == 'Female' %}selected{% endif %}>Female</option>
+                                    <option value="Other" {% if profile.gender == 'Other' %}selected{% endif %}>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Marital Status</label>
+                                <select class="form-select rounded-pill" name="marital_status">
+                                    <option value="">Select Status</option>
+                                    <option value="Single" {% if profile.marital_status == 'Single' %}selected{% endif %}>Single</option>
+                                    <option value="Married" {% if profile.marital_status == 'Married' %}selected{% endif %}>Married</option>
+                                    <option value="Divorced" {% if profile.marital_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Blood Group</label>
+                                <input class="form-control rounded-pill" type="text" name="blood_group" value="{{ profile.blood_group|default:'' }}" placeholder="e.g. O+">
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Emergency Contact Name</label>
+                                <input class="form-control rounded-pill" type="text" name="emergency_contact_name" value="{{ profile.emergency_contact_name|default:'' }}" placeholder="Name">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Emergency Contact Phone</label>
+                                <input class="form-control rounded-pill" type="text" name="emergency_contact_phone" value="{{ profile.emergency_contact_phone|default:'' }}" placeholder="Phone Number">
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Current Address</label>
+                                <textarea class="form-control" name="current_address" rows="2" placeholder="Your current local address">{{ profile.current_address|default:'' }}</textarea>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Permanent Address</label>
+                                <textarea class="form-control" name="permanent_address" rows="2" placeholder="Your permanent address">{{ profile.permanent_address|default:'' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Education & Work Section -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-body border-bottom">
+                        <h5 class="mb-0"><i class="fas fa-graduation-cap me-2 text-primary"></i>Education & Experience</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <h6 class="text-primary border-bottom pb-1 mb-3">Highest Qualification</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Degree / Qualification</label>
+                                <input class="form-control rounded-pill" type="text" name="qualification" value="{{ profile.qualification|default:'' }}" placeholder="e.g. MBA, B.Tech">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold">Institution / University</label>
+                                <input class="form-control rounded-pill" type="text" name="institution" value="{{ profile.institution|default:'' }}" placeholder="e.g. IIT Delhi">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Passing Year</label>
+                                <input class="form-control rounded-pill" type="text" name="passing_year" value="{{ profile.passing_year|default:'' }}" placeholder="e.g. 2022">
+                            </div>
+
+                            <div class="col-12 mt-4">
+                                <h6 class="text-primary border-bottom pb-1 mb-3">Previous Experience</h6>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Previous Company</label>
+                                <input class="form-control rounded-pill" type="text" name="previous_company" value="{{ profile.previous_company|default:'' }}" placeholder="Company Name">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Previous Designation</label>
+                                <input class="form-control rounded-pill" type="text" name="previous_designation" value="{{ profile.previous_designation|default:'' }}" placeholder="e.g. Junior Executive">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Duration</label>
+                                <input class="form-control rounded-pill" type="text" name="experience_duration" value="{{ profile.experience_duration|default:'' }}" placeholder="e.g. 2 Years">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Family Members Dynamic Table -->
+                <div class="card shadow-sm border-0 mb-4">
+                    <div class="card-header bg-body border-bottom d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-users-cog me-2 text-primary"></i>Family Details</h5>
+                        <button type="button" class="btn btn-xs btn-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#addFamilyModal">
+                            <i class="fas fa-plus me-1"></i>Add Member
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover fs-9 mb-0">
+                                <thead class="bg-body-tertiary">
+                                    <tr>
+                                        <th class="ps-4">Name</th>
+                                        <th>Relationship</th>
+                                        <th>Age</th>
+                                        <th class="text-end pe-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="family-table-body">
+                                    <!-- Rendered dynamically by JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="no-family-alert" class="text-center py-4 text-body-tertiary">
+                            <i class="fas fa-users fa-2x mb-2 text-body-quaternary"></i>
+                            <p class="mb-0 fs-10">No family members registered yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-3 mb-5">
+                    <button type="submit" class="btn btn-primary px-5 rounded-pill"><i class="fas fa-save me-2"></i>Save My Profile Details</button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Add Family Member Modal -->
+<div class="modal fade" id="addFamilyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-body border-bottom py-3">
+                <h5 class="modal-title"><i class="fas fa-user-plus me-2 text-primary"></i>Add Family Member</h5>
+                <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Full Name</label>
+                    <input class="form-control rounded-pill" type="text" id="member-name" placeholder="Full Name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Relationship</label>
+                    <select class="form-select rounded-pill" id="member-relation">
+                        <option value="Father">Father</option>
+                        <option value="Mother">Mother</option>
+                        <option value="Spouse">Spouse</option>
+                        <option value="Son">Son</option>
+                        <option value="Daughter">Daughter</option>
+                        <option value="Brother">Brother</option>
+                        <option value="Sister">Sister</option>
+                    </select>
+                </div>
+                <div class="mb-0">
+                    <label class="form-label fw-bold">Age</label>
+                    <input class="form-control rounded-pill" type="number" id="member-age" placeholder="Age" min="1" max="120">
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary rounded-pill" type="button" id="btn-add-family-member">Add Member</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Load initial family members
+        let familyMembers = JSON.parse('{{ profile.family_members_json|safe|escapejs }}' || '[]');
+        
+        const tableBody = document.getElementById('family-table-body');
+        const noFamilyAlert = document.getElementById('no-family-alert');
+        const jsonInput = document.getElementById('family-members-json-raw');
+        
+        function renderFamilyTable() {
+            tableBody.innerHTML = '';
+            jsonInput.value = JSON.stringify(familyMembers);
+            
+            if (familyMembers.length === 0) {
+                noFamilyAlert.style.display = 'block';
+                return;
+            }
+            
+            noFamilyAlert.style.display = 'none';
+            
+            familyMembers.forEach((member, index) => {
+                const row = document.createElement('tr');
+                row.className = 'align-middle';
+                row.innerHTML = `
+                    <td class="ps-4 py-3 fw-bold text-body-emphasis">${member.name}</td>
+                    <td class="py-3 text-body-highlight">${member.relation}</td>
+                    <td class="py-3 text-body-highlight">${member.age}</td>
+                    <td class="text-end pe-4 py-3">
+                        <button type="button" class="btn btn-sm btn-outline-danger rounded-pill py-0 px-2" onclick="removeFamilyMember(${index})">
+                            <i class="fas fa-trash-alt fs-11"></i>
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        window.removeFamilyMember = function(index) {
+            familyMembers.splice(index, 1);
+            renderFamilyTable();
+        };
+        
+        const btnAdd = document.getElementById('btn-add-family-member');
+        btnAdd.addEventListener('click', function() {
+            const nameEl = document.getElementById('member-name');
+            const relationEl = document.getElementById('member-relation');
+            const ageEl = document.getElementById('member-age');
+            
+            const name = nameEl.value.trim();
+            const relation = relationEl.value;
+            const age = parseInt(ageEl.value);
+            
+            if (!name || isNaN(age)) {
+                alert('Please enter a valid name and age.');
+                return;
+            }
+            
+            familyMembers.push({ name, relation, age });
+            renderFamilyTable();
+            
+            // Reset input values
+            nameEl.value = '';
+            ageEl.value = '';
+            
+            // Hide Modal
+            const modalEl = document.getElementById('addFamilyModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            modal.hide();
+        });
+        
+        renderFamilyTable();
+    });
+</script>
+{% endblock %}

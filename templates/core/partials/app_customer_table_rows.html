@@ -1,0 +1,57 @@
+{% for cust in page_obj %}
+<tr class="align-middle">
+    <td class="ps-4 py-3">
+        <div class="d-flex align-items-center">
+            <div class="avatar avatar-l me-3 rounded-circle bg-primary-subtle text-primary fw-bold text-center pt-1" style="width:32px; height:32px;">
+                {{ cust.name|slice:":1"|upper }}
+            </div>
+            <div>
+                <span class="fw-bold text-body-emphasis d-block">{{ cust.name }}</span>
+                <small class="text-body-quaternary fs-10">DB ID: #{{ cust.id }}</small>
+            </div>
+        </div>
+    </td>
+    <td>
+        <span class="text-body-highlight fw-medium fs-10">
+            <span class="fas fa-envelope text-body-tertiary me-1 fs-11"></span>{{ cust.email }}
+        </span>
+    </td>
+    <td>
+        <span class="text-body-highlight fw-medium fs-10">
+            <span class="fas fa-phone text-body-tertiary me-1 fs-11"></span>{{ cust.mobile|default:"-" }}
+        </span>
+    </td>
+    <td>
+        <span class="text-body-highlight fw-medium fs-10">
+            <span class="fab fa-whatsapp text-success me-1 fs-11"></span>{{ cust.whatsappno|default:"-" }}
+        </span>
+    </td>
+    <td>
+        <span class="text-body-highlight fw-medium fs-10">
+            {{ cust.gstorpan|default:"-" }}
+        </span>
+    </td>
+    <td>
+        {% if cust.gstorpan %}
+            {% if cust.gst_verified %}
+            <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-check-circle me-1"></i>GST Verified</span>
+            {% else %}
+            <span class="badge badge-phoenix badge-phoenix-secondary fs-11"><i class="fas fa-times-circle me-1"></i>Not Verified</span>
+            {% endif %}
+        {% else %}
+            <span class="text-body-quaternary fs-10">-</span>
+        {% endif %}
+    </td>
+    <td class="fs-10 text-body-tertiary">
+        <div>{{ cust.created_at|date:"d M Y" }}</div>
+        <div class="fs-11 text-body-quaternary">{{ cust.created_at|date:"H:i" }} IST</div>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" class="text-center py-5 text-body-tertiary">
+        <span class="fas fa-user-slash fa-3x mb-3 text-body-quaternary d-block"></span>
+        <p class="mb-0 fs-9">No app buyers found matching criteria.</p>
+    </td>
+</tr>
+{% endfor %}

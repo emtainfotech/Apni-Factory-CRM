@@ -1,44 +1,36 @@
-<div class="card border border-2 border-{{ badge_color }} shadow-sm mb-2 hover-actions-trigger bg-white position-relative rounded-2">
-    <div class="card-body p-3">
-        <!-- Lead Title & link -->
-        <div class="d-flex justify-content-between align-items-start mb-1">
-            <a href="{% if is_employee %}{% url 'employee_portal:customer_detail' customer.id %}{% else %}{% url 'customer_detail' customer.id %}{% endif %}" class="fw-bold text-body-highlight fs-9 hover-primary text-decoration-none">
-                {{ customer.first_name }} {{ customer.last_name }}
-            </a>
-            {% if customer.is_gst_verified %}
-            <span class="badge bg-success-subtle text-success fs-11 px-1 ms-1" title="GST Verified"><span class="fas fa-check-double"></span></span>
-            {% endif %}
-        </div>
-        
-        <!-- Contact details -->
-        <p class="text-body-tertiary fs-10 mb-2 font-monospace">
-            <span class="fas fa-phone-alt me-1"></span>{{ customer.phone }}
-            {% if customer.city %}
-            <br><span class="fas fa-map-marker-alt me-1"></span>{{ customer.city }}, {{ customer.state }}
-            {% endif %}
-        </p>
-        
-        <!-- Assigned To employee info -->
-        <div class="d-flex justify-content-between align-items-center mt-2 pt-2 border-top">
-            <div class="d-flex align-items-center">
-                <span class="avatar avatar-xs rounded-circle bg-body-secondary text-body-tertiary d-flex align-items-center justify-content-center me-1" style="width: 18px; height: 18px; font-size: 8px;">
-                    {{ customer.assigned_to.username|slice:":1"|upper|default:"?" }}
-                </span>
-                <span class="fs-10 text-body-tertiary fw-semibold">
-                    {{ customer.assigned_to.username|default:"Unassigned" }}
-                </span>
-            </div>
-            
-            <!-- Quick Progress Dropdown (HTMX powered) -->
-            <div class="dropdown">
-                <button class="btn btn-phoenix-secondary btn-xs dropdown-toggle py-0 px-1 border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Progress Lead">
-                    <span class="fas fa-exchange-alt text-primary fs-11"></span>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end fs-10 py-1 shadow-sm border-0">
-                    <li class="dropdown-header text-uppercase fs-11 py-1">Move To Status</li>
-                    {% if customer.status != 'lead' %}
-                    <li>
-                        <button class="dropdown-item py-1" 
+<div class="sortable-item-wrapper border-bottom border-translucent px-2 py-2" data-id="{{ customer.id }}">
+    <div class="card sortable-item hover-actions-trigger bg-white position-relative">
+        <div class="card-body py-3 px-3">
+            <!-- Top status, badges, and quick action dropdown -->
+            <div class="kanban-status mb-2 position-relative lh-1 d-flex align-items-center justify-content-between" style="z-index: 5;">
+                <div class="d-flex align-items-center flex-wrap gap-1">
+                    <span class="fa fa-circle text-{{ badge_color }} fs-10" style="min-width:0.8rem"></span>
+                    <span class="badge badge-phoenix fs-10 badge-phoenix-{{ badge_color }} px-2">
+                        <span>
+                            {% if customer.status == 'lead' %}Lead
+                            {% elif customer.status == 'prospect' %}Prospect
+                            {% elif customer.status == 'customer' %}Buyer
+                            {% elif customer.status == 'inactive' %}Inactive
+                            {% elif customer.status == 'lost' %}Lost Lead
+                            {% endif %}
+                        </span>
+                    </span>
+                    {% if customer.is_gst_verified %}
+                    <span class="badge bg-success-subtle text-success fs-10 px-1 d-flex align-items-center" title="GST Verified">
+                        <span class="fas fa-check-double me-1"></span>GST
+                    </span>
+                    {% endif %}
+                </div>
+
+                <!-- Ellipsis Status Progression Dropdown -->
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-phoenix-default kanban-item-dropdown-btn hover-actions py-0 px-1 border-0" type="button" data-boundary="viewport" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span class="fas fa-ellipsis-h fa-rotate-90 text-body-tertiary fs-9"></span>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end py-1 shadow border" style="width: 13rem; z-index: 1000000000000000000000000;">
+                        <h6 class="dropdown-header text-uppercase fs-11 py-1">Move To Status</h6>
+                        {% if customer.status != 'lead' %}
+                        <button class="dropdown-item py-1 text-start" 
                                 hx-post="{% url 'update_customer_status' customer.id %}?status=lead&board=true{% if is_employee %}&employee=true{% endif %}"
                                 hx-target="#kanban-board-wrapper"
                                 hx-select="#kanban-board-wrapper"
@@ -46,11 +38,9 @@
                                 hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
                             <span class="fas fa-bullhorn me-2 text-primary"></span>Lead
                         </button>
-                    </li>
-                    {% endif %}
-                    {% if customer.status != 'prospect' %}
-                    <li>
-                        <button class="dropdown-item py-1" 
+                        {% endif %}
+                        {% if customer.status != 'prospect' %}
+                        <button class="dropdown-item py-1 text-start" 
                                 hx-post="{% url 'update_customer_status' customer.id %}?status=prospect&board=true{% if is_employee %}&employee=true{% endif %}"
                                 hx-target="#kanban-board-wrapper"
                                 hx-select="#kanban-board-wrapper"
@@ -58,23 +48,19 @@
                                 hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
                             <span class="fas fa-hourglass-half me-2 text-warning"></span>Prospect
                         </button>
-                    </li>
-                    {% endif %}
-                    {% if customer.status != 'customer' %}
-                    <li>
-                        <button class="dropdown-item py-1" 
+                        {% endif %}
+                        {% if customer.status != 'customer' %}
+                        <button class="dropdown-item py-1 text-start" 
                                 hx-post="{% url 'update_customer_status' customer.id %}?status=customer&board=true{% if is_employee %}&employee=true{% endif %}"
                                 hx-target="#kanban-board-wrapper"
                                 hx-select="#kanban-board-wrapper"
                                 hx-swap="outerHTML"
                                 hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
-                            <span class="fas fa-check-circle me-2 text-success"></span>Customer
+                            <span class="fas fa-check-circle me-2 text-success"></span>Buyer
                         </button>
-                    </li>
-                    {% endif %}
-                    {% if customer.status != 'inactive' %}
-                    <li>
-                        <button class="dropdown-item py-1" 
+                        {% endif %}
+                        {% if customer.status != 'inactive' %}
+                        <button class="dropdown-item py-1 text-start" 
                                 hx-post="{% url 'update_customer_status' customer.id %}?status=inactive&board=true{% if is_employee %}&employee=true{% endif %}"
                                 hx-target="#kanban-board-wrapper"
                                 hx-select="#kanban-board-wrapper"
@@ -82,11 +68,9 @@
                                 hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
                             <span class="fas fa-user-slash me-2 text-secondary"></span>Inactive
                         </button>
-                    </li>
-                    {% endif %}
-                    {% if customer.status != 'lost' %}
-                    <li>
-                        <button class="dropdown-item py-1" 
+                        {% endif %}
+                        {% if customer.status != 'lost' %}
+                        <button class="dropdown-item py-1 text-start" 
                                 hx-post="{% url 'update_customer_status' customer.id %}?status=lost&board=true{% if is_employee %}&employee=true{% endif %}"
                                 hx-target="#kanban-board-wrapper"
                                 hx-select="#kanban-board-wrapper"
@@ -94,9 +78,42 @@
                                 hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
                             <span class="fas fa-times-circle me-2 text-danger"></span>Lost Lead
                         </button>
-                    </li>
-                    {% endif %}
-                </ul>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Customer / Buyer Link (stretched-link makes entire card clickable) -->
+            <a href="{% if is_employee %}{% url 'employee_portal:customer_detail' customer.id %}{% else %}{% url 'customer_detail' customer.id %}{% endif %}" class="fw-bold text-body-highlight fs-8 hover-primary text-decoration-none stretched-link mb-1 d-block">
+                {{ customer.first_name }} {{ customer.last_name }}
+            </a>
+
+            <!-- Contact and location details (z-index: 5 keeps it clickable/interactive over the stretched-link) -->
+            <p class="text-body-tertiary fs-10 mb-2 font-monospace position-relative" style="z-index: 5;">
+                <span class="fas fa-phone-alt me-1"></span>{{ customer.phone }}
+                {% if customer.city %}
+                <br><span class="fas fa-map-marker-alt me-1"></span>{{ customer.city }}, {{ customer.state }}
+                {% endif %}
+            </p>
+
+            <!-- Bottom Row: Assigned Employee and Lead Source -->
+            <div class="d-flex align-items-center justify-content-between border-top pt-2 mt-2 position-relative" style="z-index: 5;">
+                <!-- Employee Avatar -->
+                <div class="d-flex align-items-center">
+                    <span class="avatar avatar-xs rounded-circle bg-body-secondary text-body-tertiary d-flex align-items-center justify-content-center me-1" style="width: 18px; height: 18px; font-size: 8px;">
+                        {{ customer.assigned_to.username|slice:":1"|upper|default:"?" }}
+                    </span>
+                    <span class="fs-10 text-body-tertiary fw-semibold">
+                        {{ customer.assigned_to.username|default:"Unassigned" }}
+                    </span>
+                </div>
+
+                <!-- Lead Source -->
+                {% if customer.lead_source %}
+                <span class="badge badge-phoenix badge-phoenix-secondary fs-10">
+                    <span class="fas fa-info-circle me-1"></span>{{ customer.lead_source }}
+                </span>
+                {% endif %}
             </div>
         </div>
     </div>

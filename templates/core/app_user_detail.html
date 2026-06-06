@@ -1,0 +1,489 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col-auto">
+            <a href="{% url 'hostinger_user_list' %}" class="btn btn-sm btn-phoenix-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+        <div class="col">
+            <h2 class="mb-0">Seller Profile: {{ h_user.name }}</h2>
+        </div>
+    </div>
+
+    <!-- Message Alerts inside details -->
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-5">
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Basic Information</h5>
+                        <button class="btn btn-xs btn-link p-0 text-primary" data-bs-toggle="modal" data-bs-target="#editBasicModal">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Name</label>
+                        <p class="mb-0 fw-bold">{{ h_user.name }}</p>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Email</label>
+                        <p class="mb-0">{{ h_user.email }}</p>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Verified At</label>
+                        <p class="mb-0">{{ h_user.email_verified_at|default:"-" }}</p>
+                    </div>
+                    <div class="mb-2">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Created At</label>
+                        <p class="mb-0">{{ h_user.created_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                    <div class="mb-0">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Updated At</label>
+                        <p class="mb-0">{{ h_user.updated_at|date:"Y-m-d H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">Activity Summary</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Companies <span class="badge bg-primary rounded-pill">{{ companies.count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Orders <span class="badge bg-success rounded-pill">{{ orders.count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Products <span class="badge bg-info rounded-pill">{{ products.count }}</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                            Tickets <span class="badge bg-warning rounded-pill">{{ tickets.count }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-8">
+            <!-- Tabs for related data -->
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary p-0">
+                    <ul class="nav nav-tabs border-0" id="hostingerUserTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active py-3 px-4" id="companies-tab" data-bs-toggle="tab" data-bs-target="#companies" type="button" role="tab">Companies</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-3 px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab">Orders</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-3 px-4" id="wallet-tab" data-bs-toggle="tab" data-bs-target="#wallet" type="button" role="tab">Wallet & Credits</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link py-3 px-4" id="more-tab" data-bs-toggle="tab" data-bs-target="#more" type="button" role="tab">More Info</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="hostingerUserTabsContent">
+                        <!-- Companies Tab -->
+                        <div class="tab-pane fade show active" id="companies" role="tabpanel">
+                            {% for company in companies %}
+                            <div class="card shadow-sm border border-translucent mb-4">
+                                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-2">
+                                    <h6 class="mb-0 fw-bold"><i class="fas fa-building text-primary me-2"></i>{{ company.name }}</h6>
+                                    <button class="btn btn-xs btn-phoenix-primary" data-bs-toggle="modal" data-bs-target="#editCompanyModal-{{ company.id }}">
+                                        <i class="fas fa-edit me-1"></i>Edit Company
+                                    </button>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="row g-3 fs-9">
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Status</span>
+                                            <span class="badge bg-{% if company.status == 1 %}success{% else %}danger{% endif %}-subtle text-{% if company.status == 1 %}success{% else %}danger{% endif %}">
+                                                {% if company.status == 1 %}Active{% else %}Inactive{% endif %}
+                                            </span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Email</span>
+                                            <span>{{ company.email|default:"-" }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Mobile</span>
+                                            <span>{{ company.mobile|default:"-" }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Main Category ID</span>
+                                            <span>{{ company.maincategory_id }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">GSTIN</span>
+                                            <span class="align-items-center d-flex flex-wrap gap-1">
+                                                {{ company.gst|default:"-" }}
+                                                {% if company.gst %}
+                                                <button class="btn btn-xs btn-outline-success py-0 px-2 fs-11"
+                                                        hx-get="{% url 'verify_gst_ajax' %}?company_id={{ company.id }}&gst_number={{ company.gst }}"
+                                                        hx-target="#gst-verification-company-{{ company.id }}"
+                                                        hx-swap="innerHTML">
+                                                    <i class="fas fa-check-double me-1"></i>Verify GST
+                                                </button>
+                                                {% endif %}
+                                            </span>
+                                            <div id="gst-verification-company-{{ company.id }}" class="mt-2"></div>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">CRN</span>
+                                            <span>{{ company.crn|default:"-" }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Min Order Value</span>
+                                            <span>₹{{ company.minordervalue }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Commission</span>
+                                            <span>{{ company.comission }}%</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Location City/State/Pincode</span>
+                                            <span>{{ company.city|default:"-" }}, {{ company.state|default:"-" }} - {{ company.pincode }}</span>
+                                        </div>
+                                        <div class="col-12">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Restricted Cities</span>
+                                            <span>{{ company.restricted_city|default:"None" }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Created At</span>
+                                            <span>{{ company.created_at|date:"Y-m-d H:i" }}</span>
+                                        </div>
+                                        <div class="col-6 col-md-4">
+                                            <span class="text-body-quaternary fw-bold text-uppercase d-block">Updated At</span>
+                                            <span>{{ company.updated_at|date:"Y-m-d H:i" }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-5 text-muted">No companies registered for this seller.</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Orders Tab -->
+                        <div class="tab-pane fade" id="orders" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Order No</th>
+                                            <th>Grand Total</th>
+                                            <th>Created At</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr>
+                                            <td>{{ order.orderno }}</td>
+                                            <td>₹{{ order.grandtotal }}</td>
+                                            <td>{{ order.created_at|date:"Y-m-d" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="3" class="text-center py-3 text-muted">No orders found.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Wallet & Credits Tab -->
+                        <div class="tab-pane fade" id="wallet" role="tabpanel">
+                            <h6 class="mb-3">Wallet History</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Msg</th>
+                                            <th>Credit</th>
+                                            <th>Debit</th>
+                                            <th>Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in wallet %}
+                                        <tr>
+                                            <td>{{ entry.created_at|date:"Y-m-d" }}</td>
+                                            <td>{{ entry.msg }}</td>
+                                            <td class="text-success">{{ entry.credit }}</td>
+                                            <td class="text-danger">{{ entry.debit }}</td>
+                                            <td>{{ entry.balance }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-3 text-muted">No wallet history.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <h6 class="mb-3">Credits History</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Msg</th>
+                                            <th>Credit</th>
+                                            <th>Debit</th>
+                                            <th>Balance</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for entry in credits %}
+                                        <tr>
+                                            <td>{{ entry.created_at|date:"Y-m-d" }}</td>
+                                            <td>{{ entry.msg }}</td>
+                                            <td class="text-success">{{ entry.credit }}</td>
+                                            <td class="text-danger">{{ entry.debit }}</td>
+                                            <td>{{ entry.balance }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-3 text-muted">No credit history.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- More Info Tab -->
+                        <div class="tab-pane fade" id="more" role="tabpanel">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <h6 class="mb-3"><i class="fas fa-university text-primary me-2"></i>Bank Details</h6>
+                                    {% for bank in bank_details %}
+                                    <div class="card shadow-sm border border-translucent mb-3 p-3 position-relative bg-light">
+                                        <button class="btn btn-xs btn-link p-0 text-primary position-absolute end-0 top-0 mt-2 me-2" data-bs-toggle="modal" data-bs-target="#editBankModal-{{ bank.id }}">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </button>
+                                        <div class="fs-9">
+                                            <div class="mb-1"><strong>Bank:</strong> {{ bank.bankname|default:"-" }}</div>
+                                            <div class="mb-1"><strong>Holder:</strong> {{ bank.accountholder|default:"-" }}</div>
+                                            <div class="mb-1"><strong>Account No:</strong> {{ bank.accountno|default:"-" }}</div>
+                                            <div class="mb-1"><strong>Branch:</strong> {{ bank.branch|default:"-" }}</div>
+                                            <div class="mb-1"><strong>IFSC:</strong> {{ bank.ifsc|default:"-" }}</div>
+                                            <div class="mb-1"><strong>Primary:</strong> {% if bank.isprimary == '1' %}Yes{% else %}No{% endif %}</div>
+                                            <div><strong>Status:</strong> <span class="badge bg-{% if bank.status == 'active' %}success{% else %}danger{% endif %}-subtle text-{% if bank.status == 'active' %}success{% else %}danger{% endif %}">{{ bank.status }}</span></div>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted fs-9">No bank details registered.</p>
+                                    {% endfor %}
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>Support Tickets</h6>
+                                    <ul class="list-unstyled fs-9">
+                                        {% for ticket in tickets %}
+                                        <li class="mb-2 p-2 bg-light rounded">
+                                            <strong>{{ ticket.topic }}</strong> <span class="badge bg-secondary float-end">{{ ticket.status }}</span><br>
+                                            {{ ticket.msg|truncatechars:50 }}
+                                        </li>
+                                        {% empty %}
+                                        <li class="text-muted">No tickets.</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT BASIC INFO MODAL -->
+<div class="modal fade" id="editBasicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary py-3">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-edit me-2"></i>Edit Seller Basic Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_basic">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Name</label>
+                        <input type="text" name="name" class="form-control" value="{{ h_user.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ h_user.email }}" required>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0 py-3">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT COMPANY MODALS -->
+{% for company in companies %}
+<div class="modal fade" id="editCompanyModal-{{ company.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary py-3">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-building me-2"></i>Edit Company: {{ company.name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_company">
+                <input type="hidden" name="company_id" value="{{ company.id }}">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Company Name</label>
+                            <input type="text" name="name" class="form-control" value="{{ company.name }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="1" {% if company.status == 1 %}selected{% endif %}>Active</option>
+                                <option value="0" {% if company.status == 0 %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Email</label>
+                            <input type="email" name="email" class="form-control" value="{{ company.email }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Mobile</label>
+                            <input type="text" name="mobile" class="form-control" value="{{ company.mobile }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Main Category ID</label>
+                            <input type="number" name="maincategory_id" class="form-control" value="{{ company.maincategory_id }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">GSTIN</label>
+                            <input type="text" name="gst" class="form-control" value="{{ company.gst }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">CRN</label>
+                            <input type="text" name="crn" class="form-control" value="{{ company.crn }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Min Order Value (₹)</label>
+                            <input type="number" name="minordervalue" class="form-control" value="{{ company.minordervalue }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Commission (%)</label>
+                            <input type="number" name="comission" class="form-control" value="{{ company.comission }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">City</label>
+                            <input type="text" name="city" class="form-control" value="{{ company.city }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">State</label>
+                            <input type="text" name="state" class="form-control" value="{{ company.state }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Pincode</label>
+                            <input type="number" name="pincode" class="form-control" value="{{ company.pincode }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Restricted Cities</label>
+                            <textarea name="restricted_city" class="form-control" rows="2">{{ company.restricted_city }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0 py-3">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- EDIT BANK DETAILS MODALS -->
+{% for bank in bank_details %}
+<div class="modal fade" id="editBankModal-{{ bank.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary py-3">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-university me-2"></i>Edit Bank Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_bank">
+                <input type="hidden" name="bank_id" value="{{ bank.id }}">
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Bank Name</label>
+                            <input type="text" name="bankname" class="form-control" value="{{ bank.bankname }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Account Holder Name</label>
+                            <input type="text" name="accountholder" class="form-control" value="{{ bank.accountholder }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Account Number</label>
+                            <input type="text" name="accountno" class="form-control" value="{{ bank.accountno }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Branch Name</label>
+                            <input type="text" name="branch" class="form-control" value="{{ bank.branch }}">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">IFSC Code</label>
+                            <input type="text" name="ifsc" class="form-control" value="{{ bank.ifsc }}" required>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Primary Account</label>
+                            <select name="isprimary" class="form-select">
+                                <option value="1" {% if bank.isprimary == '1' %}selected{% endif %}>Yes</option>
+                                <option value="0" {% if bank.isprimary != '1' %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label fw-semibold">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="active" {% if bank.status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if bank.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0 py-3">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

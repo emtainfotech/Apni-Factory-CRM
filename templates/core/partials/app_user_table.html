@@ -1,0 +1,42 @@
+<div class="table-responsive">
+    <table class="table table-hover fs-9 mb-0">
+        <thead class="bg-body-tertiary">
+            <tr>
+                <th class="ps-4 py-3" style="width: 250px;">Name</th>
+                <th class="py-3">Email Address</th>
+                <th class="py-3">Role</th>
+                <th class="py-3">Verified Status</th>
+                <th class="py-3">GST Status</th>
+                <th class="py-3">Created Date</th>
+                <th class="text-end pe-4 py-3">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="list">
+            {% include 'core/partials/app_user_table_rows.html' %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="p-4 border-top border-translucent d-flex justify-content-between align-items-center bg-body-emphasis">
+    <p class="mb-0 fs-10 text-body-tertiary">
+        Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} external sellers
+    </p>
+    <nav>
+        <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <button class="page-link" hx-get="{% url 'hostinger_user_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}" hx-target="#hostinger-user-table-wrapper" hx-indicator="#hostinger-spinner">Previous</button>
+            </li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <button class="page-link" hx-get="{% url 'hostinger_user_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}" hx-target="#hostinger-user-table-wrapper" hx-indicator="#hostinger-spinner">Next</button>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}

@@ -495,6 +495,41 @@ class Orders(models.Model):
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
 
+    @property
+    def formatted_address(self):
+        if not self.address:
+            return ""
+        import json
+        try:
+            data = json.loads(self.address)
+            if isinstance(data, dict):
+                parts = []
+                landmark1 = data.get('landmark1') or ''
+                landmark2 = data.get('landmark2') or ''
+                city = data.get('city') or ''
+                state = data.get('state') or ''
+                pincode = data.get('pincode') or ''
+                
+                street = ", ".join(filter(None, [landmark1.strip(), landmark2.strip()]))
+                if street:
+                    parts.append(street)
+                
+                city_state = ", ".join(filter(None, [city.strip(), state.strip()]))
+                if city_state:
+                    if pincode:
+                        parts.append(f"{city_state} - {pincode.strip()}")
+                    else:
+                        parts.append(city_state)
+                elif pincode:
+                    parts.append(pincode.strip())
+                
+                res = ", ".join(parts)
+                if res.strip():
+                    return res
+            return self.address
+        except Exception:
+            return self.address
+
     class Meta:
         managed = False
         db_table = 'orders'

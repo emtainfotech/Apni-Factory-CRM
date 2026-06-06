@@ -28,76 +28,241 @@
         </div>
     </div>
 
-    <!-- Metrics Cards Grid -->
-    <div class="row g-3 mb-4">
-        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
-            <div class="card shadow-sm border-0 h-100 bg-primary-subtle">
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="card-title text-primary fs-9 mb-0 text-uppercase fw-bold">Total Sales Volume</h6>
-                            <span class="uil uil-usd-square text-primary fs-3"></span>
+    <!-- Metric Cards Lift Transitions Styles -->
+    <style>
+        .metric-card-hover {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .metric-card-hover:hover {
+            transform: translateY(-4px) !important;
+            box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
+        }
+    </style>
+
+    <!-- SECTION 1: E-COMMERCE INTEGRATION & SYNC -->
+    <div class="mb-4">
+        <h5 class="text-body-highlight mb-3"><span class="fas fa-shopping-bag me-2 text-primary"></span>E-Commerce Insights (Hostinger Sync)</h5>
+        <div class="row g-3">
+            <!-- 1. Total Sales Volume -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'order_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-primary-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-primary fs-10 mb-0 text-uppercase fw-bold">Sales Volume</h6>
+                                    <span class="uil uil-usd-square text-primary fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">₹{{ total_sales|floatformat:2 }}</h3>
+                            </div>
+                            <p class="text-primary-emphasis fs-10 mb-0"><span class="fas fa-chart-line me-1"></span>Live business volume</p>
                         </div>
-                        <h2 class="text-body-highlight fw-bolder mb-1">₹{{ total_sales|floatformat:2 }}</h2>
                     </div>
-                    <p class="text-primary-emphasis fs-10 mb-0"><span class="fas fa-chart-line me-1"></span>Live E-commerce volume</p>
-                </div>
+                </a>
+            </div>
+
+            <!-- 2. App Orders -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'order_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-success-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-success fs-10 mb-0 text-uppercase fw-bold">App Orders</h6>
+                                    <span class="uil uil-shopping-cart text-success fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_orders }}</h3>
+                            </div>
+                            <p class="text-success-emphasis fs-10 mb-0"><span class="fas fa-check-circle me-1"></span>Orders completed</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 3. App Buyers -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'app_customer_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-info-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-info fs-10 mb-0 text-uppercase fw-bold">App Buyers</h6>
+                                    <span class="uil uil-users-alt text-info fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_hostinger_customers }}</h3>
+                            </div>
+                            <p class="text-info-emphasis fs-10 mb-0"><span class="fas fa-user-friends me-1"></span>Buyers registered</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 4. Sellers -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'app_user_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-warning-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-warning fs-10 mb-0 text-uppercase fw-bold">App Sellers</h6>
+                                    <span class="uil uil-store text-warning fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_hostinger_users }}</h3>
+                            </div>
+                            <p class="text-warning-emphasis fs-10 mb-0"><span class="fas fa-store-alt me-1"></span>Sellers onboarded</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 5. App Products -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'product_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-secondary-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-secondary fs-10 mb-0 text-uppercase fw-bold">Market Products</h6>
+                                    <span class="uil uil-package text-secondary fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_products }}</h3>
+                            </div>
+                            <p class="text-secondary-emphasis fs-10 mb-0"><span class="fas fa-boxes me-1"></span>Listed products</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 6. Seller Companies -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'app_company_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-danger-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-danger fs-10 mb-0 text-uppercase fw-bold">Seller Companies</h6>
+                                    <span class="uil uil-building text-danger fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_companies }}</h3>
+                            </div>
+                            <p class="text-danger-emphasis fs-10 mb-0"><span class="fas fa-industry me-1"></span>Trade entities</p>
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
-        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
-            <div class="card shadow-sm border-0 h-100 bg-success-subtle">
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="card-title text-success fs-9 mb-0 text-uppercase fw-bold">App Purchases</h6>
-                            <span class="uil uil-shopping-cart text-success fs-3"></span>
+    </div>
+
+    <!-- SECTION 2: CRM WORKSPACE & OPERATIONS -->
+    <div class="mb-4 pt-1">
+        <h5 class="text-body-highlight mb-3"><span class="fas fa-laptop-house me-2 text-primary"></span>CRM Workspace & HRMS Operations</h5>
+        <div class="row g-3">
+            <!-- 7. CRM Leads & Clients -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'customer_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-info-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-info fs-10 mb-0 text-uppercase fw-bold">CRM Clients</h6>
+                                    <span class="uil uil-user-check text-info fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_customers }}</h3>
+                            </div>
+                            <p class="text-info-emphasis fs-10 mb-0"><span class="fas fa-id-badge me-1"></span>Active pipeline leads</p>
                         </div>
-                        <h2 class="text-body-highlight fw-bolder mb-1">{{ total_orders }}</h2>
                     </div>
-                    <p class="text-success-emphasis fs-10 mb-0"><span class="fas fa-check-circle me-1"></span>Transactions completed</p>
-                </div>
+                </a>
             </div>
-        </div>
-        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
-            <div class="card shadow-sm border-0 h-100 bg-info-subtle">
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="card-title text-info fs-9 mb-0 text-uppercase fw-bold">CRM Leads & Clients</h6>
-                            <span class="uil uil-users-alt text-info fs-3"></span>
+
+            <!-- 8. WhatsApp Enquiries -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'customer_list' %}?lead_source=whatsapp" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-warning-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-warning fs-10 mb-0 text-uppercase fw-bold">WhatsApp Chats</h6>
+                                    <span class="uil uil-whatsapp text-warning fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_whatsapp_leads }}</h3>
+                            </div>
+                            <p class="text-warning-emphasis fs-10 mb-0"><span class="fab fa-whatsapp me-1"></span>Bot conversations</p>
                         </div>
-                        <h2 class="text-body-highlight fw-bolder mb-1">{{ total_customers }}</h2>
                     </div>
-                    <p class="text-info-emphasis fs-10 mb-0"><span class="fas fa-address-book me-1"></span>Leads assigned & active</p>
-                </div>
+                </a>
             </div>
-        </div>
-        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
-            <div class="card shadow-sm border-0 h-100 bg-warning-subtle">
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="card-title text-warning fs-9 mb-0 text-uppercase fw-bold">WhatsApp Enquiries</h6>
-                            <span class="uil uil-whatsapp text-warning fs-3"></span>
+
+            <!-- 9. CRM Employees -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'user_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-primary-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-primary fs-10 mb-0 text-uppercase fw-bold">CRM Employees</h6>
+                                    <span class="uil uil-briefcase text-primary fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_employees }}</h3>
+                            </div>
+                            <p class="text-primary-emphasis fs-10 mb-0"><span class="fas fa-user-tie me-1"></span>Registered agents</p>
                         </div>
-                        <h2 class="text-body-highlight fw-bolder mb-1">{{ total_whatsapp_leads }}</h2>
                     </div>
-                    <p class="text-warning-emphasis fs-10 mb-0"><span class="fas fa-robot me-1"></span>Captured by WhatsApp Bot</p>
-                </div>
+                </a>
             </div>
-        </div>
-        <div class="col-12 col-sm-6 col-md-4 col-xl-2.4">
-            <div class="card shadow-sm border-0 h-100 bg-danger-subtle">
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h6 class="card-title text-danger fs-9 mb-0 text-uppercase fw-bold">HRMS Pending Leaves</h6>
-                            <span class="uil uil-calendar-slash text-danger fs-3"></span>
+
+            <!-- 10. Invoices -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'invoice_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-success-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-success fs-10 mb-0 text-uppercase fw-bold">Invoices</h6>
+                                    <span class="uil uil-file-alt text-success fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_invoices }}</h3>
+                            </div>
+                            <p class="text-success-emphasis fs-10 mb-0"><span class="fas fa-file-invoice-dollar me-1"></span>Tax receipts drafted</p>
                         </div>
-                        <h2 class="text-body-highlight fw-bolder mb-1">{{ pending_leaves_count }}</h2>
                     </div>
-                    <p class="text-danger-emphasis fs-10 mb-0"><span class="fas fa-hourglass-half me-1"></span>Leaves awaiting audit</p>
-                </div>
+                </a>
+            </div>
+
+            <!-- 11. HRMS Pending Leaves -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'manage_leaves' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-danger-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-danger fs-10 mb-0 text-uppercase fw-bold">Pending Leaves</h6>
+                                    <span class="uil uil-calendar-slash text-danger fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ pending_leaves_count }}</h3>
+                            </div>
+                            <p class="text-danger-emphasis fs-10 mb-0"><span class="fas fa-stopwatch me-1"></span>Requests awaiting audit</p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+
+            <!-- 12. Active Brands -->
+            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
+                <a href="{% url 'app_brand_list' %}" class="text-decoration-none d-block h-100">
+                    <div class="card shadow-sm border-0 h-100 bg-secondary-subtle metric-card-hover">
+                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="card-title text-secondary fs-10 mb-0 text-uppercase fw-bold">Active Brands</h6>
+                                    <span class="uil uil-tag text-secondary fs-3"></span>
+                                </div>
+                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_brands }}</h3>
+                            </div>
+                            <p class="text-secondary-emphasis fs-10 mb-0"><span class="fas fa-copyright me-1"></span>Brands synced</p>
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
     </div>
@@ -271,7 +436,7 @@
         <div class="col-12 col-xl-8">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
-                    <h5 class="mb-0 fw-bold"><span class="fas fa-shopping-bag me-2"></span>Recent App Orders (Hostinger Sync)</h5>
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-shopping-bag me-2"></span>Recent App Orders</h5>
                     <a href="{% url 'order_list' %}" class="btn btn-xs btn-phoenix-primary">View All Orders</a>
                 </div>
                 <div class="card-body p-0">

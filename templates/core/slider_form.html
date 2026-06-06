@@ -1,0 +1,130 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | ApniFactory CRM{% endblock %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4">
+        <div class="col-auto">
+            <a href="{% url 'slider_list' %}" class="btn btn-sm btn-phoenix-secondary mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Sliders List
+            </a>
+            <h2 class="mb-0">{{ title }}</h2>
+            <p class="text-body-tertiary mb-0">Manage e-commerce slider images, target screens, and active scheduling dates.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row g-4 mb-4">
+                            <!-- Slider Title -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.title.id_for_label }}">Slider Title</label>
+                                {{ form.title }}
+                                {% if form.title.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.title.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Screen Target -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.screen.id_for_label }}">Target Screen</label>
+                                {{ form.screen }}
+                                <small class="text-body-tertiary fs-10">e.g. Home, Category, Brand</small>
+                                {% if form.screen.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.screen.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Category Selection -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.category.id_for_label }}">Linked Category (Optional)</label>
+                                {{ form.category }}
+                                <small class="text-body-tertiary fs-10">Select a category to automatically link its ID.</small>
+                                {% if form.category.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.category.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Company ID / Category ID -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.company_id.id_for_label }}">Company ID (Category ID Link)</label>
+                                {{ form.company_id }}
+                                <small class="text-body-tertiary fs-10">Usually auto-filled by selecting the Category above.</small>
+                                {% if form.company_id.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.company_id.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Image Path -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="{{ form.image.id_for_label }}">Image File Path (image)</label>
+                                {{ form.image }}
+                                <small class="text-body-tertiary fs-10">Relative path inside server storage (e.g. <code>sliders/my_slider_image.png</code>)</small>
+                                {% if form.image.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.image.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Status -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="{{ form.status.id_for_label }}">Status</label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.status.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.startdate.id_for_label }}">Start Date</label>
+                                {{ form.startdate }}
+                                {% if form.startdate.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.startdate.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.enddate.id_for_label }}">End Date</label>
+                                {{ form.enddate }}
+                                {% if form.enddate.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.enddate.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-end gap-3 mt-4">
+                            <a href="{% url 'slider_list' %}" class="btn btn-outline-secondary rounded-pill">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-5 rounded-pill"><i class="fas fa-save me-2"></i>Save Slider</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Dynamically auto-fill company_id with category ID when selection changes
+        const categorySelect = document.getElementById('id_category');
+        const companyInput = document.getElementById('id_company_id');
+        
+        if (categorySelect && companyInput) {
+            categorySelect.addEventListener('change', function() {
+                if (categorySelect.value) {
+                    companyInput.value = categorySelect.value;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

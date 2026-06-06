@@ -125,7 +125,13 @@ class CustomerPreference(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-# ... (Keep Order, CallLog, etc. models here if you use them in the profile view)
+class VerifiedGST(models.Model):
+    gst_number = models.CharField(max_length=20, unique=True)
+    verified_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.gst_number
+
 
 class Order(models.Model):
     ORDER_STATUS_CHOICES = (
@@ -452,3 +458,49 @@ class LeaveRequest(models.Model):
 
     def __str__(self):
         return f"{self.employee.username} - {self.get_leave_type_display()} ({self.start_date} to {self.end_date})"
+
+
+class EmployeeProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile')
+    
+    # Photo & Personal Details
+    photo = models.ImageField(upload_to='photos/', blank=True, null=True)
+    dob = models.DateField(blank=True, null=True)
+    gender = models.CharField(max_length=20, blank=True, null=True)
+    marital_status = models.CharField(max_length=20, blank=True, null=True)
+    blood_group = models.CharField(max_length=10, blank=True, null=True)
+    permanent_address = models.TextField(blank=True, null=True)
+    current_address = models.TextField(blank=True, null=True)
+    emergency_contact_name = models.CharField(max_length=100, blank=True, null=True)
+    emergency_contact_phone = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Education Details
+    qualification = models.CharField(max_length=100, blank=True, null=True)
+    institution = models.CharField(max_length=100, blank=True, null=True)
+    passing_year = models.CharField(max_length=10, blank=True, null=True)
+    
+    # Experience Details
+    previous_company = models.CharField(max_length=100, blank=True, null=True)
+    previous_designation = models.CharField(max_length=100, blank=True, null=True)
+    experience_duration = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Documents
+    aadhar_number = models.CharField(max_length=20, blank=True, null=True)
+    pan_number = models.CharField(max_length=20, blank=True, null=True)
+    aadhar_file = models.FileField(upload_to='documents/', blank=True, null=True)
+    pan_file = models.FileField(upload_to='documents/', blank=True, null=True)
+    resume = models.FileField(upload_to='documents/', blank=True, null=True)
+    other_document = models.FileField(upload_to='documents/', blank=True, null=True)
+    
+    # Family Members (Stored as list of dicts e.g. [{'name': 'John', 'relation': 'Father', 'age': 55}])
+    family_members_json = models.JSONField(default=list, blank=True)
+    
+    # Salary & Payslip
+    salary = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    previous_month_salary_slip = models.FileField(upload_to='salary_slips/', blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Profile of {self.user.username}"

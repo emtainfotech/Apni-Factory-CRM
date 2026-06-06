@@ -1,0 +1,149 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | ApniFactory CRM{% endblock %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4">
+        <div class="col-auto">
+            <a href="{% url 'banner_list' %}" class="btn btn-sm btn-phoenix-secondary mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Banners List
+            </a>
+            <h2 class="mb-0">{{ title }}</h2>
+            <p class="text-body-tertiary mb-0">Manage promotional banner details, linked categories, and display durations.</p>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-5">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row g-4 mb-4">
+                            <!-- Banner Name -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.name.id_for_label }}">Banner Name</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.name.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Screen Target -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.screen.id_for_label }}">Target Screen</label>
+                                {{ form.screen }}
+                                <small class="text-body-tertiary fs-10">e.g. Home, Category, Brand</small>
+                                {% if form.screen.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.screen.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Category Selection -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.category.id_for_label }}">Linked Category (Optional)</label>
+                                {{ form.category }}
+                                <small class="text-body-tertiary fs-10">Select a category to automatically link its ID.</small>
+                                {% if form.category.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.category.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Content/Link Field -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.content.id_for_label }}">Content (Link/Category ID)</label>
+                                {{ form.content }}
+                                <small class="text-body-tertiary fs-10">Usually auto-filled by selecting the Category above.</small>
+                                {% if form.content.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.content.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- File Path / Image Path -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="{{ form.file.id_for_label }}">Image File Path (file)</label>
+                                {{ form.file }}
+                                <small class="text-body-tertiary fs-10">Relative path inside server storage (e.g. <code>banners/my_banner_image.png</code>)</small>
+                                {% if form.file.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.file.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Sequence Number -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.sequence.id_for_label }}">Sequence</label>
+                                {{ form.sequence }}
+                                <small class="text-body-tertiary fs-10">Display priority sequence number.</small>
+                                {% if form.sequence.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.sequence.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Status -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.status.id_for_label }}">Status</label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.status.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Start Date -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.startdate.id_for_label }}">Start Date</label>
+                                {{ form.startdate }}
+                                {% if form.startdate.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.startdate.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- End Date -->
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold" for="{{ form.enddate.id_for_label }}">End Date</label>
+                                {{ form.enddate }}
+                                {% if form.enddate.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.enddate.errors }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Optional Admin Message -->
+                            <div class="col-12">
+                                <label class="form-label fw-bold" for="{{ form.adminmsg.id_for_label }}">Admin Message (Optional)</label>
+                                {{ form.adminmsg }}
+                                {% if form.adminmsg.errors %}
+                                    <div class="text-danger fs-10 mt-1">{{ form.adminmsg.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="d-flex justify-content-end gap-3 mt-4">
+                            <a href="{% url 'banner_list' %}" class="btn btn-outline-secondary rounded-pill">Cancel</a>
+                            <button type="submit" class="btn btn-primary px-5 rounded-pill"><i class="fas fa-save me-2"></i>Save Banner</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Dynamically auto-fill content with category ID when selection changes
+        const categorySelect = document.getElementById('id_category');
+        const contentInput = document.getElementById('id_content');
+        
+        if (categorySelect && contentInput) {
+            categorySelect.addEventListener('change', function() {
+                if (categorySelect.value) {
+                    contentInput.value = categorySelect.value;
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
