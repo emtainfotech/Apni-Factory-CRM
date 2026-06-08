@@ -53,7 +53,7 @@
                                    name="q" 
                                    value="{{ query|default:'' }}"
                                    placeholder="Search by name or email address..."
-                                   hx-get="{% url 'hostinger_user_list' %}"
+                                   hx-get="{% url 'app_user_list' %}"
                                    hx-trigger="keyup changed delay:500ms"
                                    hx-target="#hostinger-user-table-wrapper"
                                    hx-include="#seller-filter-form"
@@ -64,7 +64,7 @@
                     <div class="col-12 col-md-4">
                         <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Role</label>
                         <select class="form-select rounded-pill" name="role"
-                                hx-get="{% url 'hostinger_user_list' %}"
+                                hx-get="{% url 'app_user_list' %}"
                                 hx-trigger="change"
                                 hx-target="#hostinger-user-table-wrapper"
                                 hx-include="#seller-filter-form"
@@ -82,7 +82,7 @@
 
             <!-- HTMX Swap Target -->
             <div id="hostinger-user-table-wrapper">
-                {% include 'core/partials/hostinger_user_table.html' %}
+                {% include 'core/partials/app_user_table.html' %}
             </div>
         </div>
     </div>

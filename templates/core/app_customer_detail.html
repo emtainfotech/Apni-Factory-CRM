@@ -1,0 +1,259 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4 align-items-center">
+        <div class="col-auto">
+            <a href="{% url 'app_customer_list' %}" class="btn btn-sm btn-phoenix-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to List
+            </a>
+        </div>
+        <div class="col">
+            <h2 class="mb-0">Buyer Profile: {{ cust.name }}</h2>
+        </div>
+    </div>
+
+    <!-- Message Alerts -->
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row g-5">
+        <!-- Sidebar -->
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Basic Information</h5>
+                        <button class="btn btn-xs btn-link p-0 text-primary" data-bs-toggle="modal" data-bs-target="#editBasicModal">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase d-block mb-1">Name</label>
+                        <p class="mb-0 fw-bold fs-8 text-body-highlight">{{ cust.name }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase d-block mb-1">Email</label>
+                        <p class="mb-0 text-body-highlight">{{ cust.email|default:"-" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase d-block mb-1">Mobile No</label>
+                        <p class="mb-0 text-body-highlight">{{ cust.mobile|default:"-" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase d-block mb-1">WhatsApp No</label>
+                        <p class="mb-0 text-body-highlight">{{ cust.whatsappno|default:"-" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase d-block mb-1">GST/PAN</label>
+                        <p class="mb-0 text-body-highlight">{{ cust.gstorpan|default:"-" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="text-body-tertiary fs-9 fw-bold text-uppercase d-block mb-1">Registered Date</label>
+                        <p class="mb-0 text-body-highlight">{{ cust.created_at|date:"Y-m-d H:i" }} IST</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Card -->
+            <div class="card shadow-sm border-0 bg-primary-subtle text-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary mb-3">Orders & Activity Summary</h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Total Orders:</span>
+                        <span class="fw-bold">{{ orders.count }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Details Tab Section -->
+        <div class="col-12 col-xl-8">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary p-0">
+                    <ul class="nav nav-tabs border-0" id="buyerTabs" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active py-3 px-4" id="addresses-tab" data-bs-toggle="tab" data-bs-target="#addresses" type="button" role="tab">Addresses</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-3 px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab">Order History</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="buyerTabsContent">
+                        
+                        <!-- Addresses Tab -->
+                        <div class="tab-pane fade show active" id="addresses" role="tabpanel">
+                            {% for address in addresses %}
+                            <div class="card shadow-sm border border-translucent mb-3 p-3 position-relative bg-light">
+                                <button class="btn btn-xs btn-link p-0 text-primary position-absolute end-0 top-0 mt-2 me-2" data-bs-toggle="modal" data-bs-target="#editAddressModal-{{ address.id }}">
+                                    <i class="fas fa-edit"></i> Edit Address
+                                </button>
+                                <div class="fs-9">
+                                    <div class="mb-1"><span class="badge bg-primary text-uppercase">{{ address.type|default:"Home" }}</span></div>
+                                    <div class="mb-1"><strong>Name:</strong> {{ address.name }}</div>
+                                    <div class="mb-1"><strong>Phone No:</strong> {{ address.phoneno|default:"-" }}</div>
+                                    <div class="mb-1"><strong>Landmark 1:</strong> {{ address.landmark1|default:"-" }}</div>
+                                    {% if address.landmark2 %}
+                                    <div class="mb-1"><strong>Landmark 2:</strong> {{ address.landmark2 }}</div>
+                                    {% endif %}
+                                    <div class="mb-1"><strong>Location Details:</strong> {{ address.city }}, {{ address.state }} - {{ address.pincode }}</div>
+                                    <div><strong>Country:</strong> {{ address.country }}</div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-5 text-muted">No shipping addresses registered for this buyer.</div>
+                            {% endfor %}
+                        </div>
+
+                        <!-- Orders Tab -->
+                        <div class="tab-pane fade" id="orders" role="tabpanel">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9">
+                                    <thead>
+                                        <tr>
+                                            <th>Order No</th>
+                                            <th>Grand Total</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for order in orders %}
+                                        <tr>
+                                            <td class="fw-bold"><a href="{% url 'order_detail' order.id %}">{{ order.orderno }}</a></td>
+                                            <td>₹{{ order.grandtotal }}</td>
+                                            <td>{{ order.created_at|date:"Y-m-d H:i" }}</td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="3" class="text-center py-4 text-muted">No orders found.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT BASIC INFO MODAL -->
+<div class="modal fade" id="editBasicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary py-3">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-edit me-2"></i>Edit Buyer Basic Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_basic">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Name</label>
+                        <input type="text" name="name" class="form-control" value="{{ cust.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ cust.email|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Mobile No</label>
+                        <input type="text" name="mobile" class="form-control" value="{{ cust.mobile|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">WhatsApp No</label>
+                        <input type="text" name="whatsappno" class="form-control" value="{{ cust.whatsappno|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">GST/PAN</label>
+                        <input type="text" name="gstorpan" class="form-control" value="{{ cust.gstorpan|default:'' }}">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0 py-3">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT ADDRESS MODALS -->
+{% for address in addresses %}
+<div class="modal fade" id="editAddressModal-{{ address.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary py-3">
+                <h5 class="modal-title text-white fw-bold"><i class="fas fa-map-marker-alt me-2"></i>Edit Address</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit_address">
+                <input type="hidden" name="address_id" value="{{ address.id }}">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Recipient Name</label>
+                        <input type="text" name="name" class="form-control" value="{{ address.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Phone No</label>
+                        <input type="text" name="phoneno" class="form-control" value="{{ address.phoneno|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Landmark 1</label>
+                        <input type="text" name="landmark1" class="form-control" value="{{ address.landmark1|default:'' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Landmark 2</label>
+                        <input type="text" name="landmark2" class="form-control" value="{{ address.landmark2|default:'' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">City</label>
+                        <input type="text" name="city" class="form-control" value="{{ address.city }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">State</label>
+                        <input type="text" name="state" class="form-control" value="{{ address.state }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Pincode</label>
+                        <input type="text" name="pincode" class="form-control" value="{{ address.pincode }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Country</label>
+                        <input type="text" name="country" class="form-control" value="{{ address.country|default:'India' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Address Type</label>
+                        <select name="type" class="form-select">
+                            <option value="Home" {% if address.type == 'Home' %}selected{% endif %}>Home</option>
+                            <option value="Work" {% if address.type == 'Work' %}selected{% endif %}>Work</option>
+                            <option value="Other" {% if address.type == 'Other' %}selected{% endif %}>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0 py-3">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -38,6 +38,7 @@ urlpatterns = [
     path('app-db/sellers/', views.app_user_list, name='app_user_list'),
     path('app-db/buyers/', views.app_customer_list, name='app_customer_list'),
     path('app-db/sellers/<int:user_id>/', views.app_user_detail, name='app_user_detail'),
+    path('app-db/buyers/<int:customer_id>/', views.app_customer_detail, name='app_customer_detail'),
     path('banners/', views.banner_list, name='banner_list'),
     path('banners/add/', views.add_banner, name='add_banner'),
     path('banners/<int:banner_id>/edit/', views.edit_banner, name='edit_banner'),

@@ -101,6 +101,48 @@ def admin_dashboard(request):
     total_sales = Orders.objects.aggregate(total=Sum('grandtotal'))['total'] or 0
     recent_orders = Orders.objects.all().order_by('-created_at')[:10]
     
+    # 1. Orders status counts
+    from django.db.models import Subquery, OuterRef
+    latest_status_subquery = OrderStatus.objects.filter(
+        order_id=OuterRef('id')
+    ).order_by('-created_at', '-id').values('status')[:1]
+
+    orders_annotated = Orders.objects.all().annotate(
+        latest_status=Subquery(latest_status_subquery)
+    )
+
+    # Active orders (not delivered, cancelled, returned)
+    active_orders_count = orders_annotated.exclude(
+        latest_status__in=['Delivered', 'Cancelled', 'Returned']
+    ).count()
+
+    # Pending orders (status contains pending)
+    pending_orders_count = orders_annotated.filter(
+        latest_status__icontains='pending'
+    ).count()
+
+    # Returned orders (status contains return)
+    returned_orders_count = orders_annotated.filter(
+        latest_status__icontains='return'
+    ).count()
+
+    # Credit/Debit transactions count (Credits table)
+    credit_debit_count = Credits.objects.count()
+
+    # PayU Details count (Wallet table count)
+    payu_details_count = Wallet.objects.count()
+
+    # Advertisement count (Advertisements table)
+    total_advertisements = Advertisements.objects.count()
+
+    # Ad Invoices count (Invoices with "marketing" in items)
+    ad_invoices_count = InvoiceItem.objects.filter(
+        description__icontains='marketing'
+    ).values('invoice').distinct().count()
+
+    # Leads count
+    total_leads = Customer.objects.filter(status='lead').count()
+    
     # WhatsApp Bot capture metrics
     whatsapp_needs_human = WhatsAppLead.objects.filter(needs_human=True).select_related('customer')
     total_whatsapp_leads = WhatsAppLead.objects.count()
@@ -165,8 +207,42 @@ def admin_dashboard(request):
         'total_whatsapp_leads': total_whatsapp_leads,
         'pending_leaves_count': pending_leaves_count,
         'employees': employees,
+        'active_orders_count': active_orders_count,
+        'pending_orders_count': pending_orders_count,
+        'returned_orders_count': returned_orders_count,
+        'credit_debit_count': credit_debit_count,
+        'payu_details_count': payu_details_count,
+        'total_advertisements': total_advertisements,
+        'ad_invoices_count': ad_invoices_count,
+        'total_leads': total_leads,
     }
+
+    # Optimize recent invoices query
+    recent_invoices = Invoice.objects.all().select_related('customer').order_by('-created_at')[:5]
+
+    # Optimize recent support tickets and map their user details
+    recent_tickets = Tickets.objects.all().order_by('-created_at')[:5]
+    ticket_user_ids = [t.user_id for t in recent_tickets if t.user_id]
+    users_map = {}
+    if ticket_user_ids:
+        # Search in HostingerUser (Sellers)
+        sellers = HostingerUser.objects.filter(id__in=ticket_user_ids)
+        for s in sellers:
+            users_map[s.id] = f"{s.name} (Seller)"
+        # Search in HostingerCustomer (Buyers)
+        buyers = HostingerCustomer.objects.filter(id__in=ticket_user_ids)
+        for b in buyers:
+            users_map[b.id] = f"{b.name} (Buyer)"
+    
+    for t in recent_tickets:
+        t.user_name = users_map.get(t.user_id, f"User #{t.user_id}")
+
+    context.update({
+        'recent_invoices': recent_invoices,
+        'recent_tickets': recent_tickets,
+    })
     return render(request, 'core/dashboard_admin.html', context)
+
 
 @login_required
 @user_passes_test(is_manager)
@@ -1150,6 +1226,56 @@ def app_customer_list(request):
         return render(request, 'core/partials/app_customer_table.html', context)
 
     return render(request, 'core/app_customer_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def app_customer_detail(request, customer_id):
+    """
+    Detailed view of an App Buyer (Customer) and all related data.
+    """
+    from hostinger_data.models import Customers as HostingerCustomer, CustomerAddresses, Orders
+    
+    cust = get_object_or_404(HostingerCustomer, pk=customer_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'edit_basic':
+            cust.name = request.POST.get('name')
+            cust.email = request.POST.get('email')
+            cust.mobile = request.POST.get('mobile')
+            cust.whatsappno = request.POST.get('whatsappno')
+            cust.gstorpan = request.POST.get('gstorpan')
+            cust.save()
+            messages.success(request, "Buyer basic info updated successfully.")
+            return redirect('app_customer_detail', customer_id=customer_id)
+            
+        elif action == 'edit_address':
+            address_id = request.POST.get('address_id')
+            address = get_object_or_404(CustomerAddresses, id=address_id, customer_id=customer_id)
+            address.name = request.POST.get('name')
+            address.phoneno = request.POST.get('phoneno')
+            address.landmark1 = request.POST.get('landmark1')
+            address.landmark2 = request.POST.get('landmark2')
+            address.city = request.POST.get('city')
+            address.state = request.POST.get('state')
+            address.pincode = request.POST.get('pincode')
+            address.country = request.POST.get('country', 'India')
+            address.type = request.POST.get('type', 'Home')
+            address.save()
+            messages.success(request, "Shipping address updated successfully.")
+            return redirect('app_customer_detail', customer_id=customer_id)
+            
+    addresses = CustomerAddresses.objects.filter(customer_id=customer_id)
+    orders = Orders.objects.filter(customer_id=customer_id).order_by('-created_at')
+    
+    context = {
+        'cust': cust,
+        'addresses': addresses,
+        'orders': orders,
+    }
+    
+    return render(request, 'core/app_customer_detail.html', context)
 
 
 @login_required

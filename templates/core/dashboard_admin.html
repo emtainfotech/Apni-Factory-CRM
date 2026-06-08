@@ -39,228 +39,346 @@
         }
     </style>
 
-    <!-- SECTION 1: E-COMMERCE INTEGRATION & SYNC -->
-    <div class="mb-4">
-        <h5 class="text-body-highlight mb-3"><span class="fas fa-shopping-bag me-2 text-primary"></span>E-Commerce Insights (Hostinger Sync)</h5>
-        <div class="row g-3">
-            <!-- 1. Total Sales Volume -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'order_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-primary-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-primary fs-10 mb-0 text-uppercase fw-bold">Sales Volume</h6>
-                                    <span class="uil uil-usd-square text-primary fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">₹{{ total_sales|floatformat:2 }}</h3>
-                            </div>
-                            <p class="text-primary-emphasis fs-10 mb-0"><span class="fas fa-chart-line me-1"></span>Live business volume</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
+    <!-- Dashboard Styling and Categories -->
+    <style>
+        .dashboard-section-title {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--phoenix-body-highlight-color);
+            letter-spacing: -0.01em;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid var(--phoenix-border-color-translucent);
+            margin-bottom: 1.5rem;
+        }
+        .dashboard-column-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--phoenix-body-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .premium-dashboard-card {
+            border-radius: 16px;
+            border: 1px solid var(--phoenix-border-color-translucent);
+            background: var(--phoenix-card-bg, #fff);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02);
+            text-decoration: none !important;
+            display: block;
+            height: 100%;
+        }
+        .premium-dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 16px 24px -6px rgba(0,0,0,0.08), 0 8px 12px -4px rgba(0,0,0,0.04);
+            border-color: var(--card-glow-color, rgba(0,0,0,0.1));
+        }
+        .premium-dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 100%;
+            background: var(--card-accent-gradient);
+        }
+        .card-accent-cobalt {
+            --card-accent-gradient: linear-gradient(180deg, #2563eb, #1d4ed8);
+            --card-glow-color: rgba(37, 99, 235, 0.3);
+        }
+        .card-accent-emerald {
+            --card-accent-gradient: linear-gradient(180deg, #10b981, #047857);
+            --card-glow-color: rgba(16, 185, 129, 0.3);
+        }
+        .card-accent-amber {
+            --card-accent-gradient: linear-gradient(180deg, #f59e0b, #d97706);
+            --card-glow-color: rgba(245, 158, 11, 0.3);
+        }
+        .card-accent-crimson {
+            --card-accent-gradient: linear-gradient(180deg, #ef4444, #b91c1c);
+            --card-glow-color: rgba(239, 68, 68, 0.3);
+        }
+        .card-accent-slate {
+            --card-accent-gradient: linear-gradient(180deg, #64748b, #475569);
+            --card-glow-color: rgba(100, 116, 139, 0.3);
+        }
+        .card-accent-purple {
+            --card-accent-gradient: linear-gradient(180deg, #8b5cf6, #6d28d9);
+            --card-glow-color: rgba(139, 92, 246, 0.3);
+        }
+        .card-accent-teal {
+            --card-accent-gradient: linear-gradient(180deg, #0d9488, #0f766e);
+            --card-glow-color: rgba(13, 148, 136, 0.3);
+        }
+        .card-accent-indigo {
+            --card-accent-gradient: linear-gradient(180deg, #6366f1, #4338ca);
+            --card-glow-color: rgba(99, 102, 241, 0.3);
+        }
+        .card-accent-whatsapp {
+            --card-accent-gradient: linear-gradient(180deg, #22c55e, #15803d);
+            --card-glow-color: rgba(34, 197, 94, 0.3);
+        }
+        .card-icon-wrapper {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            transition: all 0.3s ease;
+        }
+        .premium-dashboard-card:hover .card-icon-wrapper {
+            transform: scale(1.1);
+        }
+        
+        .cobalt-icon { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
+        .emerald-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .amber-icon { background: rgba(245, 158, 11, 0.1); color: #d97706; }
+        .crimson-icon { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .slate-icon { background: rgba(100, 116, 139, 0.1); color: #64748b; }
+        .purple-icon { background: rgba(139, 92, 246, 0.1); color: #7c3aed; }
+        .teal-icon { background: rgba(13, 148, 136, 0.1); color: #0d9488; }
+        .indigo-icon { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+        .whatsapp-icon { background: rgba(34, 197, 94, 0.1); color: #22c55e; }
+    </style>
 
-            <!-- 2. App Orders -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'order_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-success-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+    <!-- SECTION 1: APP DASHBOARD -->
+    <div class="mb-5">
+        <h4 class="dashboard-section-title"><span class="fas fa-cubes me-2 text-primary"></span>App Dashboard</h4>
+        
+        <!-- Row 1: Sales & Orders -->
+        <div class="mb-4">
+            <h5 class="dashboard-column-title"><span class="fas fa-chart-line text-primary"></span>Sales & Orders</h5>
+            <div class="row g-3">
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'order_list' %}" class="premium-dashboard-card card-accent-cobalt">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
                             <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-success fs-10 mb-0 text-uppercase fw-bold">App Orders</h6>
-                                    <span class="uil uil-shopping-cart text-success fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_orders }}</h3>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Sales Volume</span>
+                                <h3 class="mb-0 fw-bolder">₹{{ total_sales|floatformat:2 }}</h3>
                             </div>
-                            <p class="text-success-emphasis fs-10 mb-0"><span class="fas fa-check-circle me-1"></span>Orders completed</p>
+                            <div class="card-icon-wrapper cobalt-icon"><span class="fas fa-wallet"></span></div>
                         </div>
-                    </div>
-                </a>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'order_list' %}?status=processing" class="premium-dashboard-card card-accent-emerald">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Active Orders</span>
+                                <h3 class="mb-0 fw-bolder">{{ active_orders_count }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper emerald-icon"><span class="fas fa-shopping-basket"></span></div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'order_list' %}?status=pending" class="premium-dashboard-card card-accent-amber">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Pending Orders</span>
+                                <h3 class="mb-0 fw-bolder">{{ pending_orders_count }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper amber-icon"><span class="fas fa-hourglass-half"></span></div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'order_list' %}?status=returned" class="premium-dashboard-card card-accent-crimson">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Returns</span>
+                                <h3 class="mb-0 fw-bolder">{{ returned_orders_count }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper crimson-icon"><span class="fas fa-undo"></span></div>
+                        </div>
+                    </a>
+                </div>
             </div>
+        </div>
 
-            <!-- 3. App Buyers -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'app_customer_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-info-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+        <!-- Row 2: Billing & Invoices -->
+        <div class="mb-4">
+            <h5 class="dashboard-column-title"><span class="fas fa-file-invoice-dollar text-success"></span>Billing & Invoices</h5>
+            <div class="row g-3">
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'invoice_list' %}" class="premium-dashboard-card card-accent-slate">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
                             <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-info fs-10 mb-0 text-uppercase fw-bold">App Buyers</h6>
-                                    <span class="uil uil-users-alt text-info fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_hostinger_customers }}</h3>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Invoice</span>
+                                <h3 class="mb-0 fw-bolder">{{ total_invoices }}</h3>
                             </div>
-                            <p class="text-info-emphasis fs-10 mb-0"><span class="fas fa-user-friends me-1"></span>Buyers registered</p>
+                            <div class="card-icon-wrapper slate-icon"><span class="fas fa-file-invoice"></span></div>
                         </div>
-                    </div>
-                </a>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'app_wallet_list' %}" class="premium-dashboard-card card-accent-purple">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Credit / Debit Note</span>
+                                <h3 class="mb-0 fw-bolder">{{ credit_debit_count }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper purple-icon"><span class="fas fa-balance-scale"></span></div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'app_wallet_list' %}" class="premium-dashboard-card card-accent-teal">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Pay U Details</span>
+                                <h3 class="mb-0 fw-bolder">{{ payu_details_count }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper teal-icon"><span class="fas fa-credit-card"></span></div>
+                        </div>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'invoice_list' %}" class="premium-dashboard-card card-accent-indigo">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Ad Invoice</span>
+                                <h3 class="mb-0 fw-bolder">{{ ad_invoices_count }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper indigo-icon"><span class="fas fa-file-invoice-dollar"></span></div>
+                        </div>
+                    </a>
+                </div>
             </div>
+        </div>
 
-            <!-- 4. Sellers -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'app_user_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-warning-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+        <!-- Row 3: Sellers & Catalog -->
+        <div>
+            <h5 class="dashboard-column-title"><span class="fas fa-store text-warning"></span>Sellers & Catalog</h5>
+            <div class="row g-3">
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'app_user_list' %}" class="premium-dashboard-card card-accent-teal">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
                             <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-warning fs-10 mb-0 text-uppercase fw-bold">App Sellers</h6>
-                                    <span class="uil uil-store text-warning fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_hostinger_users }}</h3>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Sellers</span>
+                                <h3 class="mb-0 fw-bolder">{{ total_hostinger_users }}</h3>
                             </div>
-                            <p class="text-warning-emphasis fs-10 mb-0"><span class="fas fa-store-alt me-1"></span>Sellers onboarded</p>
+                            <div class="card-icon-wrapper teal-icon"><span class="fas fa-user-tie"></span></div>
                         </div>
-                    </div>
-                </a>
-            </div>
-
-            <!-- 5. App Products -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'product_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-secondary-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'app_customer_list' %}" class="premium-dashboard-card card-accent-amber">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
                             <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-secondary fs-10 mb-0 text-uppercase fw-bold">Market Products</h6>
-                                    <span class="uil uil-package text-secondary fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_products }}</h3>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Buyers</span>
+                                <h3 class="mb-0 fw-bolder">{{ total_hostinger_customers }}</h3>
                             </div>
-                            <p class="text-secondary-emphasis fs-10 mb-0"><span class="fas fa-boxes me-1"></span>Listed products</p>
+                            <div class="card-icon-wrapper amber-icon"><span class="fas fa-users"></span></div>
                         </div>
-                    </div>
-                </a>
-            </div>
-
-            <!-- 6. Seller Companies -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'app_company_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-danger-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'app_brand_list' %}" class="premium-dashboard-card card-accent-purple">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
                             <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-danger fs-10 mb-0 text-uppercase fw-bold">Seller Companies</h6>
-                                    <span class="uil uil-building text-danger fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_companies }}</h3>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Brands</span>
+                                <h3 class="mb-0 fw-bolder">{{ total_brands }}</h3>
                             </div>
-                            <p class="text-danger-emphasis fs-10 mb-0"><span class="fas fa-industry me-1"></span>Trade entities</p>
+                            <div class="card-icon-wrapper purple-icon"><span class="fas fa-tags"></span></div>
                         </div>
-                    </div>
-                </a>
+                    </a>
+                </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'banner_list' %}" class="premium-dashboard-card card-accent-indigo">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Advertisement</span>
+                                <h3 class="mb-0 fw-bolder">{{ total_advertisements }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper indigo-icon"><span class="fas fa-ad"></span></div>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- SECTION 2: CRM WORKSPACE & OPERATIONS -->
-    <div class="mb-4 pt-1">
-        <h5 class="text-body-highlight mb-3"><span class="fas fa-laptop-house me-2 text-primary"></span>CRM Workspace & HRMS Operations</h5>
+    <!-- SECTION 2: HRMS & COMPLIANCE -->
+    <div class="mb-5">
+        <h4 class="dashboard-section-title"><span class="fas fa-business-time me-2 text-info"></span>HRMS & Operations Compliance</h4>
+        
+        <!-- Row 1: HRMS Control -->
+        <div class="row g-3 mb-3">
+            <div class="col-12 col-md-4">
+                <a href="{% url 'user_list' %}" class="premium-dashboard-card card-accent-cobalt">
+                    <div class="card-body d-flex align-items-center justify-content-between p-3">
+                        <div>
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Employees</span>
+                            <h3 class="mb-0 fw-bolder">{{ total_employees }}</h3>
+                        </div>
+                        <div class="card-icon-wrapper cobalt-icon"><span class="fas fa-user-friends"></span></div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-4">
+                <a href="{% url 'customer_list' %}" class="premium-dashboard-card card-accent-slate">
+                    <div class="card-body d-flex align-items-center justify-content-between p-3">
+                        <div>
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">CRM Database</span>
+                            <h3 class="mb-0 fw-bolder">{{ total_customers }}</h3>
+                        </div>
+                        <div class="card-icon-wrapper slate-icon"><span class="fas fa-database"></span></div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-12 col-md-4">
+                <a href="{% url 'customer_list' %}?lead_source=whatsapp" class="premium-dashboard-card card-accent-whatsapp">
+                    <div class="card-body d-flex align-items-center justify-content-between p-3">
+                        <div>
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">WhatsApp Lead</span>
+                            <h3 class="mb-0 fw-bolder">{{ total_whatsapp_leads }}</h3>
+                        </div>
+                        <div class="card-icon-wrapper whatsapp-icon"><span class="fab fa-whatsapp text-success"></span></div>
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        <!-- Row 2: Lead Tracking & Compliance -->
         <div class="row g-3">
-            <!-- 7. CRM Leads & Clients -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'customer_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-info-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-info fs-10 mb-0 text-uppercase fw-bold">CRM Clients</h6>
-                                    <span class="uil uil-user-check text-info fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_customers }}</h3>
-                            </div>
-                            <p class="text-info-emphasis fs-10 mb-0"><span class="fas fa-id-badge me-1"></span>Active pipeline leads</p>
+            <div class="col-12 col-md-4">
+                <a href="{% url 'customer_list' %}?status=lead" class="premium-dashboard-card card-accent-amber">
+                    <div class="card-body d-flex align-items-center justify-content-between p-3">
+                        <div>
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Leads</span>
+                            <h3 class="mb-0 fw-bolder">{{ total_leads }}</h3>
                         </div>
+                        <div class="card-icon-wrapper amber-icon"><span class="fas fa-filter"></span></div>
                     </div>
                 </a>
             </div>
-
-            <!-- 8. WhatsApp Enquiries -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'customer_list' %}?lead_source=whatsapp" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-warning-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-warning fs-10 mb-0 text-uppercase fw-bold">WhatsApp Chats</h6>
-                                    <span class="uil uil-whatsapp text-warning fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_whatsapp_leads }}</h3>
-                            </div>
-                            <p class="text-warning-emphasis fs-10 mb-0"><span class="fab fa-whatsapp me-1"></span>Bot conversations</p>
+            <div class="col-12 col-md-4">
+                <a href="{% url 'app_company_list' %}" class="premium-dashboard-card card-accent-purple">
+                    <div class="card-body d-flex align-items-center justify-content-between p-3">
+                        <div>
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Monthly GST Reports</span>
+                            <h3 class="mb-0 fw-bolder">Monthly</h3>
                         </div>
+                        <div class="card-icon-wrapper purple-icon"><span class="fas fa-calendar-alt"></span></div>
                     </div>
                 </a>
             </div>
-
-            <!-- 9. CRM Employees -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'user_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-primary-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-primary fs-10 mb-0 text-uppercase fw-bold">CRM Employees</h6>
-                                    <span class="uil uil-briefcase text-primary fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_employees }}</h3>
-                            </div>
-                            <p class="text-primary-emphasis fs-10 mb-0"><span class="fas fa-user-tie me-1"></span>Registered agents</p>
+            <div class="col-12 col-md-4">
+                <a href="{% url 'app_ticket_list' %}" class="premium-dashboard-card card-accent-crimson">
+                    <div class="card-body d-flex align-items-center justify-content-between p-3">
+                        <div>
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Support Tickets</span>
+                            <h3 class="mb-0 fw-bolder">{{ total_tickets }}</h3>
                         </div>
-                    </div>
-                </a>
-            </div>
-
-            <!-- 10. Invoices -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'invoice_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-success-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-success fs-10 mb-0 text-uppercase fw-bold">Invoices</h6>
-                                    <span class="uil uil-file-alt text-success fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_invoices }}</h3>
-                            </div>
-                            <p class="text-success-emphasis fs-10 mb-0"><span class="fas fa-file-invoice-dollar me-1"></span>Tax receipts drafted</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-
-            <!-- 11. HRMS Pending Leaves -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'manage_leaves' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-danger-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-danger fs-10 mb-0 text-uppercase fw-bold">Pending Leaves</h6>
-                                    <span class="uil uil-calendar-slash text-danger fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ pending_leaves_count }}</h3>
-                            </div>
-                            <p class="text-danger-emphasis fs-10 mb-0"><span class="fas fa-stopwatch me-1"></span>Requests awaiting audit</p>
-                        </div>
-                    </div>
-                </a>
-            </div>
-
-            <!-- 12. Active Brands -->
-            <div class="col-12 col-sm-6 col-md-4 col-xl-2">
-                <a href="{% url 'app_brand_list' %}" class="text-decoration-none d-block h-100">
-                    <div class="card shadow-sm border-0 h-100 bg-secondary-subtle metric-card-hover">
-                        <div class="card-body d-flex flex-column justify-content-between py-3 px-3">
-                            <div>
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 class="card-title text-secondary fs-10 mb-0 text-uppercase fw-bold">Active Brands</h6>
-                                    <span class="uil uil-tag text-secondary fs-3"></span>
-                                </div>
-                                <h3 class="text-body-highlight fw-bolder mb-1">{{ total_brands }}</h3>
-                            </div>
-                            <p class="text-secondary-emphasis fs-10 mb-0"><span class="fas fa-copyright me-1"></span>Brands synced</p>
-                        </div>
+                        <div class="card-icon-wrapper crimson-icon"><span class="fas fa-ticket-alt"></span></div>
                     </div>
                 </a>
             </div>
@@ -430,6 +548,113 @@
         </div>
     </div>
 
+    <!-- Recent CRM Invoices & Recent Support Tickets -->
+    <div class="row g-4 mb-4">
+        <!-- Recent CRM Invoices -->
+        <div class="col-12 col-xl-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-file-invoice me-2 text-primary"></span>Recent CRM Invoices</h5>
+                    <a href="{% url 'invoice_list' %}" class="btn btn-xs btn-phoenix-primary">View All Invoices</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Invoice No</th>
+                                    <th class="py-2">Client Name</th>
+                                    <th class="py-2">Amount</th>
+                                    <th class="py-2">Status</th>
+                                    <th class="pe-4 py-2 text-end">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for inv in recent_invoices %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 fw-bold">
+                                        <a href="{% url 'invoice_detail' inv.id %}" class="text-primary">{{ inv.invoice_no }}</a>
+                                    </td>
+                                    <td>
+                                        {% if inv.customer %}
+                                        <a href="{% url 'customer_detail' inv.customer.id %}" class="fw-semibold text-body-highlight">{{ inv.client_name }}</a>
+                                        {% else %}
+                                        <span class="text-body-highlight">{{ inv.client_name }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="fw-bold">₹{{ inv.total_amount }}</td>
+                                    <td>
+                                        {% if inv.payment_status == 'paid' %}
+                                        <span class="badge badge-phoenix badge-phoenix-success text-uppercase">PAID</span>
+                                        {% elif inv.payment_status == 'cancelled' %}
+                                        <span class="badge badge-phoenix badge-phoenix-secondary text-uppercase">CANCELLED</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-warning text-uppercase">PENDING</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-4 text-end text-body-tertiary">{{ inv.invoice_date|date:"d M Y" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No recent CRM invoices found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Support Tickets -->
+        <div class="col-12 col-xl-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold"><span class="fas fa-ticket-alt me-2 text-danger"></span>Recent Support Tickets</h5>
+                    <a href="{% url 'app_ticket_list' %}" class="btn btn-xs btn-phoenix-primary">View All Tickets</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Ticket ID</th>
+                                    <th class="py-2">User / Customer</th>
+                                    <th class="py-2">Topic</th>
+                                    <th class="py-2">Status</th>
+                                    <th class="pe-4 py-2 text-end">Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tkt in recent_tickets %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 fw-bold text-body-highlight">#{{ tkt.id }}</td>
+                                    <td>
+                                        <span class="fw-semibold text-body-highlight">{{ tkt.user_name }}</span>
+                                    </td>
+                                    <td class="text-truncate" style="max-width: 180px;" title="{{ tkt.topic }}">
+                                        {{ tkt.topic }}
+                                    </td>
+                                    <td>
+                                        {% if tkt.status|lower == 'open' or tkt.status|lower == 'pending' %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger text-uppercase">{{ tkt.status }}</span>
+                                        {% elif tkt.status|lower == 'replied' or tkt.status|lower == 'resolved' %}
+                                        <span class="badge badge-phoenix badge-phoenix-success text-uppercase">{{ tkt.status }}</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-secondary text-uppercase">{{ tkt.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="pe-4 text-end text-body-tertiary">{{ tkt.created_at|date:"d M Y, H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No recent support tickets found.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Recent Orders & Recent Team Additions -->
     <div class="row g-4">
         <!-- Recent Orders -->
@@ -480,27 +705,40 @@
                 <div class="card-header bg-body-tertiary py-3">
                     <h5 class="mb-0 fw-bold"><span class="fas fa-user-plus me-2"></span>New CRM Signups</h5>
                 </div>
-                <div class="card-body">
-                    <ul class="list-group list-group-flush">
-                        {% for user in recent_users %}
-                        <li class="list-group-item px-0 py-2 border-0 {% if not forloop.last %}border-bottom{% endif %}">
-                            <div class="d-flex align-items-center">
-                                <div class="avatar avatar-m me-3">
-                                    <div class="avatar-name rounded-circle bg-primary-subtle text-primary fw-bold">
-                                        <span>{{ user.username|slice:":1"|upper }}</span>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1">
-                                    <h6 class="mb-0 fw-bold text-body-highlight">{{ user.username }}</h6>
-                                    <p class="text-body-tertiary fs-10 mb-0 text-capitalize">{{ user.role|default:"User" }}</p>
-                                </div>
-                                <div class="text-body-tertiary fs-10 fw-semibold">{{ user.date_joined|date:"d M" }}</div>
-                            </div>
-                        </li>
-                        {% empty %}
-                        <li class="list-group-item px-0 border-0 text-center text-muted">No recent member signups.</li>
-                        {% endfor %}
-                    </ul>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-3 py-2">User</th>
+                                    <th class="py-2">Role</th>
+                                    <th class="pe-3 py-2 text-end">Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="d-flex align-items-center">
+                                            <div class="avatar avatar-s me-2">
+                                                <div class="avatar-name rounded-circle bg-primary-subtle text-primary fw-bold">
+                                                    <span>{{ user.username|slice:":1"|upper }}</span>
+                                                </div>
+                                            </div>
+                                            <span class="fw-semibold text-body-highlight">{{ user.username }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-info text-capitalize fs-11">{{ user.role|default:"User" }}</span>
+                                    </td>
+                                    <td class="pe-3 text-end text-body-tertiary">{{ user.date_joined|date:"d M" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-center py-4 text-muted">No recent member signups.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

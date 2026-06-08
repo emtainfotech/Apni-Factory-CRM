@@ -22,7 +22,7 @@
                                    name="q" 
                                    value="{{ query|default:'' }}"
                                    placeholder="Search by name, email or phone number..."
-                                   hx-get="{% url 'hostinger_customer_list' %}"
+                                   hx-get="{% url 'app_customer_list' %}"
                                    hx-trigger="keyup changed delay:500ms"
                                    hx-target="#hostinger-customer-table-wrapper"
                                    hx-include="#customer-filter-form"
@@ -38,7 +38,7 @@
 
             <!-- HTMX Swap Target -->
             <div id="hostinger-customer-table-wrapper">
-                {% include 'core/partials/hostinger_customer_table.html' %}
+                {% include 'core/partials/app_customer_table.html' %}
             </div>
         </div>
     </div>

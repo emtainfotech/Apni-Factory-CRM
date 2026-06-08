@@ -9,10 +9,11 @@
                 <th class="py-3">GST/PAN</th>
                 <th class="py-3">GST Status</th>
                 <th class="py-3">Registered Date</th>
+                <th class="text-end pe-4 py-3">Actions</th>
             </tr>
         </thead>
         <tbody class="list">
-            {% include 'core/partials/hostinger_customer_table_rows.html' %}
+            {% include 'core/partials/app_customer_table_rows.html' %}
         </tbody>
     </table>
 </div>
@@ -27,13 +28,13 @@
         <ul class="pagination pagination-sm mb-0">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <button class="page-link" hx-get="{% url 'hostinger_customer_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" hx-target="#hostinger-customer-table-wrapper" hx-indicator="#hostinger-spinner">Previous</button>
+                <button class="page-link" hx-get="{% url 'app_customer_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" hx-target="#hostinger-customer-table-wrapper" hx-indicator="#hostinger-spinner">Previous</button>
             </li>
             {% endif %}
             <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
             {% if page_obj.has_next %}
             <li class="page-item">
-                <button class="page-link" hx-get="{% url 'hostinger_customer_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}" hx-target="#hostinger-customer-table-wrapper" hx-indicator="#hostinger-spinner">Next</button>
+                <button class="page-link" hx-get="{% url 'app_customer_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}" hx-target="#hostinger-customer-table-wrapper" hx-indicator="#hostinger-spinner">Next</button>
             </li>
             {% endif %}
         </ul>
