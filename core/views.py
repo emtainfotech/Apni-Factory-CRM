@@ -2659,3 +2659,35 @@ def whatsapp_marketing(request):
             return redirect('whatsapp_marketing')
 
     return render(request, 'core/whatsapp_marketing.html')
+
+@login_required
+@user_passes_test(is_admin)
+def whatsapp_marketing_sample(request):
+    import openpyxl
+    from io import BytesIO
+    from django.http import HttpResponse
+
+    wb = openpyxl.Workbook()
+    sheet = wb.active
+    sheet.title = 'Contacts'
+    
+    # Headers
+    sheet.append(['Phone', 'Name', 'Email'])
+    
+    # Sample row
+    sheet.append(['919876543210', 'John Doe', 'john@example.com'])
+
+    # Style header row
+    for cell in sheet[1]:
+        cell.font = openpyxl.styles.Font(bold=True)
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    response = HttpResponse(
+        output.read(), 
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="whatsapp_marketing_sample.xlsx"'
+    return response

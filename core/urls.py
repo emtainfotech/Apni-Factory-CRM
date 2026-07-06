@@ -29,6 +29,7 @@ urlpatterns = [
     path('dashboard/admin/approve-leave/<int:leave_id>/', views.approve_leave, name='approve_leave'),
     path('dashboard/admin/reject-leave/<int:leave_id>/', views.reject_leave, name='reject_leave'),
     path('dashboard/admin/whatsapp-marketing/', views.whatsapp_marketing, name='whatsapp_marketing'),
+    path('dashboard/admin/whatsapp-marketing/sample/', views.whatsapp_marketing_sample, name='whatsapp_marketing_sample'),
     
     # Order Routes
     path('orders/', views.order_list, name='order_list'),
