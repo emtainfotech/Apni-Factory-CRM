@@ -2596,6 +2596,7 @@ def whatsapp_marketing(request):
                 template_name = request.POST.get('template_name')
                 language_code = request.POST.get('language_code', 'en')
                 template_variables_str = request.POST.get('template_variables', '')
+                header_image_url = request.POST.get('header_image_url', '')
                 
                 if not template_name:
                     messages.error(request, "Please provide a Template Name.")
@@ -2620,6 +2621,21 @@ def whatsapp_marketing(request):
                     }
                     
                     # Inject variables if requested
+                    components = []
+                    
+                    if header_image_url:
+                        components.append({
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "image",
+                                    "image": {
+                                        "link": header_image_url
+                                    }
+                                }
+                            ]
+                        })
+
                     if variable_columns:
                         parameters = []
                         for col in variable_columns:
@@ -2629,12 +2645,13 @@ def whatsapp_marketing(request):
                                 "type": "text",
                                 "text": str(val) if val is not None else ""
                             })
-                        data["template"]["components"] = [
-                            {
-                                "type": "body",
-                                "parameters": parameters
-                            }
-                        ]
+                        components.append({
+                            "type": "body",
+                            "parameters": parameters
+                        })
+                        
+                    if components:
+                        data["template"]["components"] = components
 
                     response = requests.post(meta_api_url, headers=headers, json=data)
                     if response.status_code in [200, 201]:
