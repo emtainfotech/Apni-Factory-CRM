@@ -196,6 +196,17 @@ GST_LIVE_URL = os.environ.get('GST_LIVE_URL', 'https://api.verifya2z.com/api/v1/
 META_API_URL = os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages')
 META_ACCESS_TOKEN = os.environ.get('META_ACCESS_TOKEN', '')
 
+# Tracking & Analytics Configurations
+META_PIXEL_ID = os.environ.get('META_PIXEL_ID', '')
+META_CONVERSION_API_TOKEN = os.environ.get('META_CONVERSION_API_TOKEN', '')
+GOOGLE_ANALYTICS_GA4_ID = os.environ.get('GOOGLE_ANALYTICS_GA4_ID', '')
+GOOGLE_TAG_MANAGER_ID = os.environ.get('GOOGLE_TAG_MANAGER_ID', '')
+GOOGLE_SEARCH_CONSOLE_TOKEN = os.environ.get('GOOGLE_SEARCH_CONSOLE_TOKEN', '')
+GOOGLE_ADS_CONVERSION_ID = os.environ.get('GOOGLE_ADS_CONVERSION_ID', '')
+GOOGLE_ADS_CONVERSION_LABEL = os.environ.get('GOOGLE_ADS_CONVERSION_LABEL', '')
+WHATSAPP_CLICK_TO_CHAT_PHONE = os.environ.get('WHATSAPP_CLICK_TO_CHAT_PHONE', '')
+WHATSAPP_CLICK_TO_CHAT_MSG = os.environ.get('WHATSAPP_CLICK_TO_CHAT_MSG', '')
+
 # Media Files Configurations
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

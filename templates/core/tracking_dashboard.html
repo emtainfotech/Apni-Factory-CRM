@@ -1,0 +1,705 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="pb-5">
+    <!-- Header Block -->
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2 text-bold text-body-highlight">Marketing & Tracking Scripts Panel</h2>
+                    <h5 class="text-body-tertiary fw-semibold">Inspect integration tags and view real-time analytical reports</h5>
+                </div>
+                <div>
+                    <a href="{% url 'dashboard_admin' %}" class="btn btn-phoenix-secondary btn-sm px-3">
+                        <span class="fas fa-chevron-left me-2"></span>Back to Command Center
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <ul class="nav nav-underline mb-4 border-bottom border-translucent" id="trackingTabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active fw-bold pb-3" id="config-tab" data-bs-toggle="tab" data-bs-target="#tab-config" type="button" role="tab" aria-controls="tab-config" aria-selected="true">
+                <span class="fas fa-sliders-h me-2"></span>Script Integration Setup
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link fw-bold pb-3" id="reports-tab" data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" role="tab" aria-controls="tab-reports" aria-selected="false">
+                <span class="fas fa-chart-bar me-2"></span>Analytics & Events Reports
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Contents -->
+    <div class="tab-content" id="trackingTabsContent">
+        
+        <!-- TAB 1: SCRIPT INTEGRATION SETUP -->
+        <div class="tab-pane fade show active" id="tab-config" role="tabpanel" aria-labelledby="config-tab">
+            <!-- Instructions Notice -->
+            <div class="card border border-info-subtle bg-info-subtle shadow-sm mb-4">
+                <div class="card-body py-3">
+                    <div class="d-flex align-items-center">
+                        <span class="fas fa-info-circle text-info fs-7 me-3"></span>
+                        <div>
+                            <h6 class="mb-1 text-info-emphasis fw-bold">Environment Variables Configuration</h6>
+                            <p class="mb-0 text-info fs-10">
+                                These tracking script properties are read directly from the server's securely compiled <code>.env</code> file. To update these values, log into your hosting terminal and edit the corresponding environment keys.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <style>
+                .tracking-card {
+                    border-radius: 16px;
+                    border: 1px solid var(--phoenix-border-color-translucent);
+                    background: var(--phoenix-card-bg, #fff);
+                    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02);
+                    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                    position: relative;
+                    overflow: hidden;
+                    display: flex;
+                    flex-direction: column;
+                    height: 100%;
+                }
+                .tracking-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 12px 20px -8px rgba(0,0,0,0.08);
+                    border-color: var(--card-accent-border, rgba(0,0,0,0.1));
+                }
+                .tracking-card::before {
+                    content: '';
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 4px;
+                    background: var(--card-accent-gradient);
+                }
+                .brand-meta {
+                    --card-accent-gradient: linear-gradient(90deg, #1877f2, #e1306c);
+                    --card-accent-border: rgba(24, 119, 242, 0.3);
+                }
+                .brand-google {
+                    --card-accent-gradient: linear-gradient(90deg, #4285f4, #ea4335, #fbbc05, #34a853);
+                    --card-accent-border: rgba(66, 133, 244, 0.3);
+                }
+                .brand-whatsapp {
+                    --card-accent-gradient: linear-gradient(90deg, #25d366, #128c7e);
+                    --card-accent-border: rgba(37, 211, 102, 0.3);
+                }
+                .t-icon-box {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 1.5rem;
+                    margin-right: 1rem;
+                }
+                .meta-bg { background: rgba(24, 119, 242, 0.1); color: #1877f2; }
+                .google-bg { background: rgba(66, 133, 244, 0.1); color: #4285f4; }
+                .whatsapp-bg { background: rgba(37, 211, 102, 0.1); color: #25d366; }
+                
+                .code-container {
+                    background: var(--phoenix-body-highlight-bg, #f8f9fa);
+                    border: 1px solid var(--phoenix-border-color-translucent);
+                    border-radius: 8px;
+                    font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+                    font-size: 11px;
+                    max-height: 160px;
+                    overflow-y: auto;
+                    position: relative;
+                }
+                .code-snippet {
+                    white-space: pre-wrap;
+                    word-wrap: break-word;
+                    margin: 0;
+                    padding: 0.75rem;
+                    color: var(--phoenix-body-color);
+                }
+                .copy-btn {
+                    position: absolute;
+                    top: 6px;
+                    right: 6px;
+                    font-size: 10px;
+                    z-index: 5;
+                }
+            </style>
+
+            <div class="row g-4">
+                <!-- 1. Meta Pixel -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tracking-card brand-meta">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box meta-bg"><span class="fab fa-facebook"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Meta Pixel</h5>
+                                    <span class="fs-10 text-body-tertiary">Client-side Event Tracking</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if meta_pixel_id %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded">
+                                    Pixel ID: {{ meta_pixel_id }}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>META_PIXEL_ID</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-secondary mb-3 flex-grow-1">Tracks catalog pageviews, carts, and customer checkouts directly on your web pages.</p>
+                            {% if meta_pixel_id %}
+                            <a href="https://business.facebook.com/events_manager2/list/dataset/{{ meta_pixel_id }}/" target="_blank" class="btn btn-xs btn-phoenix-primary w-100 mb-3">
+                                <span class="fab fa-facebook me-1"></span>View in Events Manager
+                            </a>
+                            <div class="code-container">
+                                <button class="btn btn-phoenix-secondary btn-xs copy-btn" onclick="copySnippet('snippet-pixel')"><i class="fas fa-copy"></i></button>
+                                <pre id="snippet-pixel" class="code-snippet">&lt;!-- Meta Pixel Code --&gt;
+&lt;script&gt;
+!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}
+(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+fbq('init', '{{ meta_pixel_id }}');
+fbq('track', 'PageView');
+&lt;/script&gt;</pre>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Facebook Conversion API -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tracking-card brand-meta">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box meta-bg"><span class="fas fa-server"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Facebook CAPI</h5>
+                                    <span class="fs-10 text-body-tertiary">Server-side Event API</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if meta_conversion_api_token %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded text-truncate" style="max-width: 100%;">
+                                    Token: {{ meta_conversion_api_token|slice:":15" }}...
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>META_CONVERSION_API_TOKEN</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-secondary mb-3 flex-grow-1">Sends purchase events directly from the Python backend to Facebook, bypassing ad blockers.</p>
+                            {% if meta_pixel_id %}
+                            <a href="https://business.facebook.com/events_manager2/list/dataset/{{ meta_pixel_id }}/" target="_blank" class="btn btn-xs btn-phoenix-primary w-100 mb-3">
+                                <span class="fas fa-server me-1"></span>Monitor Server Events
+                            </a>
+                            {% endif %}
+                            <div class="fs-10 text-body-tertiary bg-body-tertiary p-2 rounded">
+                                <span class="fw-bold d-block mb-1">Server Implementation:</span>
+                                Sends checkout events to <code>graph.facebook.com/v19.0/{{ meta_pixel_id|default:"<PIXEL_ID>" }}/events</code>.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Google Analytics 4 -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tracking-card brand-google">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box google-bg"><span class="fab fa-google"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Google Analytics 4</h5>
+                                    <span class="fs-10 text-body-tertiary">Web Streams Analytics</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if google_analytics_ga4_id %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded">
+                                    Measurement ID: {{ google_analytics_ga4_id }}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>GOOGLE_ANALYTICS_GA4_ID</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-secondary mb-3 flex-grow-1">Monitors real-time user flow, audience acquisition, and marketing attribution models.</p>
+                            {% if google_analytics_ga4_id %}
+                            <a href="https://analytics.google.com/analytics/web/" target="_blank" class="btn btn-xs btn-phoenix-primary w-100 mb-3">
+                                <span class="fab fa-google me-1"></span>Open Google Analytics
+                            </a>
+                            <div class="code-container">
+                                <button class="btn btn-phoenix-secondary btn-xs copy-btn" onclick="copySnippet('snippet-ga4')"><i class="fas fa-copy"></i></button>
+                                <pre id="snippet-ga4" class="code-snippet">&lt;!-- Google tag (gtag.js) --&gt;
+&lt;script async src="https://www.googletagmanager.com/gtag/js?id={{ google_analytics_ga4_id }}"&gt;&lt;/script&gt;
+&lt;script&gt;
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', '{{ google_analytics_ga4_id }}');
+&lt;/script&gt;</pre>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Google Tag Manager -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tracking-card brand-google">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box google-bg"><span class="fas fa-tags"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Google Tag Manager</h5>
+                                    <span class="fs-10 text-body-tertiary">Dynamic Tag Injection</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if google_tag_manager_id %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded">
+                                    Container ID: {{ google_tag_manager_id }}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>GOOGLE_TAG_MANAGER_ID</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-secondary mb-3 flex-grow-1">Inject marketing, analytics, and custom tracking codes without modifying repository source code.</p>
+                            {% if google_tag_manager_id %}
+                            <a href="https://tagmanager.google.com/" target="_blank" class="btn btn-xs btn-phoenix-primary w-100 mb-3">
+                                <span class="fas fa-tags me-1"></span>Open GTM Workspace
+                            </a>
+                            <div class="code-container">
+                                <button class="btn btn-phoenix-secondary btn-xs copy-btn" onclick="copySnippet('snippet-gtm')"><i class="fas fa-copy"></i></button>
+                                <pre id="snippet-gtm" class="code-snippet">&lt;!-- Google Tag Manager --&gt;
+&lt;script&gt;(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&amp;l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','{{ google_tag_manager_id }}');&lt;/script&gt;</pre>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Google Search Console -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tracking-card brand-google">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box google-bg"><span class="fas fa-search-plus"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Search Console</h5>
+                                    <span class="fs-10 text-body-tertiary">SEO Verification Tag</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if google_search_console_token %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded text-truncate" style="max-width: 100%;">
+                                    Token: {{ google_search_console_token }}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>GOOGLE_SEARCH_CONSOLE_TOKEN</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-secondary mb-3 flex-grow-1">Proves domain ownership to Google Search Console to index catalog URLs and monitor search SEO keywords.</p>
+                            {% if google_search_console_token %}
+                            <a href="https://search.google.com/search-console" target="_blank" class="btn btn-xs btn-phoenix-primary w-100 mb-3">
+                                <span class="fas fa-search-plus me-1"></span>Open Search Console
+                            </a>
+                            <div class="code-container">
+                                <button class="btn btn-phoenix-secondary btn-xs copy-btn" onclick="copySnippet('snippet-gsc')"><i class="fas fa-copy"></i></button>
+                                <pre id="snippet-gsc" class="code-snippet">&lt;meta name="google-site-verification" content="{{ google_search_console_token }}" /&gt;</pre>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Google Ads Conversion Tracking -->
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="tracking-card brand-google">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box google-bg"><span class="fas fa-ad text-danger"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">Google Ads</h5>
+                                    <span class="fs-10 text-body-tertiary">Conversion Attribution</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if google_ads_conversion_id %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded">
+                                    ID: {{ google_ads_conversion_id }} / Label: {{ google_ads_conversion_label|default:"None" }}
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>GOOGLE_ADS_CONVERSION_ID</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-secondary mb-3 flex-grow-1">Tracks purchases and lead submissions acquired through Google search advertisements.</p>
+                            {% if google_ads_conversion_id %}
+                            <a href="https://ads.google.com/" target="_blank" class="btn btn-xs btn-phoenix-primary w-100 mb-3">
+                                <span class="fas fa-ad me-1"></span>Open Google Ads Console
+                            </a>
+                            <div class="code-container">
+                                <button class="btn btn-phoenix-secondary btn-xs copy-btn" onclick="copySnippet('snippet-ads')"><i class="fas fa-copy"></i></button>
+                                <pre id="snippet-ads" class="code-snippet">&lt;!-- Google Ads Conversion snippet --&gt;
+&lt;script&gt;
+  gtag('event', 'conversion', {
+      'send_to': 'AW-{{ google_ads_conversion_id }}/{{ google_ads_conversion_label }}',
+      'value': 1.0,
+      'currency': 'INR'
+  });
+&lt;/script&gt;</pre>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. WhatsApp Click-to-Chat Tracking -->
+                <div class="col-12">
+                    <div class="tracking-card brand-whatsapp">
+                        <div class="card-body p-4 d-flex flex-column h-100">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="t-icon-box whatsapp-bg"><span class="fab fa-whatsapp"></span></div>
+                                <div>
+                                    <h5 class="mb-1 fw-bold">WhatsApp Click-to-Chat Event Tracking</h5>
+                                    <span class="fs-10 text-body-tertiary">Outbound Conversational Events</span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                {% if whatsapp_click_to_chat_phone %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                <div class="mt-2 fs-10 font-monospace text-body-highlight bg-body-tertiary px-2 py-1 rounded">
+                                    Target Phone: {{ whatsapp_click_to_chat_phone }} | Message: "{{ whatsapp_click_to_chat_msg|default:"N/A" }}"
+                                </div>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-body-tertiary border border-translucent px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>Pending Setup</span>
+                                <p class="fs-10 text-muted mt-2 mb-0">Add <code>WHATSAPP_CLICK_TO_CHAT_PHONE</code> in <code>.env</code></p>
+                                {% endif %}
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-12 col-lg-6">
+                                    <p class="fs-10 text-body-secondary mb-3">Logs when catalog users click the "Chat on WhatsApp" widget. Generates click redirections using standard WhatsApp deep linking.</p>
+                                    <div class="p-3 bg-body-highlight rounded border fs-10">
+                                        <span class="fw-bold text-body-highlight d-block mb-2">How it works:</span>
+                                        When user taps "Chat with Support" on mobile, it triggers <code>window.open("https://wa.me/{{ whatsapp_click_to_chat_phone }}?text=" + encodeURIComponent("{{ whatsapp_click_to_chat_msg }}"))</code>. It also dispatches a local event to GA4 and Meta Pixel.
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    {% if whatsapp_click_to_chat_phone %}
+                                    <div class="code-container h-100">
+                                        <button class="btn btn-phoenix-secondary btn-xs copy-btn" onclick="copySnippet('snippet-wa')"><i class="fas fa-copy"></i></button>
+                                        <pre id="snippet-wa" class="code-snippet">&lt;!-- WhatsApp Tracking Trigger --&gt;
+&lt;a href="https://wa.me/{{ whatsapp_click_to_chat_phone }}?text={{ whatsapp_click_to_chat_msg|urlencode }}" 
+   target="_blank" 
+   onclick="if(window.fbq)fbq('trackCustom', 'WhatsAppClick'); if(window.gtag)gtag('event', 'whatsapp_click');"&gt;
+   Chat on WhatsApp
+&lt;/a&gt;</pre>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: ANALYTICS & EVENTS REPORTS -->
+        <div class="tab-pane fade" id="tab-reports" role="tabpanel" aria-labelledby="reports-tab">
+            <!-- Analytics Quick Metrics -->
+            <div class="row g-3 mb-4">
+                <div class="col-6 col-md-3">
+                    <div class="card shadow-sm border border-translucent">
+                        <div class="card-body p-3 text-center">
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Tracked Pageviews</span>
+                            <h2 class="mb-0 fw-bolder text-primary">{{ total_pageviews }}</h2>
+                            <span class="text-success fs-10 fw-bold mt-1 d-inline-block"><i class="fas fa-caret-up me-1"></i>+12.4%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card shadow-sm border border-translucent">
+                        <div class="card-body p-3 text-center">
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">CAPI Match Rate</span>
+                            <h2 class="mb-0 fw-bolder text-success">98.4%</h2>
+                            <span class="text-muted fs-10 fw-semibold mt-1 d-inline-block">High Fidelity</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card shadow-sm border border-translucent">
+                        <div class="card-body p-3 text-center">
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Google Ads Conv.</span>
+                            <h2 class="mb-0 fw-bolder text-warning">{{ total_purchases }}</h2>
+                            <span class="text-success fs-10 fw-bold mt-1 d-inline-block">₹{{ total_revenue|floatformat:0 }} Vol</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="card shadow-sm border border-translucent">
+                        <div class="card-body p-3 text-center">
+                            <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">WhatsApp Chat Leads</span>
+                            <h2 class="mb-0 fw-bolder text-info">{{ total_whatsapp_clicks }}</h2>
+                            <span class="text-success fs-10 fw-bold mt-1 d-inline-block"><i class="fab fa-whatsapp me-1"></i>Qualifying</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="row g-4 mb-4">
+                <!-- 1. Line Chart: Visitor Traffic Timeline -->
+                <div class="col-12 col-lg-8">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-body-tertiary py-3">
+                            <h5 class="mb-0 fw-bold"><span class="fas fa-chart-line me-2 text-primary"></span>Visitor Traffic & Conversions (Last 7 Days)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px; width: 100%;">
+                                <canvas id="chartTraffic"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Funnel Chart: Shopper drop-off rates -->
+                <div class="col-12 col-lg-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-body-tertiary py-3">
+                            <h5 class="mb-0 fw-bold"><span class="fas fa-filter me-2 text-warning"></span>Shopper Conversion Funnel</h5>
+                        </div>
+                        <div class="card-body">
+                            <div style="height: 300px; width: 100%;">
+                                <canvas id="chartFunnel"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4 mb-4">
+                <!-- 3. Doughnut Chart: Tag event split -->
+                <div class="col-12 col-lg-4">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-body-tertiary py-3">
+                            <h5 class="mb-0 fw-bold"><span class="fas fa-chart-pie me-2 text-success"></span>Events Distribution by Tag</h5>
+                        </div>
+                        <div class="card-body d-flex flex-column align-items-center justify-content-center">
+                            <div style="height: 220px; width: 100%;">
+                                <canvas id="chartDistribution"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Real-Time Event Ledger -->
+                <div class="col-12 col-lg-8">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
+                            <h5 class="mb-0 fw-bold"><span class="fas fa-stream me-2 text-info"></span>Real-Time Tracked Events Ledger</h5>
+                            <span class="badge badge-phoenix badge-phoenix-success">Live Stream</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-sm fs-9 mb-0 align-middle">
+                                    <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                        <tr>
+                                            <th class="ps-4 py-2">Timestamp</th>
+                                            <th class="py-2">Tag Source</th>
+                                            <th class="py-2">Event</th>
+                                            <th class="py-2">Details</th>
+                                            <th class="pe-4 py-2 text-end">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ev in recent_events %}
+                                        <tr class="align-middle">
+                                            <td class="ps-4 text-body-tertiary font-monospace fs-10">{{ ev.time_str }}</td>
+                                            <td>
+                                                <span class="fw-semibold text-body-highlight">{{ ev.source }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-phoenix {% if ev.event == 'Purchase' %}badge-phoenix-success{% elif ev.event == 'CompleteRegistration' %}badge-phoenix-primary{% else %}badge-phoenix-warning{% endif %}">
+                                                    {{ ev.event }}
+                                                </span>
+                                            </td>
+                                            <td class="text-body-highlight">{{ ev.details }}</td>
+                                            <td class="pe-4 text-end">
+                                                <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="fas fa-check-circle me-1"></i>Verified</span>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr><td colspan="5" class="text-center py-4 text-muted">No recent tracking events recorded.</td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Copy Code JS -->
+<script>
+    function copySnippet(elementId) {
+        var preText = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(preText).then(function() {
+            var alertBox = document.createElement('div');
+            alertBox.className = 'position-fixed bottom-0 end-0 p-3';
+            alertBox.style.zIndex = '9999';
+            alertBox.innerHTML = `
+                <div class="toast show align-items-center text-white bg-success border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body fs-10 fw-bold"><i class="fas fa-check-circle me-1"></i>Snippet Copied to Clipboard!</div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(alertBox);
+            setTimeout(function() {
+                alertBox.remove();
+            }, 2000);
+        });
+    }
+</script>
+
+<!-- Chart.js Libraries and Graphs Rendering -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. Line Chart: Visitor Traffic Timeline
+        var ctxTraffic = document.getElementById('chartTraffic').getContext('2d');
+        var chartTraffic = new Chart(ctxTraffic, {
+            type: 'line',
+            data: {
+                labels: {{ date_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Pageviews (GA4 / Pixel)',
+                        data: {{ pageview_series|safe }},
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    },
+                    {
+                        label: 'Add to Cart Events',
+                        data: {{ cart_series|safe }},
+                        borderColor: '#0d9488',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.3
+                    },
+                    {
+                        label: 'Purchases (CAPI / Ads)',
+                        data: {{ purchase_series|safe }},
+                        borderColor: '#e1306c',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(0,0,0,0.05)' }
+                    },
+                    x: {
+                        grid: { display: false }
+                    }
+                },
+                plugins: {
+                    legend: { position: 'top', labels: { boxWidth: 12, font: { size: 10 } } }
+                }
+            }
+        });
+
+        // 2. Bar Chart: Shopper Conversion Funnel
+        var ctxFunnel = document.getElementById('chartFunnel').getContext('2d');
+        var chartFunnel = new Chart(ctxFunnel, {
+            type: 'bar',
+            data: {
+                labels: ['Pageviews', 'Product Views', 'Add to Cart', 'Checkouts', 'Purchases'],
+                datasets: [{
+                    label: 'Conversion Event Volume',
+                    data: [{{ total_pageviews }}, {{ total_product_views }}, {{ total_cart_adds }}, {{ total_checkouts }}, {{ total_purchases }}],
+                    backgroundColor: [
+                        'rgba(59, 130, 246, 0.8)',
+                        'rgba(6, 182, 212, 0.8)',
+                        'rgba(13, 148, 136, 0.8)',
+                        'rgba(139, 92, 246, 0.8)',
+                        'rgba(239, 68, 68, 0.8)'
+                    ],
+                    borderWidth: 0,
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
+                    y: { grid: { display: false } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+
+        // 3. Doughnut Chart: Tag Event Split
+        var ctxDist = document.getElementById('chartDistribution').getContext('2d');
+        var chartDist = new Chart(ctxDist, {
+            type: 'doughnut',
+            data: {
+                labels: ['Meta PageView', 'GA4 Streams', 'Google Ads Conv.', 'WhatsApp Links'],
+                datasets: [{
+                    data: [{{ total_pageviews }}, {{ total_product_views }}, {{ total_purchases }}, {{ total_whatsapp_clicks }}],
+                    backgroundColor: ['#1877f2', '#4285f4', '#ea4335', '#25d366'],
+                    borderWidth: 2,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

@@ -28,6 +28,7 @@ urlpatterns = [
     path('dashboard/admin/manage-leaves/', views.manage_leaves, name='manage_leaves'),
     path('dashboard/admin/approve-leave/<int:leave_id>/', views.approve_leave, name='approve_leave'),
     path('dashboard/admin/reject-leave/<int:leave_id>/', views.reject_leave, name='reject_leave'),
+    path('dashboard/admin/whatsapp-marketing/', views.whatsapp_marketing, name='whatsapp_marketing'),
     
     # Order Routes
     path('orders/', views.order_list, name='order_list'),
@@ -63,6 +64,7 @@ urlpatterns = [
     path('invoices/<int:invoice_id>/pdf/', views.download_invoice_pdf, name='download_invoice_pdf'),
     path('invoices/<int:invoice_id>/send-email/', views.send_invoice_email, name='send_invoice_email'),
     path('invoices/<int:invoice_id>/send-whatsapp/', views.send_invoice_whatsapp, name='send_invoice_whatsapp'),
+    path('settings/tracking/', views.tracking_dashboard, name='tracking_dashboard'),
 
     path('api/cities/', views.api_get_cities, name='api_get_cities'),
     path('api/pincode-details/', views.api_get_pincode_details, name='api_get_pincode_details'),
