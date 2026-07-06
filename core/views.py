@@ -2726,7 +2726,33 @@ def whatsapp_marketing(request):
             messages.error(request, f"An error occurred: {str(e)}")
             return redirect('whatsapp_marketing')
 
-    return render(request, 'core/whatsapp_marketing.html')
+    else:
+        # GET Request: Fetch templates if possible
+        templates = []
+        meta_api_url = getattr(settings, 'META_API_URL', '')
+        meta_access_token = getattr(settings, 'META_ACCESS_TOKEN', '')
+        
+        if meta_api_url and meta_access_token:
+            try:
+                parts = meta_api_url.split('/')
+                if 'messages' in parts:
+                    idx = parts.index('messages')
+                    phone_id = parts[idx-1]
+                    url = f"https://graph.facebook.com/v17.0/{phone_id}?fields=whatsapp_business_account"
+                    res = requests.get(url, headers={'Authorization': f'Bearer {meta_access_token}'})
+                    if res.status_code == 200:
+                        waba_id = res.json().get('whatsapp_business_account', {}).get('id')
+                        if waba_id:
+                            t_url = f"https://graph.facebook.com/v17.0/{waba_id}/message_templates?limit=100"
+                            t_res = requests.get(t_url, headers={'Authorization': f'Bearer {meta_access_token}'})
+                            if t_res.status_code == 200:
+                                # Filter only approved templates
+                                all_templates = t_res.json().get('data', [])
+                                templates = [t for t in all_templates if t.get('status') == 'APPROVED']
+            except Exception as e:
+                pass
+                
+        return render(request, 'core/whatsapp_marketing.html', {'templates': templates})
 
 @login_required
 @user_passes_test(is_admin)

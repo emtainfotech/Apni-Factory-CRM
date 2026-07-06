@@ -39,8 +39,13 @@
                                 <div class="row g-3 mb-4">
                                     <div class="col-md-6">
                                         <label class="form-label" for="template_name">Template Name <span class="text-danger">*</span></label>
-                                        <input class="form-control" id="template_name" name="template_name" type="text" placeholder="e.g. diwali_offer_01" required />
-                                        <div class="form-text">Ensure this template is approved in your Meta Business account.</div>
+                                        <input class="form-control" id="template_name" name="template_name" type="text" list="template_list" placeholder="e.g. diwali_offer_01" required autocomplete="off" />
+                                        <datalist id="template_list">
+                                            {% for t in templates %}
+                                                <option value="{{ t.name }}">[{{ t.language }}] {{ t.name }}</option>
+                                            {% endfor %}
+                                        </datalist>
+                                        <div class="form-text">Select an approved template from the list, or type its exact name.</div>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="language_code">Language Code <span class="text-danger">*</span></label>
