@@ -2570,6 +2570,7 @@ def whatsapp_marketing(request):
 
             success_count = 0
             error_count = 0
+            last_error_message = ""
             
             meta_api_url = getattr(settings, 'META_API_URL', '')
             meta_access_token = getattr(settings, 'META_ACCESS_TOKEN', '')
@@ -2608,6 +2609,11 @@ def whatsapp_marketing(request):
                         success_count += 1
                     else:
                         error_count += 1
+                        try:
+                            error_data = response.json()
+                            last_error_message = error_data.get('error', {}).get('message', response.text)
+                        except:
+                            last_error_message = response.text
                         
             elif message_type == 'custom':
                 custom_message = request.POST.get('custom_message')
@@ -2646,11 +2652,19 @@ def whatsapp_marketing(request):
                         success_count += 1
                     else:
                         error_count += 1
+                        try:
+                            error_data = response.json()
+                            last_error_message = error_data.get('error', {}).get('message', response.text)
+                        except:
+                            last_error_message = response.text
 
             if error_count == 0:
                 messages.success(request, f"Successfully sent to {success_count} contacts.")
             else:
-                messages.warning(request, f"Sent to {success_count} contacts. Failed for {error_count} contacts. (Ensure custom messages are within 24hr window).")
+                error_note = f"Sent to {success_count} contacts. Failed for {error_count} contacts."
+                if last_error_message:
+                    error_note += f" Last Meta Error: {last_error_message}"
+                messages.warning(request, error_note)
             
             return redirect('whatsapp_marketing')
 
