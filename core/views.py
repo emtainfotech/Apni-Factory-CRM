@@ -2551,18 +2551,26 @@ def whatsapp_marketing(request):
             phone_numbers = []
             header_row = [cell.value for cell in sheet[1]]
             
-            phone_idx = 0
+            phone_idx = None
+            header_map = {}
             for i, header in enumerate(header_row):
-                if header and str(header).lower() in ['phone', 'phone number', 'contact', 'whatsapp']:
-                    phone_idx = i
-                    break
+                if header:
+                    header_str = str(header).lower().strip()
+                    header_map[header_str] = i
+                    if header_str in ['phone', 'phone number', 'contact', 'whatsapp']:
+                        phone_idx = i
+                        
+            if phone_idx is None:
+                messages.error(request, "No valid Phone column found in the Excel sheet.")
+                return redirect('whatsapp_marketing')
                     
             for row in sheet.iter_rows(min_row=2, values_only=True):
                 phone = row[phone_idx]
                 if phone:
                     cleaned_phone = str(phone).replace('+', '').replace(' ', '').replace('-', '')
                     if cleaned_phone.isdigit():
-                        phone_numbers.append(cleaned_phone)
+                        # Store the full row so we can extract variables later
+                        phone_numbers.append({'phone': cleaned_phone, 'row': row})
 
             if not phone_numbers:
                 messages.error(request, "No valid phone numbers found in the Excel sheet.")
@@ -2587,12 +2595,18 @@ def whatsapp_marketing(request):
             if message_type == 'template':
                 template_name = request.POST.get('template_name')
                 language_code = request.POST.get('language_code', 'en')
+                template_variables_str = request.POST.get('template_variables', '')
                 
                 if not template_name:
                     messages.error(request, "Please provide a Template Name.")
                     return redirect('whatsapp_marketing')
+                    
+                variable_columns = [v.strip() for v in template_variables_str.split(',')] if template_variables_str else []
 
-                for phone in phone_numbers:
+                for item in phone_numbers:
+                    phone = item['phone']
+                    row = item['row']
+                    
                     data = {
                         "messaging_product": "whatsapp",
                         "to": phone,
@@ -2604,6 +2618,24 @@ def whatsapp_marketing(request):
                             }
                         }
                     }
+                    
+                    # Inject variables if requested
+                    if variable_columns:
+                        parameters = []
+                        for col in variable_columns:
+                            idx = header_map.get(col.lower())
+                            val = row[idx] if idx is not None else ""
+                            parameters.append({
+                                "type": "text",
+                                "text": str(val) if val is not None else ""
+                            })
+                        data["template"]["components"] = [
+                            {
+                                "type": "body",
+                                "parameters": parameters
+                            }
+                        ]
+
                     response = requests.post(meta_api_url, headers=headers, json=data)
                     if response.status_code in [200, 201]:
                         success_count += 1
@@ -2623,7 +2655,8 @@ def whatsapp_marketing(request):
                     messages.error(request, "Please provide a message or an image URL for custom message.")
                     return redirect('whatsapp_marketing')
 
-                for phone in phone_numbers:
+                for item in phone_numbers:
+                    phone = item['phone']
                     if image_url:
                         data = {
                             "messaging_product": "whatsapp",
