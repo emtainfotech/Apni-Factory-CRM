@@ -2567,8 +2567,12 @@ def whatsapp_marketing(request):
             for row in sheet.iter_rows(min_row=2, values_only=True):
                 phone = row[phone_idx]
                 if phone:
-                    cleaned_phone = str(phone).replace('+', '').replace(' ', '').replace('-', '')
+                    cleaned_phone = str(phone).replace('+', '').replace(' ', '').replace('-', '').strip()
                     if cleaned_phone.isdigit():
+                        # If the number is exactly 10 digits, assume it's an Indian number and prepend '91'
+                        if len(cleaned_phone) == 10:
+                            cleaned_phone = '91' + cleaned_phone
+                            
                         # Store the full row so we can extract variables later
                         phone_numbers.append({'phone': cleaned_phone, 'row': row})
 
@@ -2739,7 +2743,7 @@ def whatsapp_marketing_sample(request):
     sheet.append(['Phone', 'Name', 'Email'])
     
     # Sample row
-    sheet.append(['919876543210', 'John Doe', 'john@example.com'])
+    sheet.append(['9340547135', 'John Doe', 'john@example.com'])
 
     # Style header row
     for cell in sheet[1]:
