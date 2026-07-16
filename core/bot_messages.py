@@ -12,11 +12,11 @@ BOT_RESPONSES = {
     "gst_confirm": "GST is required for sellers. 📜\n\nDo you have a valid GST number?\n👉 *Reply YES or NO*",
     "gst_input": "Please enter your **GST Number** below. 👇",
     "no_gst_notice": "⚠️ GST is mandatory. Please message us again once you have a GST number.",
-    "gst_verified": "✅ *Verification Successful!*\n\n**Company:** {company_name}\n**Status:** Verified\n\nYour seller account is active.",
-    "gst_failed": "❌ Invalid GST Number. Please try again or type *'Human'* for help.",
+    "gst_verified": "✅ *Verification Successful!*\n\n**Company:** {company_name}\n**Status:** Verified\n\nYour seller account is active.\n\nDownload our app to start ordering: https://play.google.com/store/apps/details?id=com.app.apnifactory",
+    "gst_failed": "❌ Invalid GST Number. Please try again or type *'Human'* for help.\n\nDownload our app: https://play.google.com/store/apps/details?id=com.app.apnifactory",
     "buyer_segment": "What kind of buyer are you?\n1️⃣ Business / Shop Owner\n2️⃣ Personal Use\n\n👉 *Reply with 1 or 2*",
-    "buyer_success": "🎉 Your buyer profile is set! Download our app to start ordering.",
-    "general_inquiry": "ApniFactory is India's leading B2B platform. Type your query below.",
+    "buyer_success": "🎉 Your buyer profile is set! Download our app to start ordering: https://play.google.com/store/apps/details?id=com.app.apnifactory",
+    "general_inquiry": "ApniFactory is India's leading B2B platform. Type your query below.\n\nDownload our app: https://play.google.com/store/apps/details?id=com.app.apnifactory",
     "invalid_input": "I didn't understand that. 😕 Please reply with the correct option.",
 
     # --- NEW: VERIFIED USER FLOW ---
