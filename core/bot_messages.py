@@ -24,6 +24,19 @@ BOT_RESPONSES = {
         "Welcome back, {name}! 👋\n\n"
         "How can we help you today?"
     ),
+    "return_user_menu": (
+        "Welcome back! How can we help you today?\n\n"
+        "1️⃣ Customer Service / Support\n"
+        "2️⃣ My Profile Status\n"
+        "3️⃣ Restart Profile Setup\n\n"
+        "👉 *Reply with 1, 2, or 3*"
+    ),
+    "profile_status": (
+        "📊 *Your Profile Status*\n\n"
+        "**Type:** {user_type}\n"
+        "**GST Status:** {gst_status}\n\n"
+        "If you need anything else, type 'hi' to see the menu."
+    ),
     "support_contact": (
         "Thank you for your message! ✅\n\n"
         "Our customer care executive has been notified and will contact you shortly to assist with your requirement. 📞"

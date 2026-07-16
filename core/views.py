@@ -2052,15 +2052,41 @@ def process_conversation(phone, profile_name, message):
 
     # --- UNVERIFIED / ONBOARDING LOGIC ---
     if message.lower() in ['hi', 'hello', 'start', 'reset']:
-        lead.conversation_stage = 'W-001'
-        lead.save()
-        send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+        if lead.user_type != 'unknown':
+            lead.conversation_stage = 'M-001'
+            lead.save()
+            send_reply_text(lead, BOT_RESPONSES['return_user_menu'])
+        else:
+            lead.conversation_stage = 'W-001'
+            lead.save()
+            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
         return
 
     stage = lead.conversation_stage
     clean_msg = message.strip().upper()
 
     # --- STAGE HANDLERS ---
+    if stage == 'M-001':
+        if clean_msg == '1':
+            lead.needs_human = True
+            lead.save()
+            send_reply_text(lead, BOT_RESPONSES['support_contact'])
+        elif clean_msg == '2':
+            status_msg = BOT_RESPONSES['profile_status'].format(
+                user_type=lead.get_user_type_display(),
+                gst_status=lead.get_gst_status_display()
+            )
+            send_reply_text(lead, status_msg)
+        elif clean_msg == '3':
+            lead.user_type = 'unknown'
+            lead.gst_status = 'none'
+            lead.conversation_stage = 'W-001'
+            lead.save()
+            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+        else:
+            send_reply_text(lead, BOT_RESPONSES['invalid_input'])
+        return
+        
     if stage == 'W-001':
         if clean_msg == '1': 
             lead.user_type = 'seller'
