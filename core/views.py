@@ -1180,7 +1180,7 @@ def app_user_list(request):
         'selected_role': role_filter,
     }
 
-    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'app-user-table-wrapper':
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'hostinger-user-table-wrapper':
         return render(request, 'core/partials/app_user_table.html', context)
 
     return render(request, 'core/app_user_list.html', context)
@@ -1222,7 +1222,7 @@ def app_customer_list(request):
         'query': query,
     }
 
-    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'app-customer-table-wrapper':
+    if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'hostinger-customer-table-wrapper':
         return render(request, 'core/partials/app_customer_table.html', context)
 
     return render(request, 'core/app_customer_list.html', context)
@@ -1269,10 +1269,17 @@ def app_customer_detail(request, customer_id):
     addresses = CustomerAddresses.objects.filter(customer_id=customer_id)
     orders = Orders.objects.filter(customer_id=customer_id).order_by('-created_at')
     
+    # Attempt to find CRM Customer for WhatsApp Chat
+    crm_customer = None
+    phones_to_check = [p for p in [cust.whatsappno, cust.mobile] if p]
+    if phones_to_check:
+        crm_customer = Customer.objects.filter(phone__in=phones_to_check).first()
+    
     context = {
         'cust': cust,
         'addresses': addresses,
         'orders': orders,
+        'crm_customer': crm_customer,
     }
     
     return render(request, 'core/app_customer_detail.html', context)
@@ -1330,9 +1337,16 @@ def app_user_detail(request, user_id):
             return redirect('app_user_detail', user_id=user_id)
             
     # Get related data from all identified tables
+    companies = Companies.objects.filter(user_id=user_id)
+    # Attempt to find CRM Customer for WhatsApp Chat using Companies mobile
+    crm_customer = None
+    company_mobiles = [c.mobile for c in companies if c.mobile]
+    if company_mobiles:
+        crm_customer = Customer.objects.filter(phone__in=company_mobiles).first()
+
     context = {
         'h_user': h_user,
-        'companies': Companies.objects.filter(user_id=user_id),
+        'companies': companies,
         'brands': Brands.objects.filter(user_id=user_id),
         'products': Products.objects.filter(user_id=user_id),
         'orders': Orders.objects.filter(user_id=user_id),
@@ -1344,6 +1358,7 @@ def app_user_detail(request, user_id):
         'shade_cards': ShadeCards.objects.filter(user_id=user_id),
         'advertisements': Advertisements.objects.filter(user_id=user_id),
         'bank_details': BankDetails.objects.filter(user_id=user_id),
+        'crm_customer': crm_customer,
     }
     
     return render(request, 'core/app_user_detail.html', context)
@@ -2874,8 +2889,12 @@ def whatsapp_inbox(request):
         Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
     ).distinct().order_by('-updated_at')
     
+    paginator = Paginator(customers_with_chats, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     return render(request, 'core/whatsapp_inbox.html', {
-        'customers': customers_with_chats
+        'page_obj': page_obj
     })
 
 @login_required

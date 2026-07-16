@@ -16,7 +16,7 @@
                     <input type="text" class="form-control form-control-sm" id="search-contact" placeholder="Search contacts...">
                 </div>
                 <div class="flex-1 overflow-auto" id="contact-list">
-                    {% for customer in customers %}
+                    {% for customer in page_obj %}
                     <a href="javascript:void(0)" class="d-flex align-items-center p-3 border-bottom border-300 contact-item text-decoration-none" data-id="{{ customer.id }}" data-name="{{ customer.first_name }}" data-phone="{{ customer.whatsapp_number|default:customer.phone }}">
                         <div class="avatar avatar-xl me-3">
                             <div class="avatar-name rounded-circle"><span>{{ customer.first_name|first|upper }}</span></div>
@@ -32,6 +32,25 @@
                     </div>
                     {% endfor %}
                 </div>
+                
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <div class="p-2 border-top border-300 bg-light d-flex justify-content-between align-items-center">
+                    <span class="fs-10 text-muted">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    <div class="btn-group btn-group-sm">
+                        {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-phoenix-secondary"><i class="fas fa-chevron-left"></i></a>
+                        {% else %}
+                        <button class="btn btn-phoenix-secondary" disabled><i class="fas fa-chevron-left"></i></button>
+                        {% endif %}
+                        {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="btn btn-phoenix-secondary"><i class="fas fa-chevron-right"></i></a>
+                        {% else %}
+                        <button class="btn btn-phoenix-secondary" disabled><i class="fas fa-chevron-right"></i></button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
 
             <!-- Right Pane: Chat History -->
@@ -54,21 +73,7 @@
                     <p>Select a contact from the left to view messages.</p>
                 </div>
 
-                <!-- Chat Messages Area -->
-                <div class="flex-1 overflow-auto p-4 d-none" id="chat-messages" style="background: #efeae2;">
-                    <!-- Messages will be injected here -->
-                </div>
-
-                <!-- Chat Input Form -->
-                <div class="p-3 bg-white border-top border-300 d-none" id="chat-input-area">
-                    <form id="chat-form" class="d-flex w-100">
-                        <input type="hidden" id="active-customer-id">
-                        <input type="text" id="chat-input" class="form-control rounded-pill me-2" placeholder="Type a message..." autocomplete="off" required>
-                        <button type="submit" class="btn btn-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </form>
-                </div>
+                {% include 'core/partials/whatsapp_chat_widget.html' %}
             </div>
         </div>
     </div>
@@ -76,18 +81,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    let currentCustomerId = null;
-    let pollInterval = null;
-    let lastRenderedCount = 0;
-
     const contactItems = document.querySelectorAll('.contact-item');
     const chatHeader = document.getElementById('chat-header');
     const chatEmptyState = document.getElementById('chat-empty-state');
-    const chatMessages = document.getElementById('chat-messages');
-    const chatInputArea = document.getElementById('chat-input-area');
-    const chatForm = document.getElementById('chat-form');
-    const chatInput = document.getElementById('chat-input');
-    const activeCustomerIdInput = document.getElementById('active-customer-id');
     const chatHeaderName = document.getElementById('chat-header-name');
     const chatHeaderPhone = document.getElementById('chat-header-phone');
     const chatHeaderAvatar = document.getElementById('chat-header-avatar');
@@ -111,162 +107,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const name = this.getAttribute('data-name');
             const phone = this.getAttribute('data-phone');
             
-            if (currentCustomerId !== customerId) {
-                lastRenderedCount = 0; // reset for new chat
-                chatMessages.innerHTML = '';
+            // Update header
+            chatHeader.style.setProperty("display", "flex", "important");
+            chatEmptyState.classList.add('d-none');
+            chatHeaderName.innerText = name;
+            chatHeaderPhone.innerText = phone;
+            chatHeaderAvatar.innerText = name.charAt(0).toUpperCase();
+            
+            // Call globally exposed loadChat function from widget
+            if(window.loadChat) {
+                window.loadChat(customerId);
             }
-            loadChat(customerId, name, phone);
         });
     });
-
-    function loadChat(customerId, name, phone) {
-        currentCustomerId = customerId;
-        
-        // Update header
-        chatHeader.style.setProperty("display", "flex", "important");
-        chatEmptyState.classList.add('d-none');
-        chatMessages.classList.remove('d-none');
-        chatInputArea.classList.remove('d-none');
-        chatHeaderName.innerText = name;
-        chatHeaderPhone.innerText = phone;
-        chatHeaderAvatar.innerText = name.charAt(0).toUpperCase();
-        activeCustomerIdInput.value = customerId;
-        
-        fetchMessages(customerId, true);
-        
-        // Start polling
-        if(pollInterval) clearInterval(pollInterval);
-        pollInterval = setInterval(() => {
-            // Check if user is scrolled near bottom
-            const isScrolledToBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 50;
-            fetchMessages(customerId, isScrolledToBottom);
-        }, 5000);
-    }
-
-    function fetchMessages(customerId, scrollToBottom) {
-        fetch(`/core/whatsapp/chat/${customerId}/`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.status === 'success') {
-                    if (data.chats.length !== lastRenderedCount) {
-                        renderMessages(data.chats, scrollToBottom);
-                        lastRenderedCount = data.chats.length;
-                    }
-                }
-            })
-            .catch(err => console.error("Error fetching chats", err));
-    }
-
-    function renderMessages(chats, scrollToBottom) {
-        let html = '';
-        let lastDateStr = null;
-
-        chats.forEach(chat => {
-            const isOutgoing = chat.direction === 'outgoing';
-            const align = isOutgoing ? 'justify-content-end' : 'justify-content-start';
-            const bgClass = isOutgoing ? 'bg-success-subtle text-dark' : 'bg-white text-dark';
-            
-            let dateObj = new Date(chat.timestamp);
-            let timeStr = chat.timestamp;
-            let dateStr = '';
-            try {
-                timeStr = dateObj.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
-                dateStr = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                
-                const today = new Date();
-                const yesterday = new Date(today);
-                yesterday.setDate(yesterday.getDate() - 1);
-
-                if (dateObj.toDateString() === today.toDateString()) {
-                    dateStr = 'Today';
-                } else if (dateObj.toDateString() === yesterday.toDateString()) {
-                    dateStr = 'Yesterday';
-                }
-            } catch(e) {}
-            
-            if (dateStr !== lastDateStr) {
-                html += `
-                    <div class="d-flex justify-content-center mb-3">
-                        <span class="badge bg-secondary-subtle text-secondary fw-normal fs-10 px-3 py-1 shadow-sm">${dateStr}</span>
-                    </div>
-                `;
-                lastDateStr = dateStr;
-            }
-
-            html += `
-                <div class="d-flex ${align} mb-3">
-                    <div class="p-2 rounded-3 shadow-sm ${bgClass}" style="max-width: 75%;">
-                        <div style="white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(chat.message)}</div>
-                        <div class="text-end mt-1"><small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small></div>
-                    </div>
-                </div>
-            `;
-        });
-        chatMessages.innerHTML = html;
-        if(scrollToBottom) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    }
-
-    chatForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        const customerId = activeCustomerIdInput.value;
-        const msg = chatInput.value.trim();
-        if(!msg || !customerId) return;
-        
-        // Optimistic UI update
-        const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const html = `
-            <div class="d-flex justify-content-end mb-3 opacity-50" id="temp-msg">
-                <div class="p-2 rounded-3 shadow-sm bg-success-subtle text-dark" style="max-width: 75%;">
-                    <div style="white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(msg)}</div>
-                    <div class="text-end mt-1"><small class="text-muted" style="font-size: 0.65rem;">${timeStr} (Sending...)</small></div>
-                </div>
-            </div>
-        `;
-        chatMessages.insertAdjacentHTML('beforeend', html);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        chatInput.value = '';
-
-        const formData = new FormData();
-        formData.append('message', msg);
-
-        fetch(`/core/whatsapp/send/${customerId}/`, {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.status === 'success') {
-                fetchMessages(customerId, true);
-            } else {
-                alert("Error sending message: " + data.message);
-                const tempMsg = document.getElementById('temp-msg');
-                if (tempMsg) tempMsg.remove();
-            }
-        })
-        .catch(err => {
-            console.error("Error sending message", err);
-            alert("Error sending message.");
-            const tempMsg = document.getElementById('temp-msg');
-            if (tempMsg) tempMsg.remove();
-        });
-    });
-
-    function escapeHTML(str) {
-        return str.replace(/[&<>'"]/g, 
-            tag => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            }[tag] || tag)
-        );
-    }
 });
 </script>
 {% endblock %}

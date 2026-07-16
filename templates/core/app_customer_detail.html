@@ -88,6 +88,9 @@
                         <li class="nav-item">
                             <button class="nav-link py-3 px-4" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders" type="button" role="tab">Order History</button>
                         </li>
+                        <li class="nav-item">
+                            <button class="nav-link py-3 px-4" id="whatsapp-tab" data-bs-toggle="tab" data-bs-target="#whatsapp" type="button" role="tab"><i class="fab fa-whatsapp text-success me-1"></i> WhatsApp Chat</button>
+                        </li>
                     </ul>
                 </div>
                 <div class="card-body">
@@ -141,6 +144,19 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+
+                        <!-- WhatsApp Tab -->
+                        <div class="tab-pane fade" id="whatsapp" role="tabpanel">
+                            {% if crm_customer %}
+                                {% include 'core/partials/whatsapp_chat_widget.html' with start_active=True initial_customer_id=crm_customer.id %}
+                            {% else %}
+                                <div class="text-center py-5 text-muted">
+                                    <i class="fab fa-whatsapp fa-3x mb-3 text-secondary opacity-50"></i>
+                                    <h5>No WhatsApp Chat Linked</h5>
+                                    <p>This buyer has not interacted with the WhatsApp Bot yet, or their registered number does not match a known bot interaction.</p>
+                                </div>
+                            {% endif %}
                         </div>
 
                     </div>
