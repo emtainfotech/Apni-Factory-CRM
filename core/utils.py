@@ -34,9 +34,12 @@ def send_text_message(to_number, text):
             "Authorization": f"Bearer {META_ACCESS_TOKEN}",
             "Content-Type": "application/json",
         }
-        requests.post(META_API_URL, headers=headers, json=payload)
+        response = requests.post(META_API_URL, headers=headers, json=payload)
+        response.raise_for_status()
+        return True
     except Exception as e:
         print(f"Meta API Error: {e}")
+        return False
 
 def verify_gst_number_live(gst_number):
     """

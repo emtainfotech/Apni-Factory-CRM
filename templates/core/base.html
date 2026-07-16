@@ -191,6 +191,16 @@
                                         </li>
                                         {% endif %}
 
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'whatsapp_inbox' %}active{% endif %}"
+                                                href="{% url 'whatsapp_inbox' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span class="fab fa-whatsapp"></span></span>
+                                                    <span class="nav-link-text">WhatsApp Inbox</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
                                         <li class="nav-item-wrapper py-2">
                                             <span
                                                 class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Application

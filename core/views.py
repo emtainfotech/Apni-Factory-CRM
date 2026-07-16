@@ -1992,6 +1992,14 @@ def whatsapp_webhook(request):
                     text_body = msg_data['text']['body']
                 elif msg_data['type'] == 'button':
                     text_body = msg_data['button']['payload']
+                elif msg_data['type'] == 'interactive':
+                    interactive = msg_data['interactive']
+                    if interactive['type'] == 'button_reply':
+                        text_body = interactive['button_reply'].get('id', interactive['button_reply'].get('title', ''))
+                    elif interactive['type'] == 'list_reply':
+                        text_body = interactive['list_reply'].get('id', interactive['list_reply'].get('title', ''))
+                elif msg_data['type'] in ['image', 'document', 'audio', 'video']:
+                    text_body = f"[{msg_data['type'].capitalize()} received]"
                 
                 process_conversation(phone_number, profile_name, text_body)
 
@@ -2001,12 +2009,26 @@ def whatsapp_webhook(request):
             return HttpResponse('ERROR', status=500)
 
 def process_conversation(phone, profile_name, message):
+    from django.db.models import Q
     # 1. SYNC CUSTOMER
-    customer, created = Customer.objects.get_or_create(
-        phone=phone,
-        defaults={'first_name': profile_name, 'lead_source': 'whatsapp', 'whatsapp_number': phone}
-    )
-    if created: CustomerPreference.objects.create(customer=customer)
+    clean_phone = phone
+    short_phone = clean_phone[2:] if clean_phone.startswith('91') and len(clean_phone) == 12 else clean_phone
+    
+    customer = Customer.objects.filter(
+        Q(phone=clean_phone) | Q(phone=short_phone) | Q(whatsapp_number=clean_phone)
+    ).first()
+    
+    if not customer:
+        customer = Customer.objects.create(
+            phone=clean_phone,
+            first_name=profile_name,
+            lead_source='whatsapp',
+            whatsapp_number=clean_phone
+        )
+        CustomerPreference.objects.create(customer=customer)
+    elif not customer.whatsapp_number:
+        customer.whatsapp_number = clean_phone
+        customer.save()
 
     # 2. LOG CHAT
     WhatsAppChat.objects.create(customer=customer, message=message, direction='incoming')
@@ -2660,6 +2682,21 @@ def whatsapp_marketing(request):
                     response = requests.post(meta_api_url, headers=headers, json=data)
                     if response.status_code in [200, 201]:
                         success_count += 1
+                        try:
+                            name_val = 'Unknown'
+                            if 'name' in header_map:
+                                name_val = row[header_map['name']]
+                            cust, _ = Customer.objects.get_or_create(
+                                phone=phone,
+                                defaults={'first_name': str(name_val) or 'Unknown', 'whatsapp_number': phone, 'lead_source': 'whatsapp'}
+                            )
+                            WhatsAppChat.objects.create(
+                                customer=cust,
+                                message=f"[Template Sent]: {template_name}",
+                                direction='outgoing'
+                            )
+                        except Exception as e:
+                            print(f"Error logging chat: {e}")
                     else:
                         error_count += 1
                         try:
@@ -2704,6 +2741,21 @@ def whatsapp_marketing(request):
                     response = requests.post(meta_api_url, headers=headers, json=data)
                     if response.status_code in [200, 201]:
                         success_count += 1
+                        try:
+                            name_val = 'Unknown'
+                            if 'name' in header_map:
+                                name_val = item['row'][header_map['name']]
+                            cust, _ = Customer.objects.get_or_create(
+                                phone=phone,
+                                defaults={'first_name': str(name_val) or 'Unknown', 'whatsapp_number': phone, 'lead_source': 'whatsapp'}
+                            )
+                            WhatsAppChat.objects.create(
+                                customer=cust,
+                                message=custom_message if custom_message else "[Image Sent]",
+                                direction='outgoing'
+                            )
+                        except Exception as e:
+                            print(f"Error logging chat: {e}")
                     else:
                         error_count += 1
                         try:
@@ -2785,3 +2837,70 @@ def whatsapp_marketing_sample(request):
     )
     response['Content-Disposition'] = 'attachment; filename="whatsapp_marketing_sample.xlsx"'
     return response
+
+from django.http import JsonResponse
+from .models import WhatsAppChat
+from django.views.decorators.csrf import csrf_exempt
+
+@login_required
+def whatsapp_inbox(request):
+    customers_with_chats = Customer.objects.filter(
+        Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
+    ).distinct().order_by('-updated_at')
+    
+    return render(request, 'core/whatsapp_inbox.html', {
+        'customers': customers_with_chats
+    })
+
+@login_required
+def get_whatsapp_chat(request, customer_id):
+    customer = get_object_or_404(Customer, id=customer_id)
+    chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
+    chat_data = []
+    for chat in chats:
+        chat_data.append({
+            'id': chat.id,
+            'message': chat.message,
+            'direction': chat.direction,
+            'timestamp': chat.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    return JsonResponse({'status': 'success', 'chats': chat_data, 'customer_name': customer.first_name, 'phone': customer.phone})
+
+@login_required
+@csrf_exempt
+def send_whatsapp_message_ajax(request, customer_id):
+    if request.method == 'POST':
+        customer = get_object_or_404(Customer, id=customer_id)
+        message_text = request.POST.get('message', '').strip()
+        
+        if not message_text:
+            return JsonResponse({'status': 'error', 'message': 'Message cannot be empty.'})
+            
+        target_phone = customer.whatsapp_number or customer.phone
+        
+        # Send via WhatsApp API
+        success = send_text_message(target_phone, message_text)
+        
+        if success:
+            # Log the message
+            chat = WhatsAppChat.objects.create(
+                customer=customer,
+                message=message_text,
+                direction='outgoing'
+            )
+            
+            # Disable Bot for this customer
+            lead, _ = WhatsAppLead.objects.get_or_create(phone_number=target_phone)
+            lead.customer = customer
+            lead.needs_human = True
+            lead.save()
+            
+            return JsonResponse({'status': 'success', 'chat': {
+                'id': chat.id,
+                'message': chat.message,
+                'direction': chat.direction,
+                'timestamp': chat.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            }})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Failed to send message via Meta API.'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
