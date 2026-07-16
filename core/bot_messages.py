@@ -6,7 +6,7 @@ BOT_RESPONSES = {
         "1️⃣ Sell Products\n"
         "2️⃣ Buy Products\n"
         "3️⃣ General Enquiry\n\n"
-        "👉 *Reply with 1, 2, or 3*"
+        "👉 *Reply with 1, 2, or 3*"     
     ),
     "seller_segment": "Great! What describes you best?\n1️⃣ Manufacturer\n2️⃣ Distributor / Wholesaler\n3️⃣ Brand Owner / Importer\n\n👉 *Reply with the number*",
     "gst_confirm": "GST is required for sellers. 📜\n\nDo you have a valid GST number?\n👉 *Reply YES or NO*",
@@ -23,19 +23,6 @@ BOT_RESPONSES = {
     "verified_welcome": (
         "Welcome back, {name}! 👋\n\n"
         "How can we help you today?"
-    ),
-    "return_user_menu": (
-        "Welcome back! How can we help you today?\n\n"
-        "1️⃣ Customer Service / Support\n"
-        "2️⃣ My Profile Status\n"
-        "3️⃣ Restart Profile Setup\n\n"
-        "👉 *Reply with 1, 2, or 3*"
-    ),
-    "profile_status": (
-        "📊 *Your Profile Status*\n\n"
-        "**Type:** {user_type}\n"
-        "**GST Status:** {gst_status}\n\n"
-        "If you need anything else, type 'hi' to see the menu."
     ),
     "support_contact": (
         "Thank you for your message! ✅\n\n"
