@@ -121,6 +121,30 @@
                                                 </a>
                                             </div>
                                         </li>
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if url_name == 'vendor-search' %}active{% endif %}"
+                                                    href="{% url 'vendor_network:vendor-search' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span
+                                                                data-feather="search"></span></span>
+                                                        <span class="nav-link-text">Vendor Search & Sync</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if url_name == 'vendor-directory' %}active{% endif %}"
+                                                    href="{% url 'vendor_network:vendor-directory' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span
+                                                                data-feather="list"></span></span>
+                                                        <span class="nav-link-text">Vendor Directory</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
                                         {% endif %}
 
                                         {% if request.user.role == 'manager' %}

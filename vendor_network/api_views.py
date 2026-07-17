@@ -29,7 +29,7 @@ class VendorListAPIView(APIView):
         data = [
             {
                 "id": v.id,
-                "osm_id": v.osm_id,
+                "place_id": v.place_id,
                 "store_name": v.store_name,
                 "category": v.category,
                 "street_address": v.street_address,

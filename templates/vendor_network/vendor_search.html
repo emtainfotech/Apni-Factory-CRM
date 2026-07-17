@@ -1,0 +1,141 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">Google Places Vendor Search</h2>
+            <p class="text-muted">Search Google Places and automatically sync vendors to your database.</p>
+        </div>
+    </div>
+
+    <!-- Search Form -->
+    <div class="row mb-4">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form method="POST" action="{% url 'vendor_network:vendor-search' %}">
+                        {% csrf_token %}
+                        <div class="input-group input-group-lg">
+                            <input type="text" class="form-control" name="search_query" placeholder="e.g. Hardware stores in Indore" required>
+                            <button class="btn btn-primary px-4" type="submit">
+                                <i class="fas fa-search me-2"></i> Search & Sync
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    {% if status %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-{% if status == 'success' %}success{% else %}danger{% endif %} alert-dismissible fade show shadow-sm" role="alert">
+                <i class="fas fa-{% if status == 'success' %}check-circle{% else %}exclamation-triangle{% endif %} me-2"></i>
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Database Results Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="mb-0"><i class="fas fa-database text-primary me-2"></i> Currently Saved Vendors (Last 100)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Store Name</th>
+                                    <th>Category</th>
+                                    <th>Phone / Mobile</th>
+                                    <th>Website</th>
+                                    <th>Address</th>
+                                    <th>Enrichment Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for vendor in vendors %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <strong title="{{ vendor.store_name }}">{{ vendor.store_name|truncatechars:25 }}</strong>
+                                            <button onclick="copyToClipboard('{{ vendor.store_name|escapejs }}', this)" class="btn btn-sm btn-link text-muted p-0 ms-2" title="Copy Store Name">
+                                                <i class="far fa-copy"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td><span class="badge bg-secondary">{{ vendor.category|title }}</span></td>
+                                    <td class="text-nowrap">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            {% if vendor.phone_number %}
+                                            <a href="tel:{{ vendor.phone_number }}" class="text-decoration-none"><i class="fas fa-phone-alt me-1 text-muted"></i>{{ vendor.phone_number }}</a>
+                                            <button onclick="copyToClipboard('{{ vendor.phone_number|escapejs }}', this)" class="btn btn-sm btn-link text-muted p-0 ms-2" title="Copy Phone Number">
+                                                <i class="far fa-copy"></i>
+                                            </button>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if vendor.website_url %}
+                                        <a href="{{ vendor.website_url }}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-globe me-1"></i> Visit</a>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted" title="{{ vendor.street_address }}"><i class="fas fa-map-marker-alt me-1"></i>{{ vendor.street_address|truncatechars:35 }}</small>
+                                    </td>
+                                    <td>
+                                        {% if vendor.enrichment_status == 'PENDING' %}
+                                        <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i> Pending</span>
+                                        {% elif vendor.enrichment_status == 'SCRAPED_SUCCESS' %}
+                                        <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> Success</span>
+                                        {% else %}
+                                        <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i> {{ vendor.get_enrichment_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">
+                                        <i class="fas fa-folder-open fs-1 mb-3 text-light"></i><br>
+                                        No vendors in the database yet. Try running a search above!
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(function() {
+        // Change icon to checkmark briefly
+        const icon = button.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-check text-success';
+        
+        setTimeout(() => {
+            icon.className = originalClass;
+        }, 1500);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+</script>
+{% endblock %}

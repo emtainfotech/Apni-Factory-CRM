@@ -8,7 +8,7 @@ class VendorProfile(models.Model):
         ('NO_WEBSITE', 'No Website Available'),
     ]
 
-    osm_id = models.CharField(max_length=255, unique=True, db_index=True)
+    place_id = models.CharField(max_length=255, unique=True, db_index=True)
     store_name = models.CharField(max_length=255, db_index=True)
     category = models.CharField(max_length=100, blank=True, null=True)
     

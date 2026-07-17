@@ -1,0 +1,358 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-0">Vendor Directory</h2>
+            <p class="text-muted">Browse, filter, and manage all your saved vendors.</p>
+        </div>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show shadow-sm" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Advanced Filter Form -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                    <form method="GET" action="{% url 'vendor_network:vendor-directory' %}">
+                        <div class="row g-3">
+                            <div class="col-md-2">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Shop Name</label>
+                                <input type="text" class="form-control bg-light border-0" name="store_name" value="{{ filters.store_name }}" placeholder="Search by name...">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Mobile Number</label>
+                                <input type="text" class="form-control bg-light border-0" name="phone_number" value="{{ filters.phone_number }}" placeholder="Search by phone...">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Address</label>
+                                <input type="text" class="form-control bg-light border-0" name="street_address" value="{{ filters.street_address }}" placeholder="Search by address...">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Category</label>
+                                <div class="dropdown">
+                                    <button class="form-control bg-light border-0 text-start dropdown-toggle text-truncate" type="button" id="categoryDropdown" data-bs-toggle="dropdown" aria-expanded="false" data-bs-auto-close="outside">
+                                        Select Categories...
+                                    </button>
+                                    <ul class="dropdown-menu w-100 p-2 shadow" aria-labelledby="categoryDropdown" style="max-height: 250px; overflow-y: auto;">
+                                        <li><input type="text" class="form-control form-control-sm mb-2" id="categorySearch" placeholder="Search categories..."></li>
+                                        {% for cat in all_categories %}
+                                        <li class="category-item">
+                                            <div class="form-check px-3 py-1">
+                                                <input class="form-check-input" type="checkbox" name="categories" value="{{ cat }}" id="cat_{{ forloop.counter }}" {% if cat in filters.categories %}checked{% endif %}>
+                                                <label class="form-check-label w-100" for="cat_{{ forloop.counter }}">{{ cat|title }}</label>
+                                            </div>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label text-muted small fw-bold text-uppercase">Enrichment Status</label>
+                                <select class="form-select bg-light border-0" name="status">
+                                    <option value="">All Statuses</option>
+                                    {% for key, label in status_choices %}
+                                    <option value="{{ key }}" {% if filters.status == key %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-filter me-1"></i> Filter</button>
+                                <a href="{% url 'vendor_network:vendor-directory' %}" class="btn btn-outline-secondary" title="Clear all filters"><i class="fas fa-times"></i></a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Database Results Table -->
+    <div class="row">
+        <div class="col-12">
+            <form id="bulkDeleteForm" method="POST" action="{% url 'vendor_network:vendor-delete' %}">
+                {% csrf_token %}
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-list text-primary me-2"></i> Vendor List</h5>
+                        <button type="button" class="btn btn-danger btn-sm d-none" id="bulkDeleteBtn" onclick="confirmBulkDelete()">
+                            <i class="fas fa-trash me-1"></i> Delete Selected (<span id="selectedCount">0</span>)
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="selectAll">
+                                            </div>
+                                        </th>
+                                        <th>#</th>
+                                        <th>Store Name</th>
+                                        <th>Category</th>
+                                        <th>Phone / Mobile</th>
+                                        <th>Address</th>
+                                        <th>Fetched On</th>
+                                        <th>Status</th>
+                                        <th>Map</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for vendor in vendors %}
+                                    <tr>
+                                        <td>
+                                            <div class="form-check">
+                                                <input class="form-check-input vendor-checkbox" type="checkbox" name="vendor_ids" value="{{ vendor.id }}">
+                                            </div>
+                                        </td>
+                                        <td><strong>{{ forloop.counter0|add:page_obj.start_index }}</strong></td>
+                                        <td>
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                <strong title="{{ vendor.store_name }}">{{ vendor.store_name|truncatechars:20 }}</strong>
+                                                <button type="button" onclick="copyToClipboard('{{ vendor.store_name|escapejs }}', this)" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Copy Store Name">
+                                                    <i class="far fa-copy"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td><span class="badge bg-secondary">{{ vendor.category|title }}</span></td>
+                                        <td class="text-nowrap">
+                                            <div class="d-flex align-items-center justify-content-between">
+                                                {% if vendor.phone_number %}
+                                                <a href="tel:{{ vendor.phone_number }}" class="text-decoration-none"><i class="fas fa-phone-alt me-1 text-muted"></i>{{ vendor.phone_number }}</a>
+                                                <button type="button" onclick="copyToClipboard('{{ vendor.phone_number|escapejs }}', this)" class="btn btn-sm btn-link text-muted p-0 ms-1" title="Copy Phone Number">
+                                                    <i class="far fa-copy"></i>
+                                                </button>
+                                                {% else %}
+                                                <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted" title="{{ vendor.street_address }}"><i class="fas fa-map-marker-alt me-1"></i>{{ vendor.street_address|truncatechars:25 }}</small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">{{ vendor.created_at|date:"d M Y, h:i A" }}</small>
+                                        </td>
+                                        <td>
+                                            {% if vendor.enrichment_status == 'PENDING' %}
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-clock me-1"></i> Pending</span>
+                                            {% elif vendor.enrichment_status == 'SCRAPED_SUCCESS' %}
+                                            <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i> Success</span>
+                                            {% else %}
+                                            <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i> {{ vendor.get_enrichment_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if vendor.latitude and vendor.longitude %}
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="https://www.google.com/maps/search/?api=1&query={{ vendor.latitude }},{{ vendor.longitude }}" target="_blank" class="btn btn-outline-primary" title="Open in Google Maps">
+                                                    <i class="fas fa-external-link-alt"></i>
+                                                </a>
+                                                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#mapModal{{ vendor.id }}" title="View on CRM Map">
+                                                    <i class="fas fa-map-marked-alt"></i>
+                                                </button>
+                                            </div>
+                                            
+                                            <!-- CRM Map Modal -->
+                                            <div class="modal fade" id="mapModal{{ vendor.id }}" tabindex="-1" aria-hidden="true">
+                                                <div class="modal-dialog modal-lg modal-dialog-centered">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">{{ vendor.store_name }} - Location</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <div class="modal-body p-0">
+                                                            <iframe width="100%" height="450" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://www.openstreetmap.org/export/embed.html?bbox={{vendor.longitude|add:"-0.01"}},{{vendor.latitude|add:"-0.01"}},{{vendor.longitude|add:"0.01"}},{{vendor.latitude|add:"0.01"}}&amp;layer=mapnik&amp;marker={{vendor.latitude}},{{vendor.longitude}}"></iframe>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% else %}
+                                            <span class="text-muted"><small>No Data</small></span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSingleVendor('{{ vendor.id }}', '{{ vendor.store_name|escapejs }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="9" class="text-center py-5 text-muted">
+                                            <i class="fas fa-filter fs-1 mb-3 text-light"></i><br>
+                                            No vendors found matching those filters.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination Controls -->
+                        {% if page_obj.has_other_pages %}
+                        <nav aria-label="Page navigation" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ query_string }}&page={{ page_obj.previous_page_number }}">Previous</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled"><a class="page-link" href="#">Previous</a></li>
+                                {% endif %}
+                                
+                                <li class="page-item disabled"><a class="page-link" href="#">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</a></li>
+                                
+                                {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ query_string }}&page={{ page_obj.next_page_number }}">Next</a>
+                                </li>
+                                {% else %}
+                                <li class="page-item disabled"><a class="page-link" href="#">Next</a></li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+                        
+                    </div>
+                </div>
+            </form>
+            
+            <!-- Hidden form for single delete -->
+            <form id="singleDeleteForm" method="POST" action="{% url 'vendor_network:vendor-delete' %}">
+                {% csrf_token %}
+                <input type="hidden" name="vendor_ids" id="singleDeleteVendorId">
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Category Dropdown Search Logic
+const categorySearch = document.getElementById('categorySearch');
+if (categorySearch) {
+    categorySearch.addEventListener('keyup', function() {
+        let filter = this.value.toLowerCase();
+        let items = document.querySelectorAll('.category-item');
+        items.forEach(function(item) {
+            let text = item.textContent.toLowerCase();
+            if (text.includes(filter)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    });
+}
+
+// Update Dropdown Button Text based on checked boxes
+const categoryCheckboxes = document.querySelectorAll('input[name="categories"]');
+const categoryDropdownBtn = document.getElementById('categoryDropdown');
+
+function updateCategoryDropdownText() {
+    let checkedCount = 0;
+    categoryCheckboxes.forEach(cb => {
+        if (cb.checked) checkedCount++;
+    });
+    
+    if (checkedCount === 0) {
+        categoryDropdownBtn.textContent = 'Select Categories...';
+    } else if (checkedCount === 1) {
+        categoryDropdownBtn.textContent = '1 Category Selected';
+    } else {
+        categoryDropdownBtn.textContent = checkedCount + ' Categories Selected';
+    }
+}
+
+if (categoryDropdownBtn) {
+    categoryCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateCategoryDropdownText);
+    });
+    // Run once on load
+    updateCategoryDropdownText();
+}
+
+// Checkbox logic for Bulk Delete
+const selectAllCheckbox = document.getElementById('selectAll');
+const vendorCheckboxes = document.querySelectorAll('.vendor-checkbox');
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+const selectedCountSpan = document.getElementById('selectedCount');
+
+function updateBulkDeleteButton() {
+    const checkedCount = document.querySelectorAll('.vendor-checkbox:checked').length;
+    selectedCountSpan.textContent = checkedCount;
+    
+    if (checkedCount > 0) {
+        bulkDeleteBtn.classList.remove('d-none');
+    } else {
+        bulkDeleteBtn.classList.add('d-none');
+    }
+}
+
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        vendorCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateBulkDeleteButton();
+    });
+}
+
+vendorCheckboxes.forEach(cb => {
+    cb.addEventListener('change', function() {
+        // Uncheck 'select all' if one is unchecked
+        if (!this.checked) selectAllCheckbox.checked = false;
+        
+        // Check 'select all' if all are checked
+        if (document.querySelectorAll('.vendor-checkbox:checked').length === vendorCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+        }
+        
+        updateBulkDeleteButton();
+    });
+});
+
+function confirmBulkDelete() {
+    const count = document.querySelectorAll('.vendor-checkbox:checked').length;
+    if (confirm(`Are you sure you want to permanently delete these ${count} selected vendors?`)) {
+        document.getElementById('bulkDeleteForm').submit();
+    }
+}
+
+function deleteSingleVendor(vendorId, storeName) {
+    if (confirm(`Are you sure you want to permanently delete "${storeName}"?`)) {
+        document.getElementById('singleDeleteVendorId').value = vendorId;
+        document.getElementById('singleDeleteForm').submit();
+    }
+}
+
+function copyToClipboard(text, button) {
+    navigator.clipboard.writeText(text).then(function() {
+        const icon = button.querySelector('i');
+        const originalClass = icon.className;
+        icon.className = 'fas fa-check text-success';
+        
+        setTimeout(() => {
+            icon.className = originalClass;
+        }, 1500);
+    }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+    });
+}
+</script>
+{% endblock %}
