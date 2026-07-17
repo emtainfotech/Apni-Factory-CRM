@@ -1,0 +1,45 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="row flex-center min-vh-100 py-6 text-center">
+    <div class="col-sm-10 col-md-8 col-lg-6 col-xxl-5">
+        <a class="d-flex flex-center mb-4" href="#">
+            <img src="/static/assets/img/images/logo-black.png" alt="phoenix" width="100" />
+        </a>
+        <div class="card">
+            <div class="card-body p-4 p-sm-5">
+                <div class="d-flex flex-center mb-4">
+                    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <h3 class="text-body-highlight mb-3">Waiting for Approval</h3>
+                <p class="text-body-tertiary mb-4">
+                    You are logging in from a new network or device (IP: {{ login_request.ip_address }}).
+                    For security reasons, your login must be approved by an administrator before you can access the CRM.
+                </p>
+                <div class="p-3 bg-body-tertiary rounded mb-4">
+                    <p class="mb-0 fw-semi-bold">Status: <span class="badge badge-phoenix badge-phoenix-warning">Pending</span></p>
+                    <small class="text-body-quaternary">We are checking for approval every 5 seconds...</small>
+                </div>
+                <a class="btn btn-phoenix-secondary w-100" href="{% url 'login' %}">Cancel & Go Back</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        setInterval(function() {
+            fetch("{% url 'check_login_status' %}")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'approved' || data.status === 'rejected') {
+                        window.location.href = data.redirect_url;
+                    }
+                })
+                .catch(error => console.error('Error checking status:', error));
+        }, 5000);
+    });
+</script>
+{% endblock %}

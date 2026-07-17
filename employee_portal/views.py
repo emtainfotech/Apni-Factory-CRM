@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Q, Sum
 from django.core.paginator import Paginator
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.urls import reverse
 
@@ -143,6 +143,24 @@ def dashboard(request):
     today = timezone.now().date()
     attendance = Attendance.objects.filter(user=request.user, date=today).first()
     
+    work_seconds = 0
+    break_seconds = 0
+    current_break_start = None
+    
+    if attendance and attendance.is_punched_in:
+        now = timezone.now()
+        total_duration = (now - attendance.punch_in).total_seconds()
+        
+        for b in attendance.breaks.all():
+            if b.duration:
+                break_seconds += b.duration.total_seconds()
+            elif b.break_end is None:
+                # Active break
+                current_break_start = b.break_start.isoformat()
+                break_seconds += (now - b.break_start).total_seconds()
+                
+        work_seconds = total_duration - break_seconds
+    
     # Calculate stats for the employee
     assigned_leads = Customer.objects.filter(assigned_to=request.user, status='lead').count()
     active_customers = Customer.objects.filter(assigned_to=request.user, status='customer').count()
@@ -158,6 +176,9 @@ def dashboard(request):
     
     context = {
         'attendance': attendance,
+        'work_seconds': int(work_seconds),
+        'break_seconds': int(break_seconds),
+        'current_break_start': current_break_start,
         'assigned_leads': assigned_leads,
         'active_customers': active_customers,
         'today_calls': today_calls,
@@ -278,10 +299,11 @@ def toggle_break(request):
         return redirect('employee_portal:dashboard')
         
     if not attendance.on_break:
-        Break.objects.create(attendance=attendance)
+        b_type = request.POST.get('break_type', 'short_break')
+        Break.objects.create(attendance=attendance, break_type=b_type)
         attendance.on_break = True
         attendance.save()
-        messages.info(request, "Break started.")
+        messages.info(request, f"Break ({b_type}) started.")
     else:
         latest_break = attendance.breaks.filter(break_end__isnull=True).last()
         if latest_break:
@@ -295,6 +317,26 @@ def toggle_break(request):
         messages.success(request, "Break ended. Back to work.")
         
     return redirect(request.META.get('HTTP_REFERER', 'employee_portal:dashboard'))
+
+
+@login_required
+@employee_required
+def update_location(request):
+    """AJAX endpoint for Live Tracker to ping current location."""
+    if request.method == 'POST':
+        lat = request.POST.get('latitude')
+        lng = request.POST.get('longitude')
+        if lat and lng:
+            today = timezone.now().date()
+            attendance = Attendance.objects.filter(user=request.user, date=today, is_punched_in=True).first()
+            if attendance:
+                attendance.current_latitude = lat
+                attendance.current_longitude = lng
+                attendance.last_location_update = timezone.now()
+                attendance.save()
+                return JsonResponse({'status': 'success'})
+        return JsonResponse({'status': 'error', 'message': 'Invalid data or not punched in'}, status=400)
+    return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
 
 
 # ==========================================

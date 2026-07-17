@@ -1,0 +1,76 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Live Employee Locations{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<style>
+    #map {
+        height: calc(100vh - 120px);
+        width: 100%;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .leaflet-popup-content-wrapper {
+        border-radius: 8px;
+    }
+    .leaflet-popup-content {
+        margin: 15px;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="fas fa-map-marker-alt text-primary me-2"></i> Live Employee Locations</h2>
+    <a href="{% url 'dashboard_admin' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div id="map"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Initialize map centered on India (approximate center for now, will auto-adjust based on markers)
+        var map = L.map('map').setView([20.5937, 78.9629], 5);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        var locations = {{ locations|safe }};
+        var markers = [];
+        
+        locations.forEach(function(emp) {
+            // Use standard Leaflet marker but we could customize icon based on status if needed
+            var marker = L.marker([emp.lat, emp.lng]).addTo(map);
+            
+            var popupContent = `
+                <div class="text-center">
+                    <h5 class="mb-1">${emp.name}</h5>
+                    <span class="badge bg-${emp.on_break ? 'warning' : 'success'} mb-2">
+                        ${emp.on_break ? 'On Break' : 'Working'}
+                    </span>
+                    <div class="text-start fs-10" style="font-size: 0.8rem;">
+                        <p class="mb-1"><strong>IP:</strong> ${emp.ip}</p>
+                        <p class="mb-1"><strong>Punch In:</strong> ${emp.punch_in}</p>
+                        <p class="mb-0 text-muted"><strong>Last Update:</strong> ${emp.last_update}</p>
+                    </div>
+                </div>
+            `;
+            
+            marker.bindPopup(popupContent);
+            markers.push(marker);
+        });
+        
+        // Auto zoom to fit all markers if there are any
+        if (markers.length > 0) {
+            var group = new L.featureGroup(markers);
+            map.fitBounds(group.getBounds().pad(0.1));
+        }
+    });
+</script>
+{% endblock %}

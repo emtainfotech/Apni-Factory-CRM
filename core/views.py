@@ -16,7 +16,7 @@ from django.utils import timezone
 from authentication.models import User, Notification
 from authentication.tokens import account_activation_token
 from .forms import UserInviteForm, BannerForm, SliderForm
-from .models import Customer, WhatsAppLead
+from .models import Customer, WhatsAppLead, LoginApprovalRequest, ApprovedIPAddress
 
 # Import Hostinger Data Models
 from hostinger_data.models import (
@@ -77,6 +77,33 @@ def health_check(request):
 # ==========================================
 #              DASHBOARDS
 # ==========================================
+
+@login_required
+@user_passes_test(is_admin)
+def employee_map(request):
+    """Admin view for tracking live employee locations on a map."""
+    today = timezone.now().date()
+    # Fetch all employees who are punched in today and have location data
+    active_attendances = Attendance.objects.filter(
+        date=today, 
+        is_punched_in=True,
+        current_latitude__isnull=False,
+        current_longitude__isnull=False
+    ).select_related('user')
+    
+    locations = []
+    for att in active_attendances:
+        locations.append({
+            'name': att.user.get_full_name() or att.user.username,
+            'lat': float(att.current_latitude),
+            'lng': float(att.current_longitude),
+            'ip': att.ip_address,
+            'punch_in': att.punch_in.strftime('%I:%M %p') if att.punch_in else 'N/A',
+            'last_update': att.last_location_update.strftime('%I:%M %p') if att.last_location_update else 'N/A',
+            'on_break': att.on_break
+        })
+        
+    return render(request, 'core/employee_map.html', {'locations': locations})
 
 @login_required
 @user_passes_test(is_admin)
@@ -149,6 +176,7 @@ def admin_dashboard(request):
     
     # HRMS Overview
     pending_leaves_count = LeaveRequest.objects.filter(status='pending').count()
+    pending_login_requests = LoginApprovalRequest.objects.filter(status='pending').select_related('user').order_by('-created_at')
     
     # Team Performance & Attendance reports
     employees = User.objects.exclude(Q(role='admin') | Q(is_superuser=True)).order_by('username')
@@ -239,9 +267,42 @@ def admin_dashboard(request):
 
     context.update({
         'recent_invoices': recent_invoices,
-        'recent_tickets': recent_tickets,
+        'ad_invoices_count': ad_invoices_count,
+        'pending_login_requests': pending_login_requests,
     })
     return render(request, 'core/dashboard_admin.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_login_request(request, request_id):
+    login_request = get_object_or_404(LoginApprovalRequest, id=request_id)
+    if login_request.status == 'pending':
+        login_request.status = 'approved'
+        login_request.resolved_at = timezone.now()
+        login_request.resolved_by = request.user
+        login_request.save()
+        
+        # Add IP to approved list
+        ApprovedIPAddress.objects.get_or_create(
+            user=login_request.user,
+            ip_address=login_request.ip_address,
+            defaults={'approved_by': request.user}
+        )
+        messages.success(request, f"Approved login from {login_request.user.username} at {login_request.ip_address}.")
+    return redirect('dashboard_admin')
+
+@login_required
+@user_passes_test(is_admin)
+def reject_login_request(request, request_id):
+    login_request = get_object_or_404(LoginApprovalRequest, id=request_id)
+    if login_request.status == 'pending':
+        login_request.status = 'rejected'
+        login_request.resolved_at = timezone.now()
+        login_request.resolved_by = request.user
+        login_request.save()
+        messages.warning(request, f"Rejected login from {login_request.user.username}.")
+    return redirect('dashboard_admin')
 
 
 @login_required
@@ -2907,7 +2968,7 @@ def get_whatsapp_chat(request, customer_id):
             'id': chat.id,
             'message': chat.message,
             'direction': chat.direction,
-            'timestamp': chat.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+            'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
         })
     return JsonResponse({'status': 'success', 'chats': chat_data, 'customer_name': customer.first_name, 'phone': customer.phone})
 
@@ -2944,7 +3005,7 @@ def send_whatsapp_message_ajax(request, customer_id):
                 'id': chat.id,
                 'message': chat.message,
                 'direction': chat.direction,
-                'timestamp': chat.timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
             }})
         else:
             return JsonResponse({'status': 'error', 'message': 'Failed to send message via Meta API.'})

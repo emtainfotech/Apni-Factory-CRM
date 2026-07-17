@@ -6,6 +6,9 @@ from . import mobile_api_views
 
 urlpatterns = [
     path('dashboard/admin/', views.admin_dashboard, name='dashboard_admin'),
+    path('dashboard/admin/employee-map/', views.employee_map, name='employee_map'),
+    path('dashboard/admin/approve-login/<int:request_id>/', views.approve_login_request, name='approve_login_request'),
+    path('dashboard/admin/reject-login/<int:request_id>/', views.reject_login_request, name='reject_login_request'),
     path('dashboard/manager/', views.manager_dashboard, name='dashboard_manager'),
     path('dashboard/agent/', views.agent_dashboard, name='dashboard_agent'),
     path('users/', views.user_list, name='user_list'),

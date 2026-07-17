@@ -87,8 +87,10 @@
                             <div class="divider-content-center">or use email</div>
                         </div>
 
-                        <form method="post">
+                        <form method="post" id="login-form">
                             {% csrf_token %}
+                            <input type="hidden" name="latitude" id="id_latitude" value="">
+                            <input type="hidden" name="longitude" id="id_longitude" value="">
 
                             {% if form.errors %}
                             <div class="alert alert-danger p-2 fs-9 mb-3">
@@ -138,9 +140,12 @@
                                 </div>
                             </div>
 
-                            <button class="btn btn-primary w-100 mb-3" type="submit">Sign In</button>
+                            <button class="btn btn-primary w-100 mb-3" type="submit" id="btn-login">Sign In</button>
 
                         </form>
+                        <div id="location-warning" class="text-danger fs-10 mb-3 d-none">
+                            <i class="fas fa-exclamation-triangle"></i> Location access is required for employee login from new networks. Please allow location access if prompted.
+                        </div>
                         <div class="text-center">
                             <a class="fs-9 fw-bold" href="/static/pages/authentication/split/sign-up.html">Create an
                                 account</a>
@@ -415,6 +420,27 @@
             </div><small class="text-uppercase text-body-tertiary fw-bold py-2 pe-2 ps-1 rounded-end">customize</small>
         </div>
     </a>
+
+    <!-- Location hidden inputs removed from here as they are inside the form -->
+    <div id="location-warning" class="d-none">Location access denied.</div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    document.getElementById('id_latitude').value = position.coords.latitude;
+                    document.getElementById('id_longitude').value = position.coords.longitude;
+                }, function(error) {
+                    console.warn("Geolocation denied or error:", error);
+                    document.getElementById('location-warning').classList.remove('d-none');
+                }, {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                });
+            }
+        });
+    </script>
 
     <!-- ===============================================-->
     <!--    JavaScripts-->

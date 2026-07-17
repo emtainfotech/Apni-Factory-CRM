@@ -248,6 +248,11 @@ class Attendance(models.Model):
     user_agent = models.TextField(blank=True, null=True)
     is_late = models.BooleanField(default=False)
     
+    # Live Location Tracking
+    current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    last_location_update = models.DateTimeField(null=True, blank=True)
+    
     # Totals
     total_working_hours = models.DurationField(null=True, blank=True)
     total_break_duration = models.DurationField(null=True, blank=True)
@@ -264,10 +269,17 @@ class Attendance(models.Model):
 
 
 class Break(models.Model):
+    BREAK_TYPES = (
+        ('short_break', 'Short Break'),
+        ('lunch', 'Lunch'),
+        ('meeting', 'Meeting'),
+        ('eod', 'EOD'),
+    )
     attendance = models.ForeignKey(Attendance, on_delete=models.CASCADE, related_name='breaks')
     break_start = models.DateTimeField(auto_now_add=True)
     break_end = models.DateTimeField(null=True, blank=True)
     duration = models.DurationField(null=True, blank=True)
+    break_type = models.CharField(max_length=20, choices=BREAK_TYPES, default='short_break')
 
     def __str__(self):
         return f"Break for {self.attendance.user.username} on {self.attendance.date}"
@@ -503,4 +515,37 @@ class EmployeeProfile(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Profile of {self.user.username}"
+        return f"Profile of {self.user.username}"
+
+
+# --- 13. HRMS LOGIN APPROVALS ---
+
+class ApprovedIPAddress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='approved_ips')
+    ip_address = models.GenericIPAddressField()
+    approved_at = models.DateTimeField(auto_now_add=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ip_approvals')
+
+    class Meta:
+        unique_together = ('user', 'ip_address')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.ip_address}"
+
+class LoginApprovalRequest(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_requests')
+    ip_address = models.GenericIPAddressField()
+    latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_logins')
+
+    def __str__(self):
+        return f"{self.user.username} from {self.ip_address} - {self.status}"

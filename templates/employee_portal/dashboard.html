@@ -22,15 +22,22 @@
                 </form>
                 {% else %}
                 <div class="d-flex gap-2">
+                    {% if attendance.on_break %}
                     <form action="{% url 'employee_portal:toggle_break' %}" method="post">
                         {% csrf_token %}
-                        <button class="btn btn-{% if attendance.on_break %}warning{% else %}outline-warning{% endif %} btn-lg px-4" type="submit">
-                            <i class="fas fa-coffee me-2"></i>{% if attendance.on_break %}End Break{% else %}Take Break{% endif %}
+                        <button class="btn btn-warning btn-lg px-4" type="submit">
+                            <i class="fas fa-coffee me-2"></i>End Break
                         </button>
                     </form>
-                    <form action="{% url 'employee_portal:punch_out' %}" method="post">
+                    {% else %}
+                    <button class="btn btn-outline-warning btn-lg px-4" data-bs-toggle="modal" data-bs-target="#breakModal">
+                        <i class="fas fa-coffee me-2"></i>Take Break
+                    </button>
+                    {% endif %}
+                    
+                    <form action="{% url 'employee_portal:punch_out' %}" method="post" id="punch-out-form">
                         {% csrf_token %}
-                        <button class="btn btn-danger btn-lg px-4" type="submit">
+                        <button class="btn btn-danger btn-lg px-4" type="submit" id="punch-out-btn">
                             <i class="fas fa-sign-out-alt me-2"></i>Punch Out
                         </button>
                     </form>
@@ -40,12 +47,42 @@
         </div>
     </div>
 
+    <!-- Take Break Modal -->
+    <div class="modal fade" id="breakModal" tabindex="-1" aria-labelledby="breakModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form action="{% url 'employee_portal:toggle_break' %}" method="post">
+                    {% csrf_token %}
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="breakModalLabel">Select Break Reason</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-floating mb-3">
+                            <select class="form-select" id="breakType" name="break_type" required>
+                                <option value="short_break">Short Break</option>
+                                <option value="lunch">Lunch</option>
+                                <option value="meeting">Meeting</option>
+                                <option value="eod">EOD</option>
+                            </select>
+                            <label for="breakType">Reason</label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning">Start Break</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {% if attendance and attendance.is_punched_in %}
-    <!-- Active Attendance Session Details -->
+    <!-- Active Attendance Session Details & Live Tracker -->
     <div class="card shadow-sm border-0 mb-4 bg-primary-subtle border-start border-primary border-4">
         <div class="card-body py-3">
-            <div class="row align-items-center justify-content-between">
-                <div class="col-auto d-flex align-items-center">
+            <div class="row align-items-center justify-content-between g-3">
+                <div class="col-12 col-md-auto d-flex align-items-center">
                     <div class="avatar avatar-l bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3">
                         <i class="fas fa-clock"></i>
                     </div>
@@ -54,8 +91,20 @@
                         <p class="mb-0 fs-10 text-body-tertiary">Punched in today at <strong>{{ attendance.punch_in|date:"H:i" }}</strong></p>
                     </div>
                 </div>
+                
+                <div class="col-12 col-md-6">
+                    <div class="d-flex justify-content-between fs-10 fw-bold mb-1">
+                        <span class="text-success"><i class="fas fa-briefcase me-1"></i>Work: <span id="live-work-time">00:00:00</span></span>
+                        <span class="text-warning"><i class="fas fa-coffee me-1"></i>Break: <span id="live-break-time">00:00:00</span></span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div id="work-progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="28800"></div>
+                    </div>
+                    <div class="text-end fs-10 text-muted mt-1"><span id="work-percent">0</span>% of 8 Hours</div>
+                </div>
+
                 {% if attendance.on_break %}
-                <div class="col-auto">
+                <div class="col-12 col-md-auto text-end">
                     <span class="badge bg-warning text-dark p-2 fs-10">
                         <i class="fas fa-spinner fa-spin me-2"></i>Currently on Break
                     </span>
@@ -299,4 +348,95 @@
 .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .timeline-item::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; }
 </style>
+
+{% if attendance and attendance.is_punched_in %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let workSeconds = {{ work_seconds|default:0 }};
+    let breakSeconds = {{ break_seconds|default:0 }};
+    const isPunchedIn = true;
+    const onBreak = {% if attendance.on_break %}true{% else %}false{% endif %};
+    let isInternalNavigation = false;
+
+    // Track all link clicks to prevent unload warning
+    document.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            isInternalNavigation = true;
+        });
+    });
+
+    // Track all form submissions to prevent unload warning
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', () => {
+            isInternalNavigation = true;
+        });
+    });
+
+    // Unload warning if punched in and not on break, and not internal navigation
+    window.addEventListener('beforeunload', function (e) {
+        if (isPunchedIn && !onBreak && !isInternalNavigation) {
+            e.preventDefault();
+            e.returnValue = 'You have not punched out. Are you sure you want to leave?';
+        }
+    });
+
+    function formatTime(totalSeconds) {
+        const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+        const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+        const s = (totalSeconds % 60).toString().padStart(2, '0');
+        return `${h}:${m}:${s}`;
+    }
+
+    function updateTracker() {
+        if (onBreak) {
+            breakSeconds++;
+        } else {
+            workSeconds++;
+        }
+
+        document.getElementById('live-work-time').innerText = formatTime(workSeconds);
+        document.getElementById('live-break-time').innerText = formatTime(breakSeconds);
+
+        const targetSeconds = 8 * 3600; // 8 hours
+        const percent = Math.min(100, (workSeconds / targetSeconds) * 100);
+        document.getElementById('work-progress-bar').style.width = percent + '%';
+        document.getElementById('work-percent').innerText = percent.toFixed(1);
+    }
+
+    setInterval(updateTracker, 1000);
+    updateTracker();
+
+    // ==========================================
+    // Live Location Tracking (Every 30 Mins)
+    // ==========================================
+    function sendLiveLocation() {
+        if ("geolocation" in navigator) {
+            navigator.geolocation.getCurrentPosition(function(position) {
+                const formData = new FormData();
+                formData.append('latitude', position.coords.latitude);
+                formData.append('longitude', position.coords.longitude);
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+                fetch("{% url 'employee_portal:update_location' %}", {
+                    method: "POST",
+                    body: formData,
+                }).then(response => response.json())
+                  .then(data => console.log("Live Location Update:", data))
+                  .catch(error => console.error("Live Location Error:", error));
+            }, function(error) {
+                console.warn("Live Location Geolocation error:", error);
+            }, {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            });
+        }
+    }
+
+    // Run immediately, then every 30 mins (1800000 ms)
+    sendLiveLocation();
+    setInterval(sendLiveLocation, 1800000);
+});
+</script>
+{% endif %}
 {% endblock %}

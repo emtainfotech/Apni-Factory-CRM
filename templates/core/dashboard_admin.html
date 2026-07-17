@@ -447,6 +447,66 @@
         </div>
     </div>
     {% endif %}
+    <!-- Pending Login Approvals -->
+    {% if pending_login_requests %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 border-top border-4 border-danger">
+                <div class="card-header bg-danger-subtle d-flex justify-content-between align-items-center py-3">
+                    <h5 class="mb-0 fw-bold text-danger"><span class="fas fa-shield-alt me-2"></span>Pending Network/Device Approvals</h5>
+                    <span class="badge badge-phoenix badge-phoenix-danger">Action Required</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-3 py-2">Employee</th>
+                                    <th class="py-2">IP Address</th>
+                                    <th class="py-2">Location</th>
+                                    <th class="py-2">Time Requested</th>
+                                    <th class="pe-3 py-2 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_login_requests %}
+                                <tr>
+                                    <td class="ps-3 fw-bold">{{ req.user.username }}</td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-info">{{ req.ip_address }}</span>
+                                    </td>
+                                    <td>
+                                        {% if req.latitude and req.longitude %}
+                                        <a href="https://www.google.com/maps/search/?api=1&query={{ req.latitude }},{{ req.longitude }}" target="_blank" class="btn btn-phoenix-primary btn-xs">
+                                            <span class="fas fa-map-marker-alt me-1"></span>View Map
+                                        </a>
+                                        {% else %}
+                                        <span class="text-muted fs-10">Location Not Provided</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ req.created_at|date:"d M Y, h:i A" }}
+                                    </td>
+                                    <td class="pe-3 text-end">
+                                        <form method="post" action="{% url 'approve_login_request' req.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-xs"><span class="fas fa-check me-1"></span>Approve</button>
+                                        </form>
+                                        <form method="post" action="{% url 'reject_login_request' req.id %}" class="d-inline ms-1">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-danger btn-xs"><span class="fas fa-times me-1"></span>Reject</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Employee Performance & Punch Security Logs -->
     <div class="row mb-4">

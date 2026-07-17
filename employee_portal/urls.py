@@ -12,6 +12,7 @@ urlpatterns = [
     path('attendance/punch-in/', views.punch_in, name='punch_in'),
     path('attendance/punch-out/', views.punch_out, name='punch_out'),
     path('attendance/toggle-break/', views.toggle_break, name='toggle_break'),
+    path('attendance/update-location/', views.update_location, name='update_location'),
     path('attendance/apply-leave/', views.apply_leave, name='apply_leave'),
     
     # Customers
