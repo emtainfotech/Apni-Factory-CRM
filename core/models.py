@@ -85,11 +85,21 @@ class WhatsAppLead(models.Model):
         ('failed', 'Verification Failed'),
         ('no_gst', 'User has no GST'),
     )
+    
+    BUSINESS_TYPE_CHOICES = (
+        ('manufacturer', 'Manufacturer'),
+        ('brand_owner', 'Brand Owner'),
+        ('distributor', 'Distributor'),
+        ('wholesaler', 'Wholesaler'),
+        ('retailer', 'Retailer'),
+        ('others', 'Others'),
+    )
 
     phone_number = models.CharField(max_length=20, unique=True, db_index=True)
     
     # State Management
     user_type = models.CharField(max_length=20, choices=USER_TYPE_CHOICES, default='unknown')
+    business_type = models.CharField(max_length=50, choices=BUSINESS_TYPE_CHOICES, blank=True, null=True)
     gst_status = models.CharField(max_length=20, choices=GST_STATUS_CHOICES, default='none')
     
     # The "Cursor"

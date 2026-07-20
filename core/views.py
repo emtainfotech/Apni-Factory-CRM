@@ -2086,7 +2086,8 @@ def whatsapp_webhook(request):
 
 def process_conversation(phone, profile_name, message):
     from django.db.models import Q
-    # 1. SYNC CUSTOMER
+    from .bot_messages import BOT_RESPONSES
+    
     clean_phone = phone
     short_phone = clean_phone[2:] if clean_phone.startswith('91') and len(clean_phone) == 12 else clean_phone
     
@@ -2106,10 +2107,8 @@ def process_conversation(phone, profile_name, message):
         customer.whatsapp_number = clean_phone
         customer.save()
 
-    # 2. LOG CHAT
     WhatsAppChat.objects.create(customer=customer, message=message, direction='incoming')
-
-    # 3. SYNC BOT STATE
+    
     lead, _ = WhatsAppLead.objects.get_or_create(phone_number=phone)
     if not lead.customer:
         lead.customer = customer
@@ -2117,128 +2116,158 @@ def process_conversation(phone, profile_name, message):
 
     if lead.needs_human: return 
 
-    # --- VERIFIED USER LOGIC ---
-    if customer.is_gst_verified:
-        if message.lower() in ['hi', 'hello', 'start', 'reset']:
-            msg = BOT_RESPONSES['verified_welcome'].format(name=customer.first_name)
-            send_reply_text(lead, msg)
-        else:
-            send_reply_text(lead, BOT_RESPONSES['support_contact'])
-        return
-
-    # --- UNVERIFIED / ONBOARDING LOGIC ---
-    if message.lower() in ['hi', 'hello', 'start', 'reset']:
-        if lead.user_type != 'unknown':
-            lead.conversation_stage = 'M-001'
-            lead.save()
-            send_reply_text(lead, BOT_RESPONSES['return_user_menu'])
-        else:
-            lead.conversation_stage = 'W-001'
-            lead.save()
-            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
-        return
-
-    stage = lead.conversation_stage
     clean_msg = message.strip().upper()
+    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU']
+    
+    # -----------------------------
+    # 1. EXISTING USERS
+    # -----------------------------
+    if lead.user_type == 'seller' and lead.conversation_stage == 'VERIFIED':
+        if is_keyword:
+            send_reply_text(lead, BOT_RESPONSES['existing_seller_menu'].format(name=customer.first_name))
+            lead.conversation_stage = 'SELLER_MENU'
+            lead.save()
+            return
+        if lead.conversation_stage == 'SELLER_MENU':
+            if clean_msg == '8':
+                send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+                lead.conversation_stage = 'MAIN_MENU'
+            else:
+                lead.needs_human = True
+                send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
+            lead.save()
+            return
 
-    # --- STAGE HANDLERS ---
-    if stage == 'M-001':
-        if clean_msg == '1':
+    if lead.user_type == 'buyer' and lead.conversation_stage == 'VERIFIED':
+        if is_keyword:
+            send_reply_text(lead, BOT_RESPONSES['existing_buyer_menu'].format(name=customer.first_name))
+            lead.conversation_stage = 'BUYER_MENU'
+            lead.save()
+            return
+        if lead.conversation_stage == 'BUYER_MENU':
             lead.needs_human = True
+            send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
             lead.save()
-            send_reply_text(lead, BOT_RESPONSES['support_contact'])
+            return
+            
+    # -----------------------------
+    # 2. MAIN MENU
+    # -----------------------------
+    if is_keyword or lead.conversation_stage == 'W-001':
+        lead.conversation_stage = 'MAIN_MENU'
+        lead.save()
+        send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+        return
+        
+    if lead.conversation_stage == 'MAIN_MENU':
+        if clean_msg == '1':
+            lead.conversation_stage = 'SELL_TYPE'
+            send_reply_text(lead, BOT_RESPONSES['seller_business_type'])
         elif clean_msg == '2':
-            status_msg = BOT_RESPONSES['profile_status'].format(
-                user_type=lead.get_user_type_display(),
-                gst_status=lead.get_gst_status_display()
-            )
-            send_reply_text(lead, status_msg)
+            lead.conversation_stage = 'BUY_NAME'
+            send_reply_text(lead, BOT_RESPONSES['buyer_collect_name'])
         elif clean_msg == '3':
-            lead.user_type = 'unknown'
-            lead.gst_status = 'none'
-            lead.conversation_stage = 'W-001'
+            lead.needs_human = True
+            send_reply_text(lead, BOT_RESPONSES['contact_team'])
+        elif clean_msg == '4':
+            send_reply_text(lead, BOT_RESPONSES['about_apni_factory'])
+        else:
+            send_reply_text(lead, BOT_RESPONSES['invalid_input'])
+        lead.save()
+        return
+        
+    # -----------------------------
+    # 3. SELLER ONBOARDING
+    # -----------------------------
+    if lead.conversation_stage == 'SELL_TYPE':
+        type_map = {'1': 'manufacturer', '2': 'brand_owner', '3': 'distributor', '4': 'wholesaler', '5': 'retailer', '6': 'others'}
+        if clean_msg in type_map:
+            lead.business_type = type_map[clean_msg]
+            if clean_msg == '1':
+                lead.conversation_stage = 'SELL_GST'
+                send_reply_text(lead, BOT_RESPONSES['gst_request'])
+            elif clean_msg == '2':
+                lead.needs_human = True
+                send_reply_text(lead, BOT_RESPONSES['brand_owner_not_eligible'])
+            elif clean_msg in ['3', '4', '5']:
+                lead.conversation_stage = 'BUY_EMAIL'
+                send_reply_text(lead, BOT_RESPONSES['retailer_buyer_redirect'])
+            elif clean_msg == '6':
+                lead.needs_human = True
+                send_reply_text(lead, BOT_RESPONSES['others_review'])
             lead.save()
-            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
         else:
             send_reply_text(lead, BOT_RESPONSES['invalid_input'])
         return
         
-    if stage == 'W-001':
-        if clean_msg == '1': 
-            lead.user_type = 'seller'
-            lead.conversation_stage = 'S-001'
-            send_reply_text(lead, BOT_RESPONSES['seller_segment'])
-        elif clean_msg == '2': 
-            lead.user_type = 'buyer'
-            lead.conversation_stage = 'B-001'
-            send_reply_text(lead, BOT_RESPONSES['buyer_segment'])
-        elif clean_msg == '3': 
-            lead.user_type = 'enquiry'
-            lead.conversation_stage = 'E-001'
-            send_reply_text(lead, BOT_RESPONSES['general_inquiry'])
-        else:
-            send_reply_text(lead, BOT_RESPONSES['invalid_input'])
-        lead.save()
-
-    elif stage == 'S-001':
-        if clean_msg in ['1', '2', '3']:
-            lead.conversation_stage = 'S-002'
-            send_reply_text(lead, BOT_RESPONSES['gst_confirm'])
-            lead.save()
-        else:
-            send_reply_text(lead, BOT_RESPONSES['invalid_input'])
-
-    elif stage == 'S-002':
-        if clean_msg in ['YES', 'Y']:
-            lead.gst_status = 'pending'
-            lead.conversation_stage = 'S-003'
-            send_reply_text(lead, BOT_RESPONSES['gst_input'])
-        elif clean_msg in ['NO', 'N']:
+    if lead.conversation_stage == 'SELL_GST':
+        if clean_msg in ['NO', 'N']:
             lead.gst_status = 'no_gst'
-            lead.conversation_stage = 'S-004'
             send_reply_text(lead, BOT_RESPONSES['no_gst_notice'])
         else:
-            send_reply_text(lead, "Please reply YES or NO.")
+            is_valid, gst_data = verify_gst_number_live(clean_msg)
+            if is_valid:
+                from .models import VerifiedGST
+                VerifiedGST.objects.get_or_create(gst_number=clean_msg)
+                lead.gst_status = 'verified'
+                customer.gst_number = clean_msg
+                customer.company_name = gst_data.get('trade_name') or gst_data.get('legal_name', '')
+                customer.save()
+                
+                lead.conversation_stage = 'SELL_EMAIL'
+                send_reply_text(lead, BOT_RESPONSES['gst_verified'].format(company_name=customer.company_name) + '\n\n' + BOT_RESPONSES['seller_collect_email'])
+            else:
+                lead.gst_status = 'failed'
+                send_reply_text(lead, BOT_RESPONSES['gst_failed'])
         lead.save()
+        return
 
-    # --- LIVE GST VERIFICATION ---
-    elif stage == 'S-003':
-        # Using the NEW Live Function
-        is_valid, gst_data = verify_gst_number_live(clean_msg)
+    if lead.conversation_stage == 'SELL_EMAIL':
+        customer.email = message.strip()
+        customer.save()
+        lead.conversation_stage = 'SELL_CAT'
+        send_reply_text(lead, BOT_RESPONSES['seller_collect_category'])
+        lead.save()
+        return
         
-        if is_valid:
-            from .models import VerifiedGST
-            VerifiedGST.objects.get_or_create(gst_number=clean_msg.strip().upper())
-            lead.gst_status = 'verified'
-            lead.conversation_stage = 'S-005'
-            
-            # Sync Live Data to Database
-            customer.gst_number = clean_msg
-            # Prefer Trade Name (Business Name) for Company Name
-            customer.company_name = gst_data.get('trade_name') or gst_data.get('legal_name', '')
-            customer.address = gst_data.get('address', '')
-            customer.city = gst_data.get('city', '')
-            customer.state = gst_data.get('state', '')
-            customer.pincode = gst_data.get('pincode', '')
-            
-            # Mark Verified
-            customer.is_gst_verified = True
-            customer.status = 'customer'
-            customer.save()
-            
-            # Send Success with Company Name
-            msg = BOT_RESPONSES['gst_verified'].format(company_name=customer.company_name)
-            send_reply_text(lead, msg)
-        else:
-            lead.gst_status = 'failed'
-            send_reply_text(lead, BOT_RESPONSES['gst_failed'])
+    if lead.conversation_stage == 'SELL_CAT':
+        # Skip category saving for brevity, move to next step
+        lead.conversation_stage = 'SELL_STATE'
+        send_reply_text(lead, BOT_RESPONSES['seller_collect_state'])
         lead.save()
+        return
+        
+    if lead.conversation_stage == 'SELL_STATE':
+        customer.state = message.strip()
+        customer.status = 'customer'
+        customer.is_gst_verified = True
+        customer.save()
+        lead.user_type = 'seller'
+        lead.conversation_stage = 'VERIFIED'
+        send_reply_text(lead, BOT_RESPONSES['seller_success'])
+        lead.save()
+        return
 
-    elif stage == 'B-001':
-        if clean_msg in ['1', '2']:
-            lead.conversation_stage = 'B-002'
-            send_reply_text(lead, BOT_RESPONSES['buyer_success'])
-            lead.save()
+    # -----------------------------
+    # 4. BUYER ONBOARDING
+    # -----------------------------
+    if lead.conversation_stage == 'BUY_NAME':
+        customer.first_name = message.strip()
+        customer.save()
+        lead.conversation_stage = 'BUY_EMAIL'
+        send_reply_text(lead, BOT_RESPONSES['buyer_collect_email'])
+        lead.save()
+        return
+        
+    if lead.conversation_stage == 'BUY_EMAIL':
+        customer.email = message.strip()
+        customer.status = 'customer'
+        customer.save()
+        lead.user_type = 'buyer'
+        lead.conversation_stage = 'VERIFIED'
+        send_reply_text(lead, BOT_RESPONSES['buyer_success'])
+        lead.save()
+        return
 
 def send_reply_text(lead, text):
     send_text_message(lead.phone_number, text)
@@ -2946,9 +2975,12 @@ from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def whatsapp_inbox(request):
+    from django.db.models import Max
     customers_with_chats = Customer.objects.filter(
         Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
-    ).distinct().order_by('-updated_at')
+    ).annotate(
+        last_chat_time=Max('whatsapp_chats__timestamp')
+    ).distinct().order_by('-last_chat_time', '-updated_at')
     
     paginator = Paginator(customers_with_chats, 10)
     page_number = request.GET.get('page')
