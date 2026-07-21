@@ -2029,13 +2029,15 @@ def api_get_pincodes_for_city(request):
     return JsonResponse({'pincodes': results})
 
 import json
+from datetime import datetime, timezone as dt_timezone
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from .models import Customer, WhatsAppLead, WhatsAppChat, CustomerPreference
+from .models import Customer, WhatsAppLead, WhatsAppChat, CustomerPreference, WhatsAppMessageStatus
 # UPDATED IMPORT
-from .utils import send_text_message, verify_gst_number_live 
+from .utils import send_text_message, verify_gst_number_live
 from .bot_messages import BOT_RESPONSES
+
 
 @csrf_exempt
 def whatsapp_webhook(request):
@@ -2053,11 +2055,12 @@ def whatsapp_webhook(request):
             entry = data.get('entry', [])[0]
             changes = entry.get('changes', [])[0]
             value = changes.get('value', {})
-            
+
+            # --- Incoming messages from customers (your existing logic) ---
             if 'messages' in value:
                 msg_data = value['messages'][0]
                 phone_number = msg_data['from']
-                
+
                 profile_name = "WhatsApp User"
                 contacts = value.get('contacts', [])
                 if contacts:
@@ -2076,13 +2079,58 @@ def whatsapp_webhook(request):
                         text_body = interactive['list_reply'].get('id', interactive['list_reply'].get('title', ''))
                 elif msg_data['type'] in ['image', 'document', 'audio', 'video']:
                     text_body = f"[{msg_data['type'].capitalize()} received]"
-                
+
                 process_conversation(phone_number, profile_name, text_body)
+
+            # --- NEW: delivery status updates for messages YOU sent ---
+            if 'statuses' in value:
+                for status_data in value['statuses']:
+                    save_message_status(status_data)
 
             return HttpResponse('EVENT_RECEIVED', status=200)
         except Exception as e:
             print(f"Webhook Error: {e}")
             return HttpResponse('ERROR', status=500)
+
+
+def save_message_status(status_data):
+    """
+    Persist a single status update (sent/delivered/read/failed) so you
+    can query per-customer delivery outcomes instead of only trusting
+    the initial 'accepted' response from the send call.
+    """
+    wamid = status_data.get('id')
+    recipient_id = status_data.get('recipient_id')
+    status = status_data.get('status')
+    ts = status_data.get('timestamp')
+    timestamp = datetime.fromtimestamp(int(ts), tz=dt_timezone.utc) if ts else None
+
+    error_code = error_title = error_message = None
+    if status == 'failed':
+        errors = status_data.get('errors', [])
+        if errors:
+            error_code = errors[0].get('code')
+            error_title = errors[0].get('title')
+            error_message = errors[0].get('message') or errors[0].get('error_data', {}).get('details')
+        print(f"[WhatsApp FAILED] {recipient_id}: {error_code} - {error_title} - {error_message}")
+
+    conversation = status_data.get('conversation', {})
+    pricing = status_data.get('pricing', {})
+
+    WhatsAppMessageStatus.objects.update_or_create(
+        wamid=wamid,
+        status=status,
+        defaults={
+            "recipient_id": recipient_id,
+            "error_code": error_code,
+            "error_title": error_title,
+            "error_message": error_message,
+            "conversation_category": pricing.get('category'),
+            "pricing_billable": pricing.get('billable', False),
+            "raw_payload": status_data,
+            "timestamp": timestamp,
+        }
+    )
 
 def process_conversation(phone, profile_name, message):
     from django.db.models import Q

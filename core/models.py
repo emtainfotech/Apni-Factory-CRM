@@ -558,4 +558,32 @@ class LoginApprovalRequest(models.Model):
     resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_logins')
 
     def __str__(self):
-        return f"{self.user.username} from {self.ip_address} - {self.status}"
+        return f"{self.user.username} from {self.ip_address} - {self.status}"
+
+
+# Add this to your models.py
+
+from django.db import models
+
+
+class WhatsAppMessageStatus(models.Model):
+    wamid = models.CharField(max_length=255, db_index=True)          # message id, e.g. wamid.HBgM...
+    recipient_id = models.CharField(max_length=20, db_index=True)     # wa_id, e.g. 919589292377
+    status = models.CharField(max_length=20)                          # sent / delivered / read / failed
+    error_code = models.CharField(max_length=20, blank=True, null=True)
+    error_title = models.CharField(max_length=255, blank=True, null=True)
+    error_message = models.TextField(blank=True, null=True)
+    conversation_category = models.CharField(max_length=50, blank=True, null=True)  # marketing/utility/etc
+    pricing_billable = models.BooleanField(default=False)
+    raw_payload = models.JSONField(blank=True, null=True)
+    timestamp = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["recipient_id", "status"]),
+            models.Index(fields=["wamid"]),
+        ]
+
+    def __str__(self):
+        return f"{self.recipient_id} -> {self.status}"
