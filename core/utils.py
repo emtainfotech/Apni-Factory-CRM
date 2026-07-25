@@ -119,3 +119,37 @@ def verify_gst_number_live(gst_number):
     except Exception as e:
         print(f"GST Verification Error: {e}")
         return False, {}
+
+import mimetypes
+from django.core.files.base import ContentFile
+
+def download_whatsapp_media(media_id):
+    """Downloads media from WhatsApp API and returns a Django ContentFile and mime_type."""
+    try:
+        headers = {
+            "Authorization": f"Bearer {META_ACCESS_TOKEN}",
+        }
+        # 1. Get media URL
+        url_response = requests.get(f"https://graph.facebook.com/v17.0/{media_id}", headers=headers)
+        url_response.raise_for_status()
+        url_data = url_response.json()
+        
+        media_url = url_data.get('url')
+        mime_type = url_data.get('mime_type')
+        
+        if not media_url:
+            return None, None
+            
+        # 2. Download actual binary data
+        media_response = requests.get(media_url, headers=headers)
+        media_response.raise_for_status()
+        
+        # Determine extension
+        ext = mimetypes.guess_extension(mime_type) or '.bin'
+        filename = f"{media_id}{ext}"
+        
+        content_file = ContentFile(media_response.content, name=filename)
+        return content_file, mime_type
+    except Exception as e:
+        print(f"Error downloading media: {e}")
+        return None, None

@@ -2067,6 +2067,7 @@ def whatsapp_webhook(request):
                     profile_name = contacts[0].get('profile', {}).get('name', "WhatsApp User")
 
                 text_body = ""
+                media_id = None
                 if msg_data['type'] == 'text':
                     text_body = msg_data['text']['body']
                 elif msg_data['type'] == 'button':
@@ -2079,8 +2080,10 @@ def whatsapp_webhook(request):
                         text_body = interactive['list_reply'].get('id', interactive['list_reply'].get('title', ''))
                 elif msg_data['type'] in ['image', 'document', 'audio', 'video']:
                     text_body = f"[{msg_data['type'].capitalize()} received]"
+                    media_obj = msg_data.get(msg_data['type'], {})
+                    media_id = media_obj.get('id')
 
-                process_conversation(phone_number, profile_name, text_body)
+                process_conversation(phone_number, profile_name, text_body, media_id=media_id)
 
             # --- NEW: delivery status updates for messages YOU sent ---
             if 'statuses' in value:
@@ -2132,9 +2135,10 @@ def save_message_status(status_data):
         }
     )
 
-def process_conversation(phone, profile_name, message):
+def process_conversation(phone, profile_name, message, media_id=None):
     from django.db.models import Q
     from .bot_messages import BOT_RESPONSES
+    from .utils import download_whatsapp_media
     
     clean_phone = phone
     short_phone = clean_phone[2:] if clean_phone.startswith('91') and len(clean_phone) == 12 else clean_phone
@@ -2155,8 +2159,14 @@ def process_conversation(phone, profile_name, message):
         customer.whatsapp_number = clean_phone
         customer.save()
 
-    WhatsAppChat.objects.create(customer=customer, message=message, direction='incoming')
-    
+    chat = WhatsAppChat(customer=customer, message=message, direction='incoming')
+    if media_id:
+        content_file, mime_type = download_whatsapp_media(media_id)
+        if content_file:
+            chat.attachment = content_file
+            chat.attachment_type = mime_type
+    chat.save()
+
     lead, _ = WhatsAppLead.objects.get_or_create(phone_number=phone)
     if not lead.customer:
         lead.customer = customer
@@ -3048,6 +3058,8 @@ def get_whatsapp_chat(request, customer_id):
             'id': chat.id,
             'message': chat.message,
             'direction': chat.direction,
+            'attachment_url': chat.attachment.url if chat.attachment else None,
+            'attachment_type': chat.attachment_type,
             'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
         })
     return JsonResponse({'status': 'success', 'chats': chat_data, 'customer_name': customer.first_name, 'phone': customer.phone})

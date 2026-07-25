@@ -102,10 +102,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 lastDateStr = dateStr;
             }
 
+            let attachmentHtml = '';
+            if (chat.attachment_url) {
+                if (chat.attachment_type && chat.attachment_type.startsWith('image/')) {
+                    attachmentHtml = `<div class="mb-2"><img src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" alt="Image Attachment"></div>`;
+                } else if (chat.attachment_type && chat.attachment_type.startsWith('video/')) {
+                    attachmentHtml = `<div class="mb-2"><video src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" controls></video></div>`;
+                } else if (chat.attachment_type && chat.attachment_type.startsWith('audio/')) {
+                    attachmentHtml = `<div class="mb-2"><audio src="${chat.attachment_url}" controls></audio></div>`;
+                } else {
+                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-download me-1"></i>Download Document</a></div>`;
+                }
+            }
+
             html += `
                 <div class="d-flex ${align} mb-3">
                     <div class="p-2 rounded-3 shadow-sm ${bgClass}" style="max-width: 75%;">
-                        <div style="white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(chat.message)}</div>
+                        ${attachmentHtml}
+                        <div style="white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(chat.message || '')}</div>
                         <div class="text-end mt-1"><small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small></div>
                     </div>
                 </div>

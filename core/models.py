@@ -118,8 +118,10 @@ class WhatsAppChat(models.Model):
         ('outgoing', 'Outgoing'),
     )
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='whatsapp_chats')
-    message = models.TextField()
+    message = models.TextField(blank=True, null=True) # Making this optional if it's only a file
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
+    attachment = models.FileField(upload_to='whatsapp_attachments/', blank=True, null=True)
+    attachment_type = models.CharField(max_length=50, blank=True, null=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
