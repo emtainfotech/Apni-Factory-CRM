@@ -18,47 +18,55 @@ BOT_RESPONSES = {
         "4️⃣ Wholesaler\n"
         "5️⃣ Retailer\n"
         "6️⃣ Others\n\n"
-        "👉 *Reply with the number*"
+        "👉 *Reply with the number*\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
     "gst_request": (
         "Are you a GST Registered business? 📜\n\n"
-        "Please reply with your **GST Number** to proceed, or type **NO** if you don't have one."
+        "Please reply with your **GST Number** to proceed, or type **NO** if you don't have one.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
     "no_gst_notice": (
         "⚠️ GST is mandatory to sell as a Manufacturer on Apni Factory.\n\n"
-        "If you'd like to register as a Buyer instead, or need help from our team, please let us know by typing *Help* or *Buyer*."
+        "If you'd like to register as a Buyer instead, or need help from our team, please let us know by typing *Help* or *Buyer*.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
     "brand_owner_not_eligible": (
         "Brand Owners without their own manufacturing are not currently eligible as direct sellers.\n\n"
-        "Our team will review your application. An executive will contact you shortly."
+        "Our team will review your application. An executive will contact you shortly.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
     "retailer_buyer_redirect": (
         "As a Distributor, Wholesaler, or Retailer, you can purchase directly from Manufacturers on our platform!\n\n"
-        "We are setting up your Buyer profile. Please provide your Email Address to continue."
+        "We are setting up your Buyer profile. Please provide your Email Address to continue.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
     "others_review": (
         "Thank you! We have collected your business details.\n"
-        "Our team will review your request and get back to you shortly."
+        "Our team will review your request and get back to you shortly.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
-    "seller_collect_email": "Almost done! Please reply with your **Email Address**.",
-    "seller_collect_category": "What **Category** of products do you manufacture? (e.g., Clothing, Electronics, Hardware)",
-    "seller_collect_state": "Which **State** is your manufacturing unit located in?",
+    "seller_collect_email": "Almost done! Please reply with your **Email Address**.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    "seller_collect_category": "What **Category** of products do you manufacture? (e.g., Clothing, Electronics, Hardware)\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    "seller_collect_state": "Which **State** is your manufacturing unit located in?\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
     "seller_success": (
         "🎉 Welcome aboard!\n\n"
         "Your Seller Account has been created and your Relationship Manager has been assigned.\n\n"
         "Download our App to start listing your products:\n"
-        "📱 https://play.google.com/store/apps/details?id=com.app.apnifactory"
+        "📱 https://play.google.com/store/apps/details?id=com.app.apnifactory\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
 
     # --- BUY PRODUCTS ---
-    "buyer_collect_name": "Awesome! What is your **Full Name**?",
-    "buyer_collect_email": "Please reply with your **Email Address**.",
+    "buyer_collect_name": "Awesome! What is your **Full Name**?\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    "buyer_collect_email": "Please reply with your **Email Address**.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
     "buyer_success": (
         "🎉 Registration Successful!\n\n"
         "You can now browse products and place orders at direct factory prices. "
         "(GST is only required during checkout if you need a GST invoice).\n\n"
         "Download our App to start buying:\n"
-        "📱 https://play.google.com/store/apps/details?id=com.app.apnifactory"
+        "📱 https://play.google.com/store/apps/details?id=com.app.apnifactory\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
 
     # --- EXISTING SELLER ---
@@ -72,7 +80,8 @@ BOT_RESPONSES = {
         "6️⃣ Relationship Manager\n"
         "7️⃣ Request Callback\n"
         "8️⃣ Main Menu\n\n"
-        "👉 *Reply with a number*"
+        "👉 *Reply with a number*\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
 
     # --- EXISTING BUYER ---
@@ -84,32 +93,35 @@ BOT_RESPONSES = {
         "4️⃣ Returns\n"
         "5️⃣ Login Help\n"
         "6️⃣ Contact Support\n\n"
-        "👉 *Reply with a number*"
+        "👉 *Reply with a number*\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
 
     # --- SUPPORT WORKFLOWS ---
-    "ask_order_id": "Please reply with your **Order ID** and describe the issue (or send photos if damaged).",
-    "ask_invoice_id": "Please reply with your **Invoice No** or **Settlement ID**.",
-    "ask_login_screenshot": "Please reply with a screenshot of the login issue and mention your device (Android/iOS).",
-    "ask_marketing_req": "Please describe your marketing requirement or the package you are interested in.",
+    "ask_order_id": "Please reply with your **Order ID** and describe the issue (or send photos if damaged).\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    "ask_invoice_id": "Please reply with your **Invoice No** or **Settlement ID**.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    "ask_login_screenshot": "Please reply with a screenshot of the login issue and mention your device (Android/iOS).\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    "ask_marketing_req": "Please describe your marketing requirement or the package you are interested in.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
     
     "support_ticket_created": (
         "Thank you! ✅\n\n"
         "We have collected the necessary details. A complete ticket has been created and assigned to the right department. "
-        "An executive will join this chat shortly to assist you."
+        "An executive will join this chat shortly to assist you.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
 
     # --- GENERAL ---
     "contact_team": (
         "Thank you for reaching out! ✅\n\n"
-        "Our customer care executive has been notified and will contact you shortly to assist with your requirement. 📞"
+        "Our customer care executive has been notified and will contact you shortly to assist with your requirement. 📞\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
     "about_apni_factory": (
         "Apni Factory is India's leading B2B platform connecting Manufacturers directly with Retailers and Wholesalers.\n\n"
-        "We eliminate middlemen so sellers get better margins and buyers get factory prices!\n"
-        "Type *Menu* to go back."
+        "We eliminate middlemen so sellers get better margins and buyers get factory prices!\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
-    "invalid_input": "I didn't understand that. 😕 Please reply with a valid option from the menu.",
+    "invalid_input": "I didn't understand that. 😕 Please reply with a valid option from the menu.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
     "gst_verified": "✅ *GST Verification Successful!*\n\n**Company:** {company_name}",
-    "gst_failed": "❌ Invalid GST Number. Please check and try again, or type *NO* if you don't have one.",
+    "gst_failed": "❌ Invalid GST Number. Please check and try again, or type *NO* if you don't have one.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
 }

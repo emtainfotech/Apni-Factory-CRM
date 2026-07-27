@@ -2237,16 +2237,17 @@ def process_conversation(phone, profile_name, message, media_id=None):
         lead.save()
 
     clean_msg = message.strip().upper()
-    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU', 'HELP', '0', '#']
+    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU', 'HELP', '0', '00', '#', 'MAIN MENU', 'HOME', 'STARTING MENU']
+    is_back = clean_msg in ['9', '99', 'BACK', 'PREVIOUS', 'PREV', 'PREVIOUS MENU']
 
-    if is_keyword and lead.needs_human:
+    if (is_keyword or is_back) and lead.needs_human:
         lead.needs_human = False
         lead.save()
 
     if lead.needs_human: return 
 
     # -----------------------------
-    # 1. KEYWORDS / RESET
+    # 1. KEYWORDS / RESET / STARTING MENU (0)
     # -----------------------------
     if is_keyword or lead.conversation_stage == 'W-001':
         if lead.user_type == 'seller' or (customer and customer.status == 'customer' and customer.is_gst_verified):
@@ -2258,6 +2259,33 @@ def process_conversation(phone, profile_name, message, media_id=None):
         else:
             send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
             lead.conversation_stage = 'MAIN_MENU'
+        lead.save()
+        return
+
+    # -----------------------------
+    # 1B. PREVIOUS MENU / BACK (9)
+    # -----------------------------
+    if is_back:
+        if lead.conversation_stage in ['SELL_GST', 'SELL_EMAIL', 'SELL_CATEGORY', 'SELL_STATE'] or lead.business_type in ['others', 'brand_owner']:
+            send_reply_text(lead, BOT_RESPONSES['seller_business_type'])
+            lead.conversation_stage = 'SELL_TYPE'
+            lead.business_type = None
+        elif lead.conversation_stage in ['BUY_EMAIL']:
+            send_reply_text(lead, BOT_RESPONSES['buyer_collect_name'])
+            lead.conversation_stage = 'BUY_NAME'
+        elif lead.conversation_stage in ['SELLER_MENU', 'BUYER_MENU']:
+            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+            lead.conversation_stage = 'MAIN_MENU'
+        else:
+            if lead.user_type == 'seller' or (customer and customer.status == 'customer' and customer.is_gst_verified):
+                send_reply_text(lead, BOT_RESPONSES['existing_seller_menu'].format(name=customer.first_name))
+                lead.conversation_stage = 'SELLER_MENU'
+            elif lead.user_type == 'buyer':
+                send_reply_text(lead, BOT_RESPONSES['existing_buyer_menu'].format(name=customer.first_name))
+                lead.conversation_stage = 'BUYER_MENU'
+            else:
+                send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+                lead.conversation_stage = 'MAIN_MENU'
         lead.save()
         return
     
