@@ -104,22 +104,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let attachmentHtml = '';
             if (chat.attachment_url) {
-                if (chat.attachment_type && chat.attachment_type.startsWith('image/')) {
-                    attachmentHtml = `<div class="mb-2"><img src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" alt="Image Attachment"></div>`;
+                if (chat.attachment_type && chat.attachment_type.startsWith('image/') && !(chat.message && chat.message.toLowerCase().includes('document'))) {
+                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank"><img src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" alt="Image Attachment" onerror="this.outerHTML='<a href=\'${chat.attachment_url}\' target=\'_blank\' class=\'btn btn-sm btn-outline-primary\'><i class=\'fas fa-file-download me-1\'></i>Download Attachment</a>';"></a></div>`;
                 } else if (chat.attachment_type && chat.attachment_type.startsWith('video/')) {
                     attachmentHtml = `<div class="mb-2"><video src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" controls></video></div>`;
                 } else if (chat.attachment_type && chat.attachment_type.startsWith('audio/')) {
                     attachmentHtml = `<div class="mb-2"><audio src="${chat.attachment_url}" controls></audio></div>`;
                 } else {
-                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="fas fa-file-download me-1"></i>Download Document</a></div>`;
+                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center"><i class="fas fa-file-download me-2"></i>Download / View Document</a></div>`;
                 }
             }
+
+            let displayMsgText = (chat.message === '[Document received]' || chat.message === '[Image received]') && chat.attachment_url ? '' : escapeHTML(chat.message || '');
 
             html += `
                 <div class="d-flex ${align} mb-3">
                     <div class="p-2 rounded-3 shadow-sm ${bgClass}" style="max-width: 75%;">
                         ${attachmentHtml}
-                        <div style="white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(chat.message || '')}</div>
+                        ${displayMsgText ? `<div style="white-space: pre-wrap; word-wrap: break-word;">${displayMsgText}</div>` : ''}
                         <div class="text-end mt-1"><small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small></div>
                     </div>
                 </div>

@@ -838,6 +838,154 @@
     <script src="/static/vendors/flatpickr/flatpickr.min.js"></script>
     <script src="/static/assets/js/phoenix.js"></script>
     <script src="/static/assets/js/pages/crm-analytics.js"></script>
+
+    <!-- Real-Time WhatsApp & CRM Notification Worker -->
+    <script>
+    (function() {
+        let lastNotificationId = 0;
+        const notifIndicator = document.getElementById('notification-indicator');
+        const notifContainer = document.getElementById('notification-container');
+
+        // Function to play a professional subtle chime using Web Audio API
+        function playNotificationChime() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+                osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
+                
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.5);
+            } catch (e) {
+                // Audio ignore if blocked by browser autoplay policy
+            }
+        }
+
+        // Function to show visual Toast popup
+        function showToastNotification(notif) {
+            let toastContainer = document.getElementById('global-toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'global-toast-container';
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '999999';
+                document.body.appendChild(toastContainer);
+            }
+            
+            const toastId = 'toast-notif-' + notif.id;
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-bg-success border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex p-2">
+                        <div class="toast-body d-flex align-items-center p-0">
+                            <i class="fab fa-whatsapp fs-4 me-2"></i>
+                            <div>
+                                <strong class="d-block">New WhatsApp Message</strong>
+                                <span class="fs-9">${notif.message}</span>
+                            </div>
+                        </div>
+                        <a href="${notif.url || '/whatsapp/inbox/'}" class="btn btn-sm btn-light ms-3 me-2 my-auto">Open</a>
+                        <button type="button" class="btn-close btn-close-white me-1 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastEl = document.getElementById(toastId);
+            if (window.bootstrap && window.bootstrap.Toast) {
+                const toast = new window.bootstrap.Toast(toastEl, { delay: 6000 });
+                toast.show();
+            }
+        }
+
+        function checkNewNotifications() {
+            fetch(`/notifications/check-new/?last_id=${lastNotificationId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // Update unread red dot badge
+                        if (notifIndicator) {
+                            if (data.has_unread) {
+                                notifIndicator.innerHTML = `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger p-1"><span class="visually-hidden">New alerts</span></span>`;
+                            } else {
+                                notifIndicator.innerHTML = `<span class="d-none"></span>`;
+                            }
+                        }
+
+                        // First poll: just synchronize latest_id without alerting
+                        if (lastNotificationId === 0) {
+                            lastNotificationId = data.latest_id;
+                            return;
+                        }
+
+                        // Subsequent polls: check if there are new notifications
+                        if (data.new_notifications && data.new_notifications.length > 0) {
+                            lastNotificationId = data.latest_id;
+
+                            data.new_notifications.forEach(n => {
+                                // 1. Play chime sound
+                                playNotificationChime();
+
+                                // 2. Show Desktop Notification
+                                if ("Notification" in window && Notification.permission === "granted") {
+                                    const desktopNotif = new Notification("WhatsApp Message | Apni Factory", {
+                                        body: n.message,
+                                        icon: "/static/assets/img/favicons/favicon-32x32.png",
+                                        tag: "whatsapp-" + n.id,
+                                        requireInteraction: false
+                                    });
+                                    desktopNotif.onclick = function() {
+                                        window.focus();
+                                        if (n.url) window.location.href = n.url;
+                                    };
+                                }
+
+                                // 3. Show In-App Toast
+                                showToastNotification(n);
+
+                                // 4. Live update WhatsApp inbox / chat if open on this page
+                                if (window.location.pathname.includes('/whatsapp/inbox/')) {
+                                    if (window.loadChat && window.currentCustomerId && n.customer_id === window.currentCustomerId) {
+                                        window.loadChat(n.customer_id);
+                                    }
+                                    const contactList = document.getElementById('contact-list');
+                                    if (contactList && window.htmx) {
+                                        window.htmx.trigger(document.body, 'refreshNotifications');
+                                    }
+                                }
+                            });
+
+                            // Refresh notifications dropdown if open
+                            if (notifContainer && window.htmx) {
+                                window.htmx.trigger(document.body, 'refreshNotifications');
+                            }
+                        }
+                    }
+                })
+                .catch(err => console.debug("Notification poll error:", err));
+        }
+
+        // Check every 5 seconds
+        setInterval(checkNewNotifications, 5000);
+        // Initial check on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkNewNotifications();
+            // Ask for desktop notification permission when bell is clicked
+            const bellLink = document.querySelector('a[aria-labelledby="navbarDropdownUser"]') || document.querySelector('.fa-bell');
+            if (bellLink && "Notification" in window && Notification.permission === "default") {
+                bellLink.addEventListener('click', () => {
+                    Notification.requestPermission();
+                }, { once: true });
+            }
+        });
+    })();
+    </script>
 </body>
 
 </html>

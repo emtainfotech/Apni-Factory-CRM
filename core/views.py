@@ -878,6 +878,55 @@ def mark_notifications_read(request):
 
 
 @login_required
+def check_new_notifications(request):
+    """
+    Lightweight JSON endpoint for real-time polling of new notifications.
+    Returns unread count, red dot status, and any new notifications since last_id.
+    """
+    user = request.user
+    try:
+        last_id = int(request.GET.get('last_id', 0))
+    except (ValueError, TypeError):
+        last_id = 0
+
+    if user.is_superuser or user.role == 'admin':
+        base_qs = Notification.objects.all()
+        unread_qs = Notification.objects.filter(is_read=False)
+    else:
+        base_qs = Notification.objects.filter(recipient=user)
+        unread_qs = Notification.objects.filter(recipient=user, is_read=False)
+
+    latest_obj = base_qs.order_by('-id').first()
+    latest_id = latest_obj.id if latest_obj else 0
+
+    new_notifs_data = []
+    if last_id > 0 and latest_id > last_id:
+        new_notifs = base_qs.filter(id__gt=last_id).order_by('id')[:10]
+        for n in new_notifs:
+            cust_id = None
+            if n.url and 'customer_id=' in n.url:
+                try:
+                    cust_id = int(n.url.split('customer_id=')[-1].split('&')[0])
+                except ValueError:
+                    pass
+            new_notifs_data.append({
+                'id': n.id,
+                'message': n.message,
+                'url': n.url or '',
+                'customer_id': cust_id,
+                'created_at': n.created_at.strftime('%H:%M') if n.created_at else ''
+            })
+
+    return JsonResponse({
+        'status': 'success',
+        'has_unread': unread_qs.exists(),
+        'unread_count': unread_qs.count(),
+        'latest_id': latest_id,
+        'new_notifications': new_notifs_data
+    })
+
+
+@login_required
 def notification_history(request):
     """
     Full page view for all notifications with Pagination.
@@ -2079,11 +2128,26 @@ def whatsapp_webhook(request):
                     elif interactive['type'] == 'list_reply':
                         text_body = interactive['list_reply'].get('id', interactive['list_reply'].get('title', ''))
                 elif msg_data['type'] in ['image', 'document', 'audio', 'video']:
-                    text_body = f"[{msg_data['type'].capitalize()} received]"
                     media_obj = msg_data.get(msg_data['type'], {})
                     media_id = media_obj.get('id')
+                    text_body = media_obj.get('caption') or media_obj.get('filename') or f"[{msg_data['type'].capitalize()} received]"
 
                 process_conversation(phone_number, profile_name, text_body, media_id=media_id)
+
+                # --- Create real-time CRM Notification for admin users ---
+                from authentication.models import Notification
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                cust = Customer.objects.filter(Q(phone=phone_number) | Q(whatsapp_number=phone_number)).first()
+                cust_id = cust.id if cust else ''
+                msg_preview = text_body or f"[{msg_data['type'].capitalize()} received]"
+                for admin_user in User.objects.filter(Q(is_superuser=True) | Q(role='admin')):
+                    Notification.objects.create(
+                        recipient=admin_user,
+                        message=f"WhatsApp from {profile_name or phone_number}: {msg_preview[:45]}",
+                        url=f"/whatsapp/inbox/?customer_id={cust_id}",
+                        is_read=False
+                    )
 
             # --- NEW: delivery status updates for messages YOU sent ---
             if 'statuses' in value:
@@ -2172,50 +2236,57 @@ def process_conversation(phone, profile_name, message, media_id=None):
         lead.customer = customer
         lead.save()
 
+    clean_msg = message.strip().upper()
+    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU', 'HELP', '0', '#']
+
+    if is_keyword and lead.needs_human:
+        lead.needs_human = False
+        lead.save()
+
     if lead.needs_human: return 
 
-    clean_msg = message.strip().upper()
-    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU']
-    
     # -----------------------------
-    # 1. EXISTING USERS
-    # -----------------------------
-    if lead.user_type == 'seller' and lead.conversation_stage == 'VERIFIED':
-        if is_keyword:
-            send_reply_text(lead, BOT_RESPONSES['existing_seller_menu'].format(name=customer.first_name))
-            lead.conversation_stage = 'SELLER_MENU'
-            lead.save()
-            return
-        if lead.conversation_stage == 'SELLER_MENU':
-            if clean_msg == '8':
-                send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
-                lead.conversation_stage = 'MAIN_MENU'
-            else:
-                lead.needs_human = True
-                send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
-            lead.save()
-            return
-
-    if lead.user_type == 'buyer' and lead.conversation_stage == 'VERIFIED':
-        if is_keyword:
-            send_reply_text(lead, BOT_RESPONSES['existing_buyer_menu'].format(name=customer.first_name))
-            lead.conversation_stage = 'BUYER_MENU'
-            lead.save()
-            return
-        if lead.conversation_stage == 'BUYER_MENU':
-            lead.needs_human = True
-            send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
-            lead.save()
-            return
-            
-    # -----------------------------
-    # 2. MAIN MENU
+    # 1. KEYWORDS / RESET
     # -----------------------------
     if is_keyword or lead.conversation_stage == 'W-001':
-        lead.conversation_stage = 'MAIN_MENU'
+        if lead.user_type == 'seller' or (customer and customer.status == 'customer' and customer.is_gst_verified):
+            send_reply_text(lead, BOT_RESPONSES['existing_seller_menu'].format(name=customer.first_name))
+            lead.conversation_stage = 'SELLER_MENU'
+        elif lead.user_type == 'buyer':
+            send_reply_text(lead, BOT_RESPONSES['existing_buyer_menu'].format(name=customer.first_name))
+            lead.conversation_stage = 'BUYER_MENU'
+        else:
+            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+            lead.conversation_stage = 'MAIN_MENU'
         lead.save()
-        send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
         return
+    
+    # -----------------------------
+    # 2. EXISTING USERS IN MENUS
+    # -----------------------------
+    if lead.conversation_stage == 'SELLER_MENU':
+        if clean_msg == '8':
+            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+            lead.conversation_stage = 'MAIN_MENU'
+        else:
+            lead.needs_human = True
+            send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
+        lead.save()
+        return
+
+    if lead.conversation_stage == 'BUYER_MENU':
+        if clean_msg == '8':
+            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+            lead.conversation_stage = 'MAIN_MENU'
+        else:
+            lead.needs_human = True
+            send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
+        lead.save()
+        return
+            
+    # -----------------------------
+    # 3. MAIN MENU
+    # -----------------------------
         
     if lead.conversation_stage == 'MAIN_MENU':
         if clean_msg == '1':
@@ -2326,6 +2397,21 @@ def process_conversation(phone, profile_name, message, media_id=None):
         send_reply_text(lead, BOT_RESPONSES['buyer_success'])
         lead.save()
         return
+
+    # -----------------------------
+    # 5. FALLBACK / UNHANDLED STATE
+    # -----------------------------
+    if lead.user_type == 'seller' or (customer and customer.status == 'customer' and customer.is_gst_verified):
+        send_reply_text(lead, BOT_RESPONSES['existing_seller_menu'].format(name=customer.first_name))
+        lead.conversation_stage = 'SELLER_MENU'
+    elif lead.user_type == 'buyer':
+        send_reply_text(lead, BOT_RESPONSES['existing_buyer_menu'].format(name=customer.first_name))
+        lead.conversation_stage = 'BUYER_MENU'
+    else:
+        send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
+        lead.conversation_stage = 'MAIN_MENU'
+    lead.save()
+    return
 
 def send_reply_text(lead, text):
     send_text_message(lead.phone_number, text)

@@ -18,6 +18,7 @@ urlpatterns = [
     path('profile/', views.user_profile, name='user_profile'),
     path('notifications/get/', views.get_notifications, name='get_notifications'),
     path('notifications/mark-read/', views.mark_notifications_read, name='mark_notifications_read'),
+    path('notifications/check-new/', views.check_new_notifications, name='check_new_notifications'),
     path('notifications/history/', views.notification_history, name='notification_history'),
     path('customers/', views.customer_list, name='customer_list'),
     path('customers/upload/', views.bulk_upload_customers, name='bulk_upload_customers'),
