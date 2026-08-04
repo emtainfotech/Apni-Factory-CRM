@@ -127,6 +127,21 @@ class WhatsAppChat(models.Model):
     def __str__(self):
         return f"{self.direction}: {self.message[:20]}"
 
+class ScheduledAppointment(models.Model):
+    TIME_SLOT_CHOICES = (
+        ('Morning', 'Morning (10 AM - 12 PM)'),
+        ('Afternoon', 'Afternoon (12 PM - 4 PM)'),
+        ('Evening', 'Evening (4 PM - 7 PM)'),
+    )
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='appointments', null=True, blank=True)
+    whatsapp_lead = models.ForeignKey(WhatsAppLead, on_delete=models.CASCADE, related_name='appointments', null=True, blank=True)
+    time_slot = models.CharField(max_length=20, choices=TIME_SLOT_CHOICES)
+    status = models.CharField(max_length=20, default='Pending') # Pending, Completed, Cancelled
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.customer or self.whatsapp_lead} - {self.time_slot} ({self.status})"
+
 # --- 4. PREFERENCES ---
 class CustomerPreference(models.Model):
     customer = models.OneToOneField(Customer, on_delete=models.CASCADE)

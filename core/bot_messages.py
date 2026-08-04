@@ -4,9 +4,10 @@ BOT_RESPONSES = {
         "👋 Welcome to Apni Factory! How can we help you today?\n"
         "1️⃣ Sell My Products\n"
         "2️⃣ Buy Products\n"
-        "3️⃣ Contact Our Team\n"
-        "4️⃣ About Apni Factory\n\n"
-        "👉 *Reply with 1, 2, 3, or 4*"
+        "3️⃣ Schedule Appointment\n"
+        "4️⃣ Contact Our Team\n"
+        "5️⃣ About Apni Factory\n\n"
+        "👉 *Reply with 1, 2, 3, 4, or 5*"
     ),
     
     # --- SELL MY PRODUCTS ---
@@ -78,8 +79,8 @@ BOT_RESPONSES = {
         "4️⃣ Marketing\n"
         "5️⃣ Technical Support\n"
         "6️⃣ Relationship Manager\n"
-        "7️⃣ Request Callback\n"
-        "8️⃣ Main Menu\n\n"
+        "7️⃣ Schedule Appointment\n"
+        "8️⃣ Request Callback\n\n"
         "👉 *Reply with a number*\n\n"
         "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
@@ -92,7 +93,8 @@ BOT_RESPONSES = {
         "3️⃣ Track Order\n"
         "4️⃣ Returns\n"
         "5️⃣ Login Help\n"
-        "6️⃣ Contact Support\n\n"
+        "6️⃣ Schedule Appointment\n"
+        "7️⃣ Contact Support\n\n"
         "👉 *Reply with a number*\n\n"
         "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
     ),
@@ -124,4 +126,19 @@ BOT_RESPONSES = {
     "invalid_input": "I didn't understand that. 😕 Please reply with a valid option from the menu.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
     "gst_verified": "✅ *GST Verification Successful!*\n\n**Company:** {company_name}",
     "gst_failed": "❌ Invalid GST Number. Please check and try again, or type *NO* if you don't have one.\n\n0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*",
+    
+    # --- SCHEDULE APPOINTMENT ---
+    "schedule_appointment_time": (
+        "Please let us know your preferred time for the appointment:\n\n"
+        "1️⃣ Morning (10 AM - 12 PM)\n"
+        "2️⃣ Afternoon (12 PM - 4 PM)\n"
+        "3️⃣ Evening (4 PM - 7 PM)\n\n"
+        "👉 *Reply with the number*\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
+    ),
+    "schedule_appointment_success": (
+        "✅ Appointment Scheduled successfully!\n\n"
+        "Our team will call you at your preferred time. We look forward to speaking with you.\n\n"
+        "0️⃣ *Starting Menu*  |  9️⃣ *Previous Menu*"
+    ),
 }

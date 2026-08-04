@@ -1,0 +1,69 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="mb-9">
+    <div class="row g-3 mb-4">
+        <div class="col-auto">
+            <h2 class="mb-0">Scheduled Appointments</h2>
+            <p class="text-body-tertiary mb-0">View all appointments scheduled via WhatsApp.</p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm fs-9 mb-0">
+                    <thead>
+                        <tr>
+                            <th class="ps-3 py-2">Date</th>
+                            <th class="py-2">Customer/Lead</th>
+                            <th class="py-2">Phone Number</th>
+                            <th class="py-2">Preferred Time</th>
+                            <th class="py-2">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appt in appointments %}
+                        <tr>
+                            <td class="ps-3 py-2">{{ appt.created_at|date:"M d, Y H:i" }}</td>
+                            <td class="py-2">
+                                {% if appt.customer %}
+                                    <a href="{% url 'customer_detail' appt.customer.id %}">{{ appt.customer.first_name }} {{ appt.customer.last_name }}</a>
+                                {% else %}
+                                    <span class="text-muted">Unregistered Lead</span>
+                                {% endif %}
+                            </td>
+                            <td class="py-2">
+                                {% if appt.whatsapp_lead %}
+                                    {{ appt.whatsapp_lead.phone_number }}
+                                {% elif appt.customer %}
+                                    {{ appt.customer.mobile }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td class="py-2">
+                                <span class="badge badge-phoenix badge-phoenix-info">{{ appt.time_slot }}</span>
+                            </td>
+                            <td class="py-2">
+                                {% if appt.status == 'Pending' %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning">{{ appt.status }}</span>
+                                {% elif appt.status == 'Completed' %}
+                                    <span class="badge badge-phoenix badge-phoenix-success">{{ appt.status }}</span>
+                                {% else %}
+                                    <span class="badge badge-phoenix badge-phoenix-secondary">{{ appt.status }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4">No appointments scheduled yet.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

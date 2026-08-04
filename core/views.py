@@ -16,7 +16,7 @@ from django.utils import timezone
 from authentication.models import User, Notification
 from authentication.tokens import account_activation_token
 from .forms import UserInviteForm, BannerForm, SliderForm
-from .models import Customer, WhatsAppLead, LoginApprovalRequest, ApprovedIPAddress
+from .models import Customer, WhatsAppLead, LoginApprovalRequest, ApprovedIPAddress, ScheduledAppointment
 
 # Import Hostinger Data Models
 from hostinger_data.models import (
@@ -243,6 +243,7 @@ def admin_dashboard(request):
         'total_advertisements': total_advertisements,
         'ad_invoices_count': ad_invoices_count,
         'total_leads': total_leads,
+        'scheduled_appointments_count': ScheduledAppointment.objects.count(),
     }
 
     # Optimize recent invoices query
@@ -2237,7 +2238,7 @@ def process_conversation(phone, profile_name, message, media_id=None):
         lead.save()
 
     clean_msg = message.strip().upper()
-    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU', 'HELP', '0', '00', '#', 'MAIN MENU', 'HOME', 'STARTING MENU']
+    is_keyword = clean_msg in ['HI', 'HELLO', 'START', 'RESET', 'MENU', 'HELP', '0', '00', '#', 'MAIN MENU', 'HOME', 'STARTING MENU', 'YES']
     is_back = clean_msg in ['9', '99', 'BACK', 'PREVIOUS', 'PREV', 'PREVIOUS MENU']
 
     if (is_keyword or is_back) and lead.needs_human:
@@ -2293,9 +2294,9 @@ def process_conversation(phone, profile_name, message, media_id=None):
     # 2. EXISTING USERS IN MENUS
     # -----------------------------
     if lead.conversation_stage == 'SELLER_MENU':
-        if clean_msg == '8':
-            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
-            lead.conversation_stage = 'MAIN_MENU'
+        if clean_msg == '7':
+            lead.conversation_stage = 'SCHEDULE_TIME'
+            send_reply_text(lead, BOT_RESPONSES['schedule_appointment_time'])
         else:
             lead.needs_human = True
             send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
@@ -2303,9 +2304,9 @@ def process_conversation(phone, profile_name, message, media_id=None):
         return
 
     if lead.conversation_stage == 'BUYER_MENU':
-        if clean_msg == '8':
-            send_reply_text(lead, BOT_RESPONSES['onboard_menu'])
-            lead.conversation_stage = 'MAIN_MENU'
+        if clean_msg == '6':
+            lead.conversation_stage = 'SCHEDULE_TIME'
+            send_reply_text(lead, BOT_RESPONSES['schedule_appointment_time'])
         else:
             lead.needs_human = True
             send_reply_text(lead, BOT_RESPONSES['support_ticket_created'])
@@ -2324,10 +2325,28 @@ def process_conversation(phone, profile_name, message, media_id=None):
             lead.conversation_stage = 'BUY_NAME'
             send_reply_text(lead, BOT_RESPONSES['buyer_collect_name'])
         elif clean_msg == '3':
+            lead.conversation_stage = 'SCHEDULE_TIME'
+            send_reply_text(lead, BOT_RESPONSES['schedule_appointment_time'])
+        elif clean_msg == '4':
             lead.needs_human = True
             send_reply_text(lead, BOT_RESPONSES['contact_team'])
-        elif clean_msg == '4':
+        elif clean_msg == '5':
             send_reply_text(lead, BOT_RESPONSES['about_apni_factory'])
+        else:
+            send_reply_text(lead, BOT_RESPONSES['invalid_input'])
+        lead.save()
+        return
+
+    if lead.conversation_stage == 'SCHEDULE_TIME':
+        if clean_msg in ['1', '2', '3']:
+            time_map = {'1': 'Morning', '2': 'Afternoon', '3': 'Evening'}
+            ScheduledAppointment.objects.create(
+                customer=lead.customer,
+                whatsapp_lead=lead,
+                time_slot=time_map[clean_msg]
+            )
+            lead.needs_human = True
+            send_reply_text(lead, BOT_RESPONSES['schedule_appointment_success'])
         else:
             send_reply_text(lead, BOT_RESPONSES['invalid_input'])
         lead.save()
@@ -3216,3 +3235,9 @@ def send_whatsapp_message_ajax(request, customer_id):
         else:
             return JsonResponse({'status': 'error', 'message': 'Failed to send message via Meta API.'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+@login_required
+@user_passes_test(is_admin)
+def scheduled_appointments_list(request):
+    appointments = ScheduledAppointment.objects.all().order_by('-created_at')
+    return render(request, 'core/scheduled_appointments_list.html', {'appointments': appointments})
