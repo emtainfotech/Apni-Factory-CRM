@@ -1,0 +1,317 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{{ candidate.candidate_name }} – Onboarding | APNI FACTORY{% endblock %}
+
+{% block content %}
+<div class="mb-9">
+
+  <!-- Header -->
+  <div class="row g-3 mb-4 align-items-center">
+    <div class="col-auto">
+      <a href="{% url 'onboarding_list' %}" class="btn btn-sm btn-phoenix-secondary rounded-pill">
+        <span class="fas fa-arrow-left me-1"></span>All Candidates
+      </a>
+    </div>
+    <div class="col-auto">
+      <h2 class="mb-0">{{ candidate.candidate_name }}</h2>
+      <div class="d-flex gap-2 mt-1 align-items-center">
+        {% if candidate.status == 'pending' %}
+          <span class="badge bg-warning text-dark"><span class="fas fa-clock me-1"></span>Pending</span>
+        {% elif candidate.status == 'submitted' %}
+          <span class="badge bg-success"><span class="fas fa-check-circle me-1"></span>Documentation Submitted</span>
+        {% elif candidate.status == 'user_created' %}
+          <span class="badge bg-primary"><span class="fas fa-user-check me-1"></span>User Account Created</span>
+        {% endif %}
+        {% if candidate.experience_type == 'fresher' %}
+          <span class="badge bg-info bg-opacity-15 text-info">Fresher</span>
+        {% else %}
+          <span class="badge bg-secondary bg-opacity-15 text-secondary">Experienced{% if candidate.total_experience %} – {{ candidate.total_experience }}{% endif %}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-auto ms-auto d-flex gap-2">
+      {% if candidate.status != 'user_created' %}
+      <a href="{% url 'onboarding_send_link' candidate.pk %}" class="btn btn-sm btn-phoenix-warning rounded-pill"
+        onclick="return confirm('Resend the onboarding link to {{ candidate.email }}?')">
+        <span class="fas fa-paper-plane me-1"></span>Resend Link
+      </a>
+      {% endif %}
+      {% if candidate.status == 'submitted' %}
+      <a href="#create-user" class="btn btn-sm btn-success rounded-pill">
+        <span class="fas fa-user-plus me-1"></span>Create User Account
+      </a>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Left: Candidate Info + Submission -->
+    <div class="col-lg-8">
+
+      <!-- Admin-entered candidate details -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-body-tertiary py-3 border-bottom border-translucent">
+          <h5 class="mb-0"><span class="fas fa-id-card me-2"></span>Invite Details (Admin)</h5>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 fs-9">
+            <div class="col-sm-6"><span class="text-body-tertiary">Email:</span> <span class="fw-semibold">{{ candidate.email }}</span></div>
+            <div class="col-sm-6"><span class="text-body-tertiary">Mobile:</span> <span class="fw-semibold">{{ candidate.mobile }}</span></div>
+            {% if candidate.position_applied %}<div class="col-sm-6"><span class="text-body-tertiary">Position:</span> <span class="fw-semibold">{{ candidate.position_applied }}</span></div>{% endif %}
+            {% if candidate.department %}<div class="col-sm-6"><span class="text-body-tertiary">Department:</span> <span class="fw-semibold">{{ candidate.department }}</span></div>{% endif %}
+            {% if candidate.reporting_manager %}<div class="col-sm-6"><span class="text-body-tertiary">Reporting Manager:</span> <span class="fw-semibold">{{ candidate.reporting_manager.get_full_name|default:candidate.reporting_manager.username }}</span></div>{% endif %}
+            {% if candidate.reference_name %}<div class="col-sm-6"><span class="text-body-tertiary">Reference:</span> <span class="fw-semibold">{{ candidate.reference_name }}</span></div>{% endif %}
+            <div class="col-sm-6"><span class="text-body-tertiary">Created By:</span> <span class="fw-semibold">{{ candidate.created_by.username|default:"—" }}</span></div>
+            <div class="col-sm-6"><span class="text-body-tertiary">Link Sent:</span> <span class="fw-semibold">{{ candidate.link_sent_at|date:"d M Y, H:i"|default:"Not yet sent" }}</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Submitted Documentation -->
+      {% if submission %}
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-success bg-opacity-10 py-3 border-bottom border-translucent d-flex justify-content-between align-items-center">
+          <h5 class="mb-0 text-success"><span class="fas fa-file-alt me-2"></span>Submitted Documentation</h5>
+          <span class="fs-10 text-body-tertiary">Submitted on {{ submission.submitted_at|date:"d M Y, H:i" }}</span>
+        </div>
+        <div class="card-body">
+
+          <!-- Personal Info -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-user me-2"></span>Personal Information</h6>
+          <div class="row g-2 fs-9 mb-4">
+            <div class="col-sm-4"><span class="text-body-tertiary">Full Name:</span><div class="fw-semibold">{{ submission.full_name|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Date of Birth:</span><div class="fw-semibold">{{ submission.dob|date:"d M Y"|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Gender:</span><div class="fw-semibold">{{ submission.gender|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Marital Status:</span><div class="fw-semibold">{{ submission.marital_status|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Blood Group:</span><div class="fw-semibold">{{ submission.blood_group|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Personal Email:</span><div class="fw-semibold">{{ submission.personal_email|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Personal Mobile:</span><div class="fw-semibold">{{ submission.personal_mobile|default:"—" }}</div></div>
+          </div>
+
+          <!-- Address -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-map-marker-alt me-2"></span>Address</h6>
+          <div class="row g-2 fs-9 mb-4">
+            <div class="col-sm-6">
+              <span class="text-body-tertiary">Permanent Address:</span>
+              <div class="fw-semibold">{{ submission.permanent_address|default:"—" }}{% if submission.permanent_city %}, {{ submission.permanent_city }}{% endif %}{% if submission.permanent_state %}, {{ submission.permanent_state }}{% endif %}{% if submission.permanent_pincode %} – {{ submission.permanent_pincode }}{% endif %}</div>
+            </div>
+            <div class="col-sm-6">
+              <span class="text-body-tertiary">Current Address:</span>
+              <div class="fw-semibold">{{ submission.current_address|default:"—" }}{% if submission.current_city %}, {{ submission.current_city }}{% endif %}{% if submission.current_state %}, {{ submission.current_state }}{% endif %}{% if submission.current_pincode %} – {{ submission.current_pincode }}{% endif %}</div>
+            </div>
+          </div>
+
+          <!-- Emergency Contact -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-phone-alt me-2"></span>Emergency Contact</h6>
+          <div class="row g-2 fs-9 mb-4">
+            <div class="col-sm-4"><span class="text-body-tertiary">Name:</span><div class="fw-semibold">{{ submission.emergency_contact_name|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Phone:</span><div class="fw-semibold">{{ submission.emergency_contact_phone|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Relation:</span><div class="fw-semibold">{{ submission.emergency_contact_relation|default:"—" }}</div></div>
+          </div>
+
+          <!-- Education -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-graduation-cap me-2"></span>Education</h6>
+          <div class="row g-2 fs-9 mb-4">
+            <div class="col-sm-4"><span class="text-body-tertiary">Qualification:</span><div class="fw-semibold">{{ submission.qualification|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Institution:</span><div class="fw-semibold">{{ submission.institution|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Passing Year:</span><div class="fw-semibold">{{ submission.passing_year|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Specialization:</span><div class="fw-semibold">{{ submission.specialization|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">% / CGPA:</span><div class="fw-semibold">{{ submission.percentage_cgpa|default:"—" }}</div></div>
+          </div>
+
+          {% if submission.previous_company %}
+          <!-- Work Experience -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-briefcase me-2"></span>Work Experience</h6>
+          <div class="row g-2 fs-9 mb-4">
+            <div class="col-sm-4"><span class="text-body-tertiary">Previous Company:</span><div class="fw-semibold">{{ submission.previous_company|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Designation:</span><div class="fw-semibold">{{ submission.previous_designation|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Last Salary:</span><div class="fw-semibold">{{ submission.previous_salary|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Duration:</span><div class="fw-semibold">{{ submission.previous_experience_duration|default:"—" }}</div></div>
+            <div class="col-sm-8"><span class="text-body-tertiary">Reason for Leaving:</span><div class="fw-semibold">{{ submission.reason_for_leaving|default:"—" }}</div></div>
+          </div>
+          {% endif %}
+
+          <!-- Documents -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-folder-open me-2"></span>Documents Uploaded</h6>
+          <div class="row g-2 fs-9 mb-4">
+            <div class="col-sm-4"><span class="text-body-tertiary">Aadhaar No:</span><div class="fw-semibold">{{ submission.aadhar_number|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">PAN No:</span><div class="fw-semibold">{{ submission.pan_number|default:"—" }}</div></div>
+            {% if submission.aadhar_file %}<div class="col-sm-4"><a href="{{ submission.aadhar_file.url }}" target="_blank" class="btn btn-sm btn-phoenix-secondary rounded-pill"><span class="fas fa-download me-1"></span>Aadhaar File</a></div>{% endif %}
+            {% if submission.pan_file %}<div class="col-sm-4"><a href="{{ submission.pan_file.url }}" target="_blank" class="btn btn-sm btn-phoenix-secondary rounded-pill"><span class="fas fa-download me-1"></span>PAN File</a></div>{% endif %}
+            {% if submission.resume %}<div class="col-sm-4"><a href="{{ submission.resume.url }}" target="_blank" class="btn btn-sm btn-phoenix-secondary rounded-pill"><span class="fas fa-download me-1"></span>Resume</a></div>{% endif %}
+            {% if submission.passport_photo %}<div class="col-sm-4"><a href="{{ submission.passport_photo.url }}" target="_blank" class="btn btn-sm btn-phoenix-secondary rounded-pill"><span class="fas fa-download me-1"></span>Passport Photo</a></div>{% endif %}
+            {% if submission.educational_certificate %}<div class="col-sm-4"><a href="{{ submission.educational_certificate.url }}" target="_blank" class="btn btn-sm btn-phoenix-secondary rounded-pill"><span class="fas fa-download me-1"></span>Education Cert</a></div>{% endif %}
+            {% if submission.experience_letter %}<div class="col-sm-4"><a href="{{ submission.experience_letter.url }}" target="_blank" class="btn btn-sm btn-phoenix-secondary rounded-pill"><span class="fas fa-download me-1"></span>Experience Letter</a></div>{% endif %}
+          </div>
+
+          <!-- Bank Details -->
+          <h6 class="fw-bold text-body-secondary mb-3 pb-1 border-bottom"><span class="fas fa-university me-2"></span>Bank Details</h6>
+          <div class="row g-2 fs-9 mb-2">
+            <div class="col-sm-4"><span class="text-body-tertiary">Bank Name:</span><div class="fw-semibold">{{ submission.bank_name|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Account Holder:</span><div class="fw-semibold">{{ submission.account_holder_name|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Account No:</span><div class="fw-semibold">{{ submission.account_number|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">IFSC Code:</span><div class="fw-semibold">{{ submission.ifsc_code|default:"—" }}</div></div>
+            <div class="col-sm-4"><span class="text-body-tertiary">Account Type:</span><div class="fw-semibold">{{ submission.account_type|default:"—" }}</div></div>
+          </div>
+
+          <!-- Declaration -->
+          {% if submission.declaration_accepted %}
+          <div class="alert alert-success mt-3 mb-0 py-2 fs-9">
+            <span class="fas fa-check-circle me-1"></span>
+            Declaration accepted on {{ submission.declaration_accepted_at|date:"d M Y, H:i"|default:"—" }}
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      {% else %}
+      <!-- Not yet submitted -->
+      <div class="card shadow-sm border-0 border-warning mb-4">
+        <div class="card-body text-center py-5">
+          <span class="fas fa-hourglass-half fa-2x text-warning mb-3 d-block"></span>
+          <h5 class="fw-semibold">Documentation Not Yet Submitted</h5>
+          <p class="text-body-tertiary mb-3">The candidate has not filled in their onboarding form yet.</p>
+          <a href="{% url 'onboarding_send_link' candidate.pk %}" class="btn btn-warning rounded-pill px-4"
+            onclick="return confirm('Resend link to {{ candidate.email }}?')">
+            <span class="fas fa-paper-plane me-2"></span>Resend Onboarding Link
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Create User Account Section -->
+      {% if candidate.status == 'submitted' %}
+      <div class="card shadow-sm border-0 border-primary" id="create-user">
+        <div class="card-header bg-primary bg-opacity-10 py-3 border-bottom border-translucent">
+          <h5 class="mb-0 text-primary"><span class="fas fa-user-plus me-2"></span>Create CRM User Account</h5>
+        </div>
+        <div class="card-body">
+          <p class="text-body-tertiary fs-9 mb-3">Create a login account for this employee. Their submitted documentation will be automatically copied to their profile.</p>
+          <form method="POST" action="{% url 'onboarding_create_user' candidate.pk %}">
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Username <span class="text-danger">*</span></label>
+                <input type="text" name="username" class="form-control" placeholder="e.g. rahul.sharma" required
+                  value="{{ submission.full_name|lower|cut:' '|default:'' }}">
+                <div class="form-text">Used for login. No spaces.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Password <span class="text-danger">*</span></label>
+                <input type="password" name="password" class="form-control" placeholder="Set a strong password" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                <select name="role" class="form-select" required>
+                  <option value="employee" selected>Employee</option>
+                  <option value="agent">Agent</option>
+                  <option value="manager">Manager</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Phone Number</label>
+                <input type="text" name="phone_number" class="form-control" value="{{ candidate.mobile }}">
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-top border-translucent">
+              <button type="submit" class="btn btn-primary rounded-pill px-4"
+                onclick="return confirm('Create user account for {{ candidate.candidate_name }}? This action cannot be undone.')">
+                <span class="fas fa-user-check me-2"></span>Create User Account & Assign Role
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% elif candidate.status == 'user_created' %}
+      <div class="alert alert-primary d-flex gap-3 align-items-center">
+        <span class="fas fa-user-check fa-lg"></span>
+        <div>
+          <strong>User Account Created!</strong>
+          CRM account <strong>@{{ candidate.created_user.username }}</strong> has been created with role <strong>{{ candidate.created_user.role }}</strong>.
+          <a href="{% url 'user_detail' candidate.created_user.pk %}" class="btn btn-sm btn-primary rounded-pill ms-2">View Profile</a>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Right Sidebar -->
+    <div class="col-lg-4">
+      <!-- Link Copy -->
+      <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body">
+          <h6 class="fw-semibold mb-2"><span class="fas fa-link me-2 text-primary"></span>Onboarding Link</h6>
+          <div class="input-group input-group-sm">
+            <input type="text" id="onboardingLink" class="form-control fs-10" value="{{ public_link }}" readonly>
+            <button class="btn btn-phoenix-secondary" onclick="copyLink()"><span class="fas fa-copy"></span></button>
+          </div>
+          <div class="form-text mt-1">Share this link directly with the candidate.</div>
+        </div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-body-tertiary py-3">
+          <h6 class="mb-0 fw-semibold"><span class="fas fa-history me-2"></span>Timeline</h6>
+        </div>
+        <div class="card-body">
+          <div class="d-flex gap-3 mb-3">
+            <div class="d-flex flex-column align-items-center">
+              <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center text-white" style="width:32px;height:32px;min-width:32px;"><span class="fas fa-plus fs-10"></span></div>
+              <div class="flex-grow-1 border-start border-2 ms-n1" style="width:2px;min-height:30px;"></div>
+            </div>
+            <div>
+              <div class="fw-semibold fs-9">Invite Created</div>
+              <div class="text-body-tertiary fs-10">{{ candidate.created_at|date:"d M Y, H:i" }}</div>
+            </div>
+          </div>
+          <div class="d-flex gap-3 mb-3">
+            <div class="d-flex flex-column align-items-center">
+              <div class="rounded-circle {% if candidate.link_sent_at %}bg-success{% else %}bg-secondary bg-opacity-25{% endif %} d-flex align-items-center justify-content-center text-white" style="width:32px;height:32px;min-width:32px;"><span class="fas fa-envelope fs-10"></span></div>
+              <div class="flex-grow-1 border-start border-2 ms-n1" style="width:2px;min-height:30px;"></div>
+            </div>
+            <div>
+              <div class="fw-semibold fs-9">Email Sent</div>
+              <div class="text-body-tertiary fs-10">{{ candidate.link_sent_at|date:"d M Y, H:i"|default:"Pending..." }}</div>
+            </div>
+          </div>
+          <div class="d-flex gap-3 mb-3">
+            <div class="d-flex flex-column align-items-center">
+              <div class="rounded-circle {% if submission %}bg-success{% else %}bg-secondary bg-opacity-25{% endif %} d-flex align-items-center justify-content-center text-white" style="width:32px;height:32px;min-width:32px;"><span class="fas fa-file-alt fs-10"></span></div>
+              <div class="flex-grow-1 border-start border-2 ms-n1" style="width:2px;min-height:30px;"></div>
+            </div>
+            <div>
+              <div class="fw-semibold fs-9">Form Submitted</div>
+              <div class="text-body-tertiary fs-10">{{ submission.submitted_at|date:"d M Y, H:i"|default:"Not yet..." }}</div>
+            </div>
+          </div>
+          <div class="d-flex gap-3">
+            <div class="d-flex flex-column align-items-center">
+              <div class="rounded-circle {% if candidate.status == 'user_created' %}bg-primary{% else %}bg-secondary bg-opacity-25{% endif %} d-flex align-items-center justify-content-center text-white" style="width:32px;height:32px;min-width:32px;"><span class="fas fa-user-check fs-10"></span></div>
+            </div>
+            <div>
+              <div class="fw-semibold fs-9">User Account Created</div>
+              <div class="text-body-tertiary fs-10">{% if candidate.created_user %}@{{ candidate.created_user.username }}{% else %}Pending...{% endif %}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function copyLink() {
+  var input = document.getElementById('onboardingLink');
+  input.select();
+  document.execCommand('copy');
+  var btn = input.nextElementSibling;
+  btn.innerHTML = '<span class="fas fa-check text-success"></span>';
+  setTimeout(() => { btn.innerHTML = '<span class="fas fa-copy"></span>'; }, 2000);
+}
+</script>
+{% endblock %}

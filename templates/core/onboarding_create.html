@@ -1,0 +1,140 @@
+{% extends 'core/base.html' %}
+
+{% block title %}New Candidate Invite | APNI FACTORY{% endblock %}
+
+{% block content %}
+<div class="mb-9">
+  <div class="row g-3 mb-4 align-items-center">
+    <div class="col-auto">
+      <a href="{% url 'onboarding_list' %}" class="btn btn-sm btn-phoenix-secondary rounded-pill me-2">
+        <span class="fas fa-arrow-left me-1"></span>Back
+      </a>
+    </div>
+    <div class="col-auto">
+      <h2 class="mb-0"><span class="fas fa-user-plus me-2 text-primary"></span>New Candidate Invite</h2>
+      <p class="text-body-tertiary mb-0">Create an onboarding invite and send the documentation link to the candidate.</p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card shadow-sm border-0">
+        <div class="card-header bg-body-tertiary py-3 border-bottom border-translucent">
+          <h5 class="mb-0"><span class="fas fa-id-card me-2"></span>Candidate Information</h5>
+        </div>
+        <div class="card-body">
+          <form method="POST" autocomplete="off">
+            {% csrf_token %}
+
+            <!-- Basic Info -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Candidate Full Name <span class="text-danger">*</span></label>
+                <input type="text" name="candidate_name" class="form-control" placeholder="e.g. Rahul Sharma" value="{{ post.candidate_name|default:'' }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Mobile Number <span class="text-danger">*</span></label>
+                <input type="text" name="mobile" class="form-control" placeholder="+91 9876543210" value="{{ post.mobile|default:'' }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Email Address <span class="text-danger">*</span></label>
+                <input type="email" name="email" class="form-control" placeholder="candidate@email.com" value="{{ post.email|default:'' }}" required>
+                <div class="form-text">The onboarding link will be sent to this email.</div>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Position Applied For</label>
+                <input type="text" name="position_applied" class="form-control" placeholder="e.g. Sales Executive" value="{{ post.position_applied|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Department</label>
+                <input type="text" name="department" class="form-control" placeholder="e.g. Sales, Operations" value="{{ post.department|default:'' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Reporting Manager</label>
+                <select name="reporting_manager" class="form-select">
+                  <option value="">— Select Manager —</option>
+                  {% for mgr in managers %}
+                  <option value="{{ mgr.pk }}" {% if post.reporting_manager == mgr.pk|stringformat:'s' %}selected{% endif %}>
+                    {{ mgr.get_full_name|default:mgr.username }} ({{ mgr.role }})
+                  </option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <!-- Experience -->
+            <div class="border rounded-3 p-3 mb-4 bg-body-secondary">
+              <h6 class="fw-semibold mb-3"><span class="fas fa-briefcase me-2"></span>Experience Details</h6>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold">Experience Type <span class="text-danger">*</span></label>
+                  <div class="d-flex gap-3 mt-1">
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="experience_type" id="expFresher" value="fresher"
+                        {% if post.experience_type != 'experienced' %}checked{% endif %} onchange="toggleExperience(this)">
+                      <label class="form-check-label" for="expFresher"><span class="fas fa-graduation-cap me-1"></span>Fresher</label>
+                    </div>
+                    <div class="form-check">
+                      <input class="form-check-input" type="radio" name="experience_type" id="expExperienced" value="experienced"
+                        {% if post.experience_type == 'experienced' %}checked{% endif %} onchange="toggleExperience(this)">
+                      <label class="form-check-label" for="expExperienced"><span class="fas fa-briefcase me-1"></span>Experienced</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-6" id="totalExpField" {% if post.experience_type != 'experienced' %}style="display:none;"{% endif %}>
+                  <label class="form-label fw-semibold">Total Experience</label>
+                  <input type="text" name="total_experience" class="form-control" placeholder="e.g. 2 years 3 months" value="{{ post.total_experience|default:'' }}">
+                </div>
+              </div>
+            </div>
+
+            <!-- Reference -->
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold">Reference Name</label>
+                <input type="text" name="reference_name" class="form-control" placeholder="Who referred this candidate?" value="{{ post.reference_name|default:'' }}">
+              </div>
+            </div>
+
+            <!-- CTA -->
+            <div class="d-flex gap-2 pt-3 border-top border-translucent">
+              <button type="submit" class="btn btn-primary rounded-pill px-4">
+                <span class="fas fa-paper-plane me-2"></span>Create Invite & Send Email Link
+              </button>
+              <a href="{% url 'onboarding_list' %}" class="btn btn-phoenix-secondary rounded-pill px-4">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="col-lg-4">
+      <div class="card border-0 shadow-sm bg-primary bg-opacity-10">
+        <div class="card-body">
+          <h6 class="fw-bold text-primary mb-3"><span class="fas fa-info-circle me-2"></span>How It Works</h6>
+          <ol class="ps-3 mb-0 fs-9 text-body-secondary">
+            <li class="mb-2">Fill in the candidate's basic information.</li>
+            <li class="mb-2">Click <strong>Create Invite & Send Email</strong>.</li>
+            <li class="mb-2">The candidate receives a unique email with their personal documentation link.</li>
+            <li class="mb-2">They fill out the multi-step onboarding form (no login required).</li>
+            <li class="mb-2">Once submitted, you can review the documentation here.</li>
+            <li>Finally, create their CRM user account and assign a role.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleExperience(radio) {
+    const field = document.getElementById('totalExpField');
+    if (radio.value === 'experienced') {
+      field.style.display = 'block';
+    } else {
+      field.style.display = 'none';
+    }
+  }
+</script>
+{% endblock %}

@@ -227,6 +227,18 @@
                                         </li>
                                         {% endif %}
 
+                                        {% if request.user.role == 'admin' or request.user.is_superuser %}
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'onboarding' in request.path %}active{% endif %}"
+                                                href="{% url 'onboarding_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="user-plus"></span></span>
+                                                    <span class="nav-link-text">Employee Onboarding</span>
+                                                </div>
+                                            </a>
+                                        </li>
+                                        {% endif %}
+
                                         <li class="nav-item">
                                             <a class="nav-link {% if url_name == 'whatsapp_inbox' %}active{% endif %}"
                                                 href="{% url 'whatsapp_inbox' %}">
@@ -244,7 +256,7 @@
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'hostinger/users' in request.path %}active{% endif %}"
+                                            <a class="nav-link {% if 'app-db/sellers' in request.path %}active{% endif %}"
                                                 href="{% url 'app_user_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span
@@ -255,7 +267,7 @@
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'hostinger/customers' in request.path %}active{% endif %}"
+                                            <a class="nav-link {% if 'app-db/buyers' in request.path %}active{% endif %}"
                                                 href="{% url 'app_customer_list' %}">
                                                 <div class="d-flex align-items-center">
                                                     <span class="nav-link-icon"><span

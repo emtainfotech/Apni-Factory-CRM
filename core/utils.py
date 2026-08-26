@@ -27,7 +27,8 @@ def send_text_message(to_number, text):
         "messaging_product": "whatsapp",
         "to": to_number,
         "type": "text",
-        "text": {"body": text}
+        "text": {"body": text},
+        "category": "utility"
     }
     try:
         headers = {

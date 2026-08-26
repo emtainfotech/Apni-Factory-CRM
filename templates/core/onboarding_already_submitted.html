@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Already Submitted – APNI FACTORY</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem; }
+    .card { background: #fff; border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,0.4); max-width: 480px; width: 100%; padding: 3rem 2.5rem; text-align: center; }
+    .icon-wrap { width: 80px; height: 80px; background: linear-gradient(135deg, #f6c23e, #f4a700); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; box-shadow: 0 12px 35px rgba(246,194,62,0.35); }
+    .icon-wrap i { font-size: 2rem; color: #fff; }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #1a1a2e; margin-bottom: 0.5rem; }
+    p { color: #666; font-size: 0.88rem; line-height: 1.6; }
+    .footer { margin-top: 2rem; font-size: 0.75rem; color: #aaa; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-wrap"><i class="fas fa-info-circle"></i></div>
+    <h1>Already Submitted</h1>
+    <p>Your onboarding documentation for <strong>{{ candidate.candidate_name }}</strong> has already been submitted successfully.</p>
+    <p style="margin-top:1rem;">Our HR team is reviewing your documents. You will be contacted with your login credentials soon.</p>
+    <p style="margin-top:1rem;">If you believe this is an error, please contact <strong>hr@apnifactory.com</strong>.</p>
+    <div class="footer">© 2026 APNI FACTORY – H Bose E Commerce Pvt Ltd</div>
+  </div>
+</body>
+</html>

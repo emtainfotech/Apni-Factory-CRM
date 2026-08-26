@@ -1,0 +1,194 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Employee Onboarding | APNI FACTORY{% endblock %}
+
+{% block content %}
+<div class="mb-9">
+
+  <!-- Page Header -->
+  <div class="row g-3 mb-4 align-items-center">
+    <div class="col-auto">
+      <h2 class="mb-0"><span class="fas fa-user-graduate me-2 text-primary"></span>Employee Onboarding</h2>
+      <p class="text-body-tertiary mb-0">Manage candidate documentation and onboarding invitations.</p>
+    </div>
+    <div class="col-auto ms-auto">
+      <a href="{% url 'onboarding_create' %}" class="btn btn-primary rounded-pill px-4">
+        <span class="fas fa-plus me-2"></span>New Candidate Invite
+      </a>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-4">
+    <div class="col-sm-4">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #f6c23e !important;">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="rounded-circle d-flex align-items-center justify-content-center bg-warning bg-opacity-10" style="width:52px;height:52px;">
+            <span class="fas fa-clock fa-lg text-warning"></span>
+          </div>
+          <div>
+            <div class="fs-3 fw-bold">{{ pending_count }}</div>
+            <div class="text-body-tertiary fs-10 text-uppercase fw-semibold">Pending</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #1cc88a !important;">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="rounded-circle d-flex align-items-center justify-content-center bg-success bg-opacity-10" style="width:52px;height:52px;">
+            <span class="fas fa-file-check fa-lg text-success"></span>
+          </div>
+          <div>
+            <div class="fs-3 fw-bold">{{ submitted_count }}</div>
+            <div class="text-body-tertiary fs-10 text-uppercase fw-semibold">Submitted</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-4">
+      <div class="card border-0 shadow-sm h-100" style="border-left: 4px solid #4e73df !important;">
+        <div class="card-body d-flex align-items-center gap-3">
+          <div class="rounded-circle d-flex align-items-center justify-content-center bg-primary bg-opacity-10" style="width:52px;height:52px;">
+            <span class="fas fa-user-check fa-lg text-primary"></span>
+          </div>
+          <div>
+            <div class="fs-3 fw-bold">{{ user_created_count }}</div>
+            <div class="text-body-tertiary fs-10 text-uppercase fw-semibold">Users Created</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-3">
+      <form method="GET" class="row g-2 align-items-center">
+        <div class="col-12 col-md-5">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-body border-end-0"><span class="fas fa-search text-body-tertiary"></span></span>
+            <input type="text" name="q" value="{{ q }}" class="form-control border-start-0 ps-0" placeholder="Search by name, email or mobile...">
+          </div>
+        </div>
+        <div class="col-auto">
+          <select name="status" class="form-select form-select-sm rounded-pill">
+            <option value="">All Statuses</option>
+            <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+            <option value="submitted" {% if status_filter == 'submitted' %}selected{% endif %}>Submitted</option>
+            <option value="user_created" {% if status_filter == 'user_created' %}selected{% endif %}>User Created</option>
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-primary rounded-pill px-3">Filter</button>
+          <a href="{% url 'onboarding_list' %}" class="btn btn-sm btn-phoenix-secondary rounded-pill px-3 ms-1">Reset</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover fs-9 mb-0">
+          <thead class="bg-body-tertiary">
+            <tr>
+              <th class="ps-4 py-3">#</th>
+              <th class="py-3">Candidate</th>
+              <th class="py-3">Contact</th>
+              <th class="py-3">Experience</th>
+              <th class="py-3">Reporting Manager</th>
+              <th class="py-3">Status</th>
+              <th class="py-3">Sent / Created</th>
+              <th class="text-end pe-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for candidate in page_obj %}
+            <tr>
+              <td class="ps-4 py-3 text-body-tertiary">{{ forloop.counter }}</td>
+              <td class="py-3">
+                <div class="fw-semibold">{{ candidate.candidate_name }}</div>
+                {% if candidate.position_applied %}<div class="text-body-tertiary fs-10">{{ candidate.position_applied }}{% if candidate.department %} · {{ candidate.department }}{% endif %}</div>{% endif %}
+                {% if candidate.reference_name %}<div class="badge bg-secondary bg-opacity-10 text-body-tertiary fs-11 mt-1">Ref: {{ candidate.reference_name }}</div>{% endif %}
+              </td>
+              <td class="py-3">
+                <div>{{ candidate.email }}</div>
+                <div class="text-body-tertiary">{{ candidate.mobile }}</div>
+              </td>
+              <td class="py-3">
+                {% if candidate.experience_type == 'fresher' %}
+                  <span class="badge bg-info bg-opacity-15 text-info">Fresher</span>
+                {% else %}
+                  <span class="badge bg-primary bg-opacity-15 text-primary">Experienced</span>
+                  {% if candidate.total_experience %}<div class="fs-11 text-body-tertiary mt-1">{{ candidate.total_experience }}</div>{% endif %}
+                {% endif %}
+              </td>
+              <td class="py-3">{{ candidate.reporting_manager.username|default:"—" }}</td>
+              <td class="py-3">
+                {% if candidate.status == 'pending' %}
+                  <span class="badge bg-warning text-dark"><span class="fas fa-clock me-1"></span>Pending</span>
+                {% elif candidate.status == 'submitted' %}
+                  <span class="badge bg-success"><span class="fas fa-check-circle me-1"></span>Submitted</span>
+                {% elif candidate.status == 'user_created' %}
+                  <span class="badge bg-primary"><span class="fas fa-user-check me-1"></span>User Created</span>
+                {% endif %}
+              </td>
+              <td class="py-3 fs-10 text-body-tertiary">
+                {% if candidate.link_sent_at %}Sent {{ candidate.link_sent_at|date:"d M Y" }}{% else %}—{% endif %}
+                {% if candidate.created_user %}<div class="text-primary">@{{ candidate.created_user.username }}</div>{% endif %}
+              </td>
+              <td class="text-end pe-4 py-3">
+                <a href="{% url 'onboarding_detail' candidate.pk %}" class="btn btn-sm btn-phoenix-secondary rounded-pill me-1" title="View Details">
+                  <span class="fas fa-eye"></span>
+                </a>
+                {% if candidate.status != 'user_created' %}
+                <a href="{% url 'onboarding_send_link' candidate.pk %}" class="btn btn-sm btn-phoenix-warning rounded-pill me-1" title="Resend Email Link" onclick="return confirm('Resend onboarding link to {{ candidate.email }}?')">
+                  <span class="fas fa-paper-plane"></span>
+                </a>
+                {% endif %}
+                {% if candidate.status == 'submitted' %}
+                <a href="{% url 'onboarding_detail' candidate.pk %}#create-user" class="btn btn-sm btn-phoenix-success rounded-pill" title="Create User Account">
+                  <span class="fas fa-user-plus"></span>
+                </a>
+                {% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="8" class="text-center py-5 text-body-tertiary">
+                <span class="fas fa-user-graduate fa-2x d-block mb-2 opacity-25"></span>
+                No onboarding records found.
+                <a href="{% url 'onboarding_create' %}" class="d-block mt-2">Create your first invite →</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      {% if page_obj.has_other_pages %}
+      <div class="p-4 border-top border-translucent d-flex justify-content-between align-items-center">
+        <p class="mb-0 fs-10 text-body-tertiary">
+          Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }}
+        </p>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

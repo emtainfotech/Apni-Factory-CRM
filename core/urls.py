@@ -87,4 +87,16 @@ urlpatterns = [
     path('api/my-customers/', api_views.my_customers),
     path('api/customer-detail/<int:customer_id>/', api_views.get_customer_detail),
     path('api/mobile/gst-check/', mobile_api_views.mobile_gst_check, name='mobile_gst_check'), ## Mobile Application API end Points
+
+    # Employee Onboarding Routes (Admin)
+    path('onboarding/', views.onboarding_list, name='onboarding_list'),
+    path('onboarding/create/', views.onboarding_create, name='onboarding_create'),
+    path('onboarding/<int:pk>/', views.onboarding_detail, name='onboarding_detail'),
+    path('onboarding/<int:pk>/send-link/', views.onboarding_send_link, name='onboarding_send_link'),
+    path('onboarding/<int:pk>/create-user/', views.onboarding_create_user, name='onboarding_create_user'),
+
+    # Public Onboarding Form (No login required — for candidates)
+    path('join/<uuid:token>/', views.onboarding_public_form, name='onboarding_public_form'),
+    path('join/<uuid:token>/submit/', views.onboarding_public_submit, name='onboarding_public_submit'),
+    path('join/success/', views.onboarding_success, name='onboarding_success'),
 ]

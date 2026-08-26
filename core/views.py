@@ -3046,7 +3046,8 @@ def whatsapp_marketing(request):
                             "image": {
                                 "link": image_url,
                                 "caption": custom_message
-                            }
+                            },
+                            "category": "utility"
                         }
                     else:
                         data = {
@@ -3057,7 +3058,8 @@ def whatsapp_marketing(request):
                             "text": {
                                 "preview_url": False,
                                 "body": custom_message
-                            }
+                            },
+                            "category": "utility"
                         }
                     
                     response = requests.post(meta_api_url, headers=headers, json=data)
@@ -3241,3 +3243,389 @@ def send_whatsapp_message_ajax(request, customer_id):
 def scheduled_appointments_list(request):
     appointments = ScheduledAppointment.objects.all().order_by('-created_at')
     return render(request, 'core/scheduled_appointments_list.html', {'appointments': appointments})
+
+
+# =====================================================================
+# EMPLOYEE ONBOARDING SYSTEM
+# =====================================================================
+
+from .models import CandidateOnboarding, OnboardingSubmission
+from django.core.mail import send_mail
+from django.conf import settings as django_settings
+
+
+@login_required
+@user_passes_test(is_admin)
+def onboarding_list(request):
+    """Admin view: list all candidate onboarding records."""
+    candidates = CandidateOnboarding.objects.select_related(
+        'reporting_manager', 'created_by', 'created_user'
+    ).all()
+
+    # Status filter
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        candidates = candidates.filter(status=status_filter)
+
+    # Search
+    q = request.GET.get('q', '')
+    if q:
+        candidates = candidates.filter(
+            Q(candidate_name__icontains=q) |
+            Q(email__icontains=q) |
+            Q(mobile__icontains=q)
+        )
+
+    paginator = Paginator(candidates, 20)
+    page_obj = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'page_obj': page_obj,
+        'status_filter': status_filter,
+        'q': q,
+        'pending_count': CandidateOnboarding.objects.filter(status='pending').count(),
+        'submitted_count': CandidateOnboarding.objects.filter(status='submitted').count(),
+        'user_created_count': CandidateOnboarding.objects.filter(status='user_created').count(),
+    }
+    return render(request, 'core/onboarding_list.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def onboarding_create(request):
+    """Admin view: create a new candidate onboarding record and send the email link."""
+    managers = User.objects.filter(
+        is_active=True, role__in=['admin', 'manager']
+    ).order_by('username')
+
+    if request.method == 'POST':
+        candidate_name = request.POST.get('candidate_name', '').strip()
+        mobile = request.POST.get('mobile', '').strip()
+        email = request.POST.get('email', '').strip()
+        experience_type = request.POST.get('experience_type', 'fresher')
+        total_experience = request.POST.get('total_experience', '').strip()
+        reference_name = request.POST.get('reference_name', '').strip()
+        reporting_manager_id = request.POST.get('reporting_manager')
+        position_applied = request.POST.get('position_applied', '').strip()
+        department = request.POST.get('department', '').strip()
+
+        if not candidate_name or not mobile or not email:
+            messages.error(request, 'Candidate Name, Mobile, and Email are required.')
+            return render(request, 'core/onboarding_create.html', {
+                'managers': managers, 'post': request.POST
+            })
+
+        reporting_manager = None
+        if reporting_manager_id:
+            try:
+                reporting_manager = User.objects.get(pk=reporting_manager_id)
+            except User.DoesNotExist:
+                pass
+
+        candidate = CandidateOnboarding.objects.create(
+            candidate_name=candidate_name,
+            mobile=mobile,
+            email=email,
+            experience_type=experience_type,
+            total_experience=total_experience,
+            reference_name=reference_name,
+            reporting_manager=reporting_manager,
+            position_applied=position_applied,
+            department=department,
+            created_by=request.user,
+            status='pending',
+        )
+
+        # Send email link
+        _send_onboarding_email(request, candidate)
+
+        messages.success(
+            request,
+            f'Onboarding invite created for {candidate_name} and email sent to {email}.'
+        )
+        return redirect('onboarding_detail', pk=candidate.pk)
+
+    return render(request, 'core/onboarding_create.html', {'managers': managers})
+
+
+def _send_onboarding_email(request, candidate):
+    """Helper to build and send the onboarding link email."""
+    scheme = 'https' if request.is_secure() else 'http'
+    host = request.get_host()
+    public_link = f"{scheme}://{host}{candidate.get_public_link()}"
+
+    subject = f"Welcome to APNI FACTORY – Complete Your Onboarding Documentation"
+    body = f"""Dear {candidate.candidate_name},
+
+Congratulations! You have been invited to join APNI FACTORY.
+
+Please complete your onboarding documentation by clicking the link below:
+
+{public_link}
+
+This link is personal and unique to you. Please do NOT share it with anyone.
+
+If you have any questions, please contact HR at {request.user.email or 'hr@apnifactory.com'}.
+
+Best Regards,
+HR Team – APNI FACTORY
+"""
+    try:
+        send_mail(
+            subject=subject,
+            message=body,
+            from_email=django_settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[candidate.email],
+            fail_silently=False,
+        )
+        candidate.link_sent_at = timezone.now()
+        candidate.save(update_fields=['link_sent_at'])
+    except Exception as e:
+        pass  # Email failure should not crash the flow
+
+
+@login_required
+@user_passes_test(is_admin)
+def onboarding_detail(request, pk):
+    """Admin view: view candidate details and submitted documentation."""
+    candidate = get_object_or_404(CandidateOnboarding, pk=pk)
+    submission = getattr(candidate, 'submission', None)
+    managers = User.objects.filter(is_active=True, role__in=['admin', 'manager']).order_by('username')
+
+    scheme = 'https' if request.is_secure() else 'http'
+    host = request.get_host()
+    public_link = f"{scheme}://{host}{candidate.get_public_link()}"
+
+    context = {
+        'candidate': candidate,
+        'submission': submission,
+        'public_link': public_link,
+        'managers': managers,
+    }
+    return render(request, 'core/onboarding_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def onboarding_send_link(request, pk):
+    """Admin action: re-send the onboarding email link to the candidate."""
+    candidate = get_object_or_404(CandidateOnboarding, pk=pk)
+
+    if candidate.status == 'user_created':
+        messages.warning(request, 'User account already created for this candidate.')
+        return redirect('onboarding_detail', pk=pk)
+
+    _send_onboarding_email(request, candidate)
+    messages.success(request, f'Onboarding link re-sent to {candidate.email}.')
+    return redirect('onboarding_detail', pk=pk)
+
+
+@login_required
+@user_passes_test(is_admin)
+def onboarding_create_user(request, pk):
+    """Admin action: create a CRM user account from a submitted onboarding."""
+    candidate = get_object_or_404(CandidateOnboarding, pk=pk)
+
+    if candidate.status != 'submitted':
+        messages.error(request, 'Candidate has not submitted documentation yet.')
+        return redirect('onboarding_detail', pk=pk)
+
+    if candidate.status == 'user_created':
+        messages.warning(request, 'User account already created for this candidate.')
+        return redirect('onboarding_detail', pk=pk)
+
+    submission = getattr(candidate, 'submission', None)
+
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '').strip()
+        role = request.POST.get('role', 'employee')
+        phone_number = request.POST.get('phone_number', '').strip()
+
+        if not username or not password:
+            messages.error(request, 'Username and Password are required.')
+            return render(request, 'core/onboarding_create_user_modal.html', {
+                'candidate': candidate, 'submission': submission
+            })
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, f'Username "{username}" is already taken. Choose another.')
+            return redirect('onboarding_detail', pk=pk)
+
+        # Create the CRM user
+        new_user = User.objects.create_user(
+            username=username,
+            email=candidate.email,
+            password=password,
+            role=role,
+            phone_number=phone_number or candidate.mobile,
+            is_active=True,
+        )
+
+        # Link the submission data to EmployeeProfile if it exists
+        from .models import EmployeeProfile
+        profile, _ = EmployeeProfile.objects.get_or_create(user=new_user)
+        if submission:
+            profile.dob = submission.dob
+            profile.gender = submission.gender
+            profile.marital_status = submission.marital_status
+            profile.blood_group = submission.blood_group
+            profile.permanent_address = submission.permanent_address
+            profile.current_address = submission.current_address
+            profile.emergency_contact_name = submission.emergency_contact_name
+            profile.emergency_contact_phone = submission.emergency_contact_phone
+            profile.qualification = submission.qualification
+            profile.institution = submission.institution
+            profile.passing_year = submission.passing_year
+            profile.previous_company = submission.previous_company
+            profile.previous_designation = submission.previous_designation
+            profile.experience_duration = submission.previous_experience_duration
+            profile.aadhar_number = submission.aadhar_number
+            profile.pan_number = submission.pan_number
+            if submission.aadhar_file:
+                profile.aadhar_file = submission.aadhar_file
+            if submission.pan_file:
+                profile.pan_file = submission.pan_file
+            if submission.resume:
+                profile.resume = submission.resume
+            profile.save()
+
+        # Update candidate status
+        candidate.status = 'user_created'
+        candidate.created_user = new_user
+        candidate.save(update_fields=['status', 'created_user'])
+
+        messages.success(
+            request,
+            f'User account "{username}" created successfully with role "{role}".'
+        )
+        return redirect('user_detail', user_id=new_user.pk)
+
+    return redirect('onboarding_detail', pk=pk)
+
+
+# --- PUBLIC VIEWS (No login required) ---
+
+def onboarding_public_form(request, token):
+    """Public multi-step form for candidate to fill their onboarding documentation."""
+    candidate = get_object_or_404(CandidateOnboarding, token=token)
+
+    # If already submitted, show a friendly message
+    if hasattr(candidate, 'submission'):
+        return render(request, 'core/onboarding_already_submitted.html', {'candidate': candidate})
+
+    context = {
+        'candidate': candidate,
+        'is_experienced': candidate.experience_type == 'experienced',
+    }
+    return render(request, 'core/onboarding_public_form.html', context)
+
+
+def onboarding_public_submit(request, token):
+    """Handle the submission of the public onboarding form."""
+    candidate = get_object_or_404(CandidateOnboarding, token=token)
+
+    if hasattr(candidate, 'submission'):
+        return redirect('onboarding_success')
+
+    if request.method != 'POST':
+        return redirect('onboarding_public_form', token=token)
+
+    # Get client IP
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    ip = x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
+
+    p = request.POST
+    f = request.FILES
+
+    # Parse DOB safely
+    dob = None
+    dob_str = p.get('dob', '').strip()
+    if dob_str:
+        from datetime import datetime
+        try:
+            dob = datetime.strptime(dob_str, '%Y-%m-%d').date()
+        except ValueError:
+            dob = None
+
+    submission = OnboardingSubmission(
+        candidate=candidate,
+        # Personal
+        full_name=p.get('full_name', '').strip(),
+        dob=dob,
+        gender=p.get('gender', '').strip(),
+        marital_status=p.get('marital_status', '').strip(),
+        blood_group=p.get('blood_group', '').strip(),
+        personal_email=p.get('personal_email', '').strip(),
+        personal_mobile=p.get('personal_mobile', '').strip(),
+        # Address
+        permanent_address=p.get('permanent_address', '').strip(),
+        permanent_city=p.get('permanent_city', '').strip(),
+        permanent_state=p.get('permanent_state', '').strip(),
+        permanent_pincode=p.get('permanent_pincode', '').strip(),
+        current_address=p.get('current_address', '').strip(),
+        current_city=p.get('current_city', '').strip(),
+        current_state=p.get('current_state', '').strip(),
+        current_pincode=p.get('current_pincode', '').strip(),
+        # Emergency
+        emergency_contact_name=p.get('emergency_contact_name', '').strip(),
+        emergency_contact_phone=p.get('emergency_contact_phone', '').strip(),
+        emergency_contact_relation=p.get('emergency_contact_relation', '').strip(),
+        # Education
+        qualification=p.get('qualification', '').strip(),
+        institution=p.get('institution', '').strip(),
+        passing_year=p.get('passing_year', '').strip(),
+        specialization=p.get('specialization', '').strip(),
+        percentage_cgpa=p.get('percentage_cgpa', '').strip(),
+        # Experience
+        previous_company=p.get('previous_company', '').strip(),
+        previous_designation=p.get('previous_designation', '').strip(),
+        previous_salary=p.get('previous_salary', '').strip(),
+        previous_experience_duration=p.get('previous_experience_duration', '').strip(),
+        reason_for_leaving=p.get('reason_for_leaving', '').strip(),
+        # Documents
+        aadhar_number=p.get('aadhar_number', '').strip(),
+        pan_number=p.get('pan_number', '').strip(),
+        aadhar_file=f.get('aadhar_file'),
+        pan_file=f.get('pan_file'),
+        resume=f.get('resume'),
+        passport_photo=f.get('passport_photo'),
+        educational_certificate=f.get('educational_certificate'),
+        experience_letter=f.get('experience_letter'),
+        other_document=f.get('other_document'),
+        # Bank
+        bank_name=p.get('bank_name', '').strip(),
+        account_holder_name=p.get('account_holder_name', '').strip(),
+        account_number=p.get('account_number', '').strip(),
+        ifsc_code=p.get('ifsc_code', '').strip(),
+        account_type=p.get('account_type', '').strip(),
+        # Declaration
+        declaration_accepted=p.get('declaration_accepted') == 'on',
+        declaration_accepted_at=timezone.now() if p.get('declaration_accepted') == 'on' else None,
+        ip_address=ip,
+    )
+    submission.save()
+
+    # Update candidate status
+    candidate.status = 'submitted'
+    candidate.save(update_fields=['status'])
+
+    # Notify admin via internal notification (optional)
+    try:
+        admins = User.objects.filter(is_superuser=True)
+        for admin in admins:
+            Notification.objects.create(
+                user=admin,
+                title="New Onboarding Submission",
+                message=f"{candidate.candidate_name} has completed their onboarding documentation.",
+                notification_type="info",
+            )
+    except Exception:
+        pass
+
+    return redirect('onboarding_success')
+
+
+def onboarding_success(request):
+    """Thank-you page shown to candidate after successful submission."""
+    return render(request, 'core/onboarding_success.html')

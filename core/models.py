@@ -604,3 +604,140 @@ class WhatsAppMessageStatus(models.Model):
 
     def __str__(self):
         return f"{self.recipient_id} -> {self.status}"
+
+
+# --- EMPLOYEE ONBOARDING SYSTEM ---
+
+class CandidateOnboarding(models.Model):
+    """Created by admin to invite a candidate to fill onboarding documentation."""
+
+    EXPERIENCE_CHOICES = (
+        ('fresher', 'Fresher'),
+        ('experienced', 'Experienced'),
+    )
+
+    STATUS_CHOICES = (
+        ('pending', 'Pending (Link Sent)'),
+        ('submitted', 'Submitted'),
+        ('user_created', 'User Account Created'),
+    )
+
+    # Basic candidate info filled by admin
+    candidate_name = models.CharField(max_length=200)
+    mobile = models.CharField(max_length=15)
+    email = models.EmailField()
+    experience_type = models.CharField(max_length=20, choices=EXPERIENCE_CHOICES, default='fresher')
+    total_experience = models.CharField(max_length=50, blank=True, help_text="e.g. 2 years 3 months")
+    reference_name = models.CharField(max_length=200, blank=True)
+    reporting_manager = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='managed_candidates'
+    )
+    position_applied = models.CharField(max_length=200, blank=True)
+    department = models.CharField(max_length=100, blank=True)
+
+    # System fields
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True,
+        related_name='created_onboardings'
+    )
+    created_user = models.OneToOneField(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='onboarding_source'
+    )
+    link_sent_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Candidate Onboarding"
+        verbose_name_plural = "Candidate Onboardings"
+
+    def __str__(self):
+        return f"{self.candidate_name} ({self.email}) - {self.get_status_display()}"
+
+    def get_public_link(self):
+        from django.urls import reverse
+        return reverse('onboarding_public_form', kwargs={'token': self.token})
+
+
+class OnboardingSubmission(models.Model):
+    """Filled by the candidate via the emailed link. No login required."""
+
+    candidate = models.OneToOneField(
+        CandidateOnboarding, on_delete=models.CASCADE, related_name='submission'
+    )
+
+    # Personal Information
+    full_name = models.CharField(max_length=200)
+    dob = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=20, blank=True)
+    marital_status = models.CharField(max_length=30, blank=True)
+    blood_group = models.CharField(max_length=10, blank=True)
+    personal_email = models.EmailField(blank=True)
+    personal_mobile = models.CharField(max_length=15, blank=True)
+
+    # Address
+    permanent_address = models.TextField(blank=True)
+    permanent_city = models.CharField(max_length=100, blank=True)
+    permanent_state = models.CharField(max_length=100, blank=True)
+    permanent_pincode = models.CharField(max_length=10, blank=True)
+    current_address = models.TextField(blank=True)
+    current_city = models.CharField(max_length=100, blank=True)
+    current_state = models.CharField(max_length=100, blank=True)
+    current_pincode = models.CharField(max_length=10, blank=True)
+
+    # Emergency Contact
+    emergency_contact_name = models.CharField(max_length=200, blank=True)
+    emergency_contact_phone = models.CharField(max_length=15, blank=True)
+    emergency_contact_relation = models.CharField(max_length=50, blank=True)
+
+    # Education
+    qualification = models.CharField(max_length=100, blank=True)
+    institution = models.CharField(max_length=200, blank=True)
+    passing_year = models.CharField(max_length=10, blank=True)
+    specialization = models.CharField(max_length=100, blank=True)
+    percentage_cgpa = models.CharField(max_length=20, blank=True)
+
+    # Work Experience (if experienced)
+    previous_company = models.CharField(max_length=200, blank=True)
+    previous_designation = models.CharField(max_length=100, blank=True)
+    previous_salary = models.CharField(max_length=50, blank=True)
+    previous_experience_duration = models.CharField(max_length=50, blank=True)
+    reason_for_leaving = models.TextField(blank=True)
+
+    # Identity Documents
+    aadhar_number = models.CharField(max_length=20, blank=True)
+    pan_number = models.CharField(max_length=20, blank=True)
+    aadhar_file = models.FileField(upload_to='onboarding/documents/', blank=True, null=True)
+    pan_file = models.FileField(upload_to='onboarding/documents/', blank=True, null=True)
+    resume = models.FileField(upload_to='onboarding/documents/', blank=True, null=True)
+    passport_photo = models.ImageField(upload_to='onboarding/photos/', blank=True, null=True)
+    educational_certificate = models.FileField(upload_to='onboarding/documents/', blank=True, null=True)
+    experience_letter = models.FileField(upload_to='onboarding/documents/', blank=True, null=True)
+    other_document = models.FileField(upload_to='onboarding/documents/', blank=True, null=True)
+
+    # Bank Details
+    bank_name = models.CharField(max_length=100, blank=True)
+    account_holder_name = models.CharField(max_length=200, blank=True)
+    account_number = models.CharField(max_length=30, blank=True)
+    ifsc_code = models.CharField(max_length=20, blank=True)
+    account_type = models.CharField(max_length=20, blank=True, help_text="Savings / Current")
+
+    # Declaration
+    declaration_accepted = models.BooleanField(default=False)
+    declaration_accepted_at = models.DateTimeField(null=True, blank=True)
+
+    # Meta
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Onboarding Submission"
+        verbose_name_plural = "Onboarding Submissions"
+
+    def __str__(self):
+        return f"Submission: {self.candidate.candidate_name}"

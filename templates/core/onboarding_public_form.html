@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Onboarding – APNI FACTORY</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); min-height: 100vh; color: #333; }
+
+    .ob-wrapper { max-width: 820px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+
+    /* Header */
+    .ob-header { text-align: center; color: #fff; padding: 2.5rem 0 2rem; }
+    .ob-header .logo { font-size: 1.1rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #60d5ff; margin-bottom: 0.5rem; }
+    .ob-header h1 { font-size: 1.9rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .ob-header p { opacity: 0.75; font-size: 0.9rem; }
+
+    /* Stepper */
+    .stepper { display: flex; align-items: center; justify-content: center; gap: 0; margin-bottom: 2rem; flex-wrap: wrap; gap: 4px; }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; }
+    .step-circle { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; border: 2px solid rgba(255,255,255,0.2); transition: all 0.3s; }
+    .step.active .step-circle { background: #4e9af1; color: #fff; border-color: #4e9af1; box-shadow: 0 0 0 4px rgba(78,154,241,0.25); }
+    .step.done .step-circle { background: #1cc88a; color: #fff; border-color: #1cc88a; }
+    .step-label { font-size: 0.65rem; color: rgba(255,255,255,0.55); text-align: center; max-width: 70px; }
+    .step.active .step-label { color: #fff; }
+    .step.done .step-label { color: #1cc88a; }
+    .step-line { flex: 1; height: 2px; background: rgba(255,255,255,0.15); min-width: 20px; margin-bottom: 18px; }
+    .step-line.done-line { background: #1cc88a; }
+
+    /* Card */
+    .ob-card { background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+    .ob-card-header { background: linear-gradient(90deg, #2c5364, #203a43); color: #fff; padding: 1.25rem 1.75rem; display: flex; align-items: center; gap: 0.75rem; }
+    .ob-card-header i { font-size: 1.2rem; color: #60d5ff; }
+    .ob-card-header h4 { font-size: 1rem; font-weight: 600; margin: 0; }
+    .ob-card-header small { font-size: 0.75rem; opacity: 0.6; display: block; }
+    .ob-card-body { padding: 1.75rem; }
+
+    /* Section panels */
+    .form-section { display: none; }
+    .form-section.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Form elements */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .form-row.single { grid-template-columns: 1fr; }
+    .form-row.triple { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 600px) { .form-row, .form-row.triple { grid-template-columns: 1fr; } }
+
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 0.78rem; font-weight: 600; color: #555; text-transform: uppercase; letter-spacing: 0.5px; }
+    .form-group label .req { color: #e74c3c; }
+    .form-control { border: 1.5px solid #e0e6f0; border-radius: 8px; padding: 0.55rem 0.85rem; font-size: 0.88rem; font-family: 'Inter', sans-serif; transition: border-color 0.2s, box-shadow 0.2s; background: #fafbff; }
+    .form-control:focus { outline: none; border-color: #4e9af1; box-shadow: 0 0 0 3px rgba(78,154,241,0.12); background: #fff; }
+    select.form-control { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%23999' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.75rem center; padding-right: 2rem; }
+    textarea.form-control { resize: vertical; min-height: 80px; }
+
+    /* Section divider */
+    .section-title { font-size: 0.8rem; font-weight: 700; color: #4e9af1; text-transform: uppercase; letter-spacing: 1px; margin: 1.5rem 0 0.75rem; padding-bottom: 0.5rem; border-bottom: 2px solid #eef2ff; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* Info banner */
+    .info-banner { background: #eef7ff; border-left: 4px solid #4e9af1; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.82rem; color: #2c5f9e; margin-bottom: 1.25rem; }
+
+    /* Navigation buttons */
+    .ob-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid #eef2ff; }
+    .btn-ob { padding: 0.6rem 1.5rem; border-radius: 50px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem; }
+    .btn-ob-next { background: linear-gradient(135deg, #4e9af1, #2575d0); color: #fff; }
+    .btn-ob-next:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(78,154,241,0.4); }
+    .btn-ob-prev { background: #f0f4f8; color: #555; }
+    .btn-ob-prev:hover { background: #e4eaf0; }
+    .btn-ob-submit { background: linear-gradient(135deg, #1cc88a, #17a673); color: #fff; font-size: 0.9rem; padding: 0.65rem 2rem; }
+    .btn-ob-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(28,200,138,0.4); }
+
+    /* Declaration box */
+    .declaration-box { background: #f8f9fc; border: 1.5px solid #dde3f0; border-radius: 10px; padding: 1rem 1.25rem; font-size: 0.8rem; line-height: 1.7; color: #555; margin-bottom: 1rem; }
+    .check-row { display: flex; align-items: flex-start; gap: 0.6rem; }
+    .check-row input[type=checkbox] { width: 18px; height: 18px; accent-color: #4e9af1; margin-top: 2px; flex-shrink: 0; }
+    .check-row label { font-size: 0.83rem; color: #444; line-height: 1.5; }
+
+    /* Upload area */
+    .upload-area { border: 2px dashed #c8d6e8; border-radius: 10px; padding: 1rem; text-align: center; background: #f7faff; cursor: pointer; transition: border-color 0.2s; }
+    .upload-area:hover { border-color: #4e9af1; background: #eef7ff; }
+    .upload-area input[type=file] { display: none; }
+    .upload-area label { cursor: pointer; font-size: 0.8rem; color: #4e9af1; font-weight: 600; }
+    .upload-area .upload-icon { font-size: 1.4rem; color: #c8d6e8; margin-bottom: 0.3rem; }
+    .file-name { font-size: 0.75rem; color: #888; margin-top: 4px; }
+
+    /* Candidate info strip */
+    .candidate-strip { background: linear-gradient(90deg, #eef7ff, #f0fdf4); border-radius: 10px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .candidate-strip .item { font-size: 0.8rem; }
+    .candidate-strip .label { color: #888; display: block; }
+    .candidate-strip .value { font-weight: 600; color: #333; }
+
+    /* Progress bar */
+    .progress-bar-wrap { height: 4px; background: #eef2ff; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #4e9af1, #1cc88a); transition: width 0.4s ease; }
+  </style>
+</head>
+<body>
+
+<div class="ob-wrapper">
+
+  <!-- Header -->
+  <div class="ob-header">
+    <div class="logo">🏭 APNI FACTORY</div>
+    <h1>Employee Onboarding Form</h1>
+    <p>Dear <strong>{{ candidate.candidate_name }}</strong>, please complete all sections to finish your onboarding.</p>
+  </div>
+
+  <!-- Candidate Info Strip -->
+  <div class="candidate-strip" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);margin-bottom:1.5rem;">
+    <div class="item"><span class="label" style="color:rgba(255,255,255,0.6);">Position</span><span class="value" style="color:#fff;">{{ candidate.position_applied|default:"—" }}</span></div>
+    <div class="item"><span class="label" style="color:rgba(255,255,255,0.6);">Department</span><span class="value" style="color:#fff;">{{ candidate.department|default:"—" }}</span></div>
+    <div class="item"><span class="label" style="color:rgba(255,255,255,0.6);">Experience</span><span class="value" style="color:#fff;">{{ candidate.get_experience_type_display }}</span></div>
+    {% if candidate.reporting_manager %}<div class="item"><span class="label" style="color:rgba(255,255,255,0.6);">Reporting To</span><span class="value" style="color:#fff;">{{ candidate.reporting_manager.get_full_name|default:candidate.reporting_manager.username }}</span></div>{% endif %}
+  </div>
+
+  <!-- Stepper -->
+  <div class="stepper" id="stepper">
+    <div class="step active" data-step="1"><div class="step-circle">1</div><div class="step-label">Personal</div></div>
+    <div class="step-line" id="line-1"></div>
+    <div class="step" data-step="2"><div class="step-circle">2</div><div class="step-label">Address</div></div>
+    <div class="step-line" id="line-2"></div>
+    <div class="step" data-step="3"><div class="step-circle">3</div><div class="step-label">Emergency</div></div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step" data-step="4"><div class="step-circle">4</div><div class="step-label">Education</div></div>
+    <div class="step-line" id="line-4"></div>
+    {% if is_experienced %}
+    <div class="step" data-step="5"><div class="step-circle">5</div><div class="step-label">Experience</div></div>
+    <div class="step-line" id="line-5"></div>
+    <div class="step" data-step="6"><div class="step-circle">6</div><div class="step-label">Documents</div></div>
+    <div class="step-line" id="line-6"></div>
+    <div class="step" data-step="7"><div class="step-circle">7</div><div class="step-label">Bank</div></div>
+    <div class="step-line" id="line-7"></div>
+    <div class="step" data-step="8"><div class="step-circle">8</div><div class="step-label">Declaration</div></div>
+    {% else %}
+    <div class="step" data-step="5"><div class="step-circle">5</div><div class="step-label">Documents</div></div>
+    <div class="step-line" id="line-5"></div>
+    <div class="step" data-step="6"><div class="step-circle">6</div><div class="step-label">Bank</div></div>
+    <div class="step-line" id="line-6"></div>
+    <div class="step" data-step="7"><div class="step-circle">7</div><div class="step-label">Declaration</div></div>
+    {% endif %}
+  </div>
+
+  <!-- Form Card -->
+  <div class="ob-card">
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressBar" style="width:12.5%;"></div></div>
+
+    <form method="POST" action="{% url 'onboarding_public_submit' candidate.token %}" enctype="multipart/form-data" id="onboardingForm">
+      {% csrf_token %}
+
+      <!-- STEP 1: Personal Info -->
+      <div class="form-section active" id="section-1">
+        <div class="ob-card-header"><i class="fas fa-user"></i><div><h4>Personal Information</h4><small>Step 1 of {% if is_experienced %}8{% else %}7{% endif %}</small></div></div>
+        <div class="ob-card-body">
+          <div class="info-banner"><i class="fas fa-shield-alt me-1"></i> Your information is securely stored and used only for employment records.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Full Name <span class="req">*</span></label><input type="text" name="full_name" class="form-control" placeholder="As per Aadhaar Card" required value="{{ candidate.candidate_name }}"></div>
+            <div class="form-group"><label>Date of Birth <span class="req">*</span></label><input type="date" name="dob" class="form-control" required></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Gender <span class="req">*</span></label>
+              <select name="gender" class="form-control" required>
+                <option value="">Select...</option>
+                <option>Male</option><option>Female</option><option>Other</option><option>Prefer not to say</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Marital Status</label>
+              <select name="marital_status" class="form-control">
+                <option value="">Select...</option>
+                <option>Single</option><option>Married</option><option>Divorced</option><option>Widowed</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Blood Group</label>
+              <select name="blood_group" class="form-control">
+                <option value="">Select...</option>
+                <option>A+</option><option>A-</option><option>B+</option><option>B-</option>
+                <option>AB+</option><option>AB-</option><option>O+</option><option>O-</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Personal Email</label><input type="email" name="personal_email" class="form-control" placeholder="your@email.com" value="{{ candidate.email }}"></div>
+          </div>
+          <div class="form-row single">
+            <div class="form-group"><label>Personal Mobile <span class="req">*</span></label><input type="tel" name="personal_mobile" class="form-control" placeholder="10-digit mobile number" required value="{{ candidate.mobile }}"></div>
+          </div>
+          <div class="ob-nav">
+            <div></div>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()"><span>Next</span> <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: Address -->
+      <div class="form-section" id="section-2">
+        <div class="ob-card-header"><i class="fas fa-map-marker-alt"></i><div><h4>Address Details</h4><small>Step 2 of {% if is_experienced %}8{% else %}7{% endif %}</small></div></div>
+        <div class="ob-card-body">
+          <div class="section-title"><i class="fas fa-home"></i> Permanent Address</div>
+          <div class="form-row single"><div class="form-group"><label>Street Address <span class="req">*</span></label><textarea name="permanent_address" class="form-control" placeholder="House No, Street, Area..." required></textarea></div></div>
+          <div class="form-row triple">
+            <div class="form-group"><label>City <span class="req">*</span></label><input type="text" name="permanent_city" class="form-control" placeholder="City" required></div>
+            <div class="form-group"><label>State <span class="req">*</span></label><input type="text" name="permanent_state" class="form-control" placeholder="State" required></div>
+            <div class="form-group"><label>Pincode <span class="req">*</span></label><input type="text" name="permanent_pincode" class="form-control" placeholder="6-digit pincode" required></div>
+          </div>
+
+          <div class="section-title"><i class="fas fa-building"></i> Current Address <span style="font-weight:400;font-size:0.7rem;color:#888;text-transform:none;">(if different)</span></div>
+          <div style="margin-bottom:0.75rem;">
+            <label class="check-row" style="display:inline-flex;cursor:pointer;">
+              <input type="checkbox" id="sameAddress" onchange="copyAddress(this)">
+              <span style="font-size:0.82rem;color:#555;">Same as permanent address</span>
+            </label>
+          </div>
+          <div class="form-row single"><div class="form-group"><label>Street Address</label><textarea name="current_address" id="cur_addr" class="form-control" placeholder="House No, Street, Area..."></textarea></div></div>
+          <div class="form-row triple">
+            <div class="form-group"><label>City</label><input type="text" name="current_city" id="cur_city" class="form-control" placeholder="City"></div>
+            <div class="form-group"><label>State</label><input type="text" name="current_state" id="cur_state" class="form-control" placeholder="State"></div>
+            <div class="form-group"><label>Pincode</label><input type="text" name="current_pincode" id="cur_pincode" class="form-control" placeholder="6-digit pincode"></div>
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 3: Emergency Contact -->
+      <div class="form-section" id="section-3">
+        <div class="ob-card-header"><i class="fas fa-phone-alt"></i><div><h4>Emergency Contact</h4><small>Step 3 of {% if is_experienced %}8{% else %}7{% endif %}</small></div></div>
+        <div class="ob-card-body">
+          <div class="info-banner"><i class="fas fa-exclamation-circle me-1"></i> This person will be contacted in case of an emergency.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Contact Name <span class="req">*</span></label><input type="text" name="emergency_contact_name" class="form-control" placeholder="Full name" required></div>
+            <div class="form-group"><label>Phone Number <span class="req">*</span></label><input type="tel" name="emergency_contact_phone" class="form-control" placeholder="Mobile number" required></div>
+          </div>
+          <div class="form-row single">
+            <div class="form-group"><label>Relationship <span class="req">*</span></label>
+              <select name="emergency_contact_relation" class="form-control" required>
+                <option value="">Select relationship...</option>
+                <option>Father</option><option>Mother</option><option>Spouse</option><option>Sibling</option>
+                <option>Friend</option><option>Other</option>
+              </select>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: Education -->
+      <div class="form-section" id="section-4">
+        <div class="ob-card-header"><i class="fas fa-graduation-cap"></i><div><h4>Educational Background</h4><small>Step 4 of {% if is_experienced %}8{% else %}7{% endif %}</small></div></div>
+        <div class="ob-card-body">
+          <div class="form-row">
+            <div class="form-group"><label>Highest Qualification <span class="req">*</span></label>
+              <select name="qualification" class="form-control" required>
+                <option value="">Select...</option>
+                <option>10th (SSC)</option><option>12th (HSC)</option><option>Diploma</option>
+                <option>B.A.</option><option>B.Com</option><option>B.Sc</option><option>B.Tech / B.E.</option>
+                <option>BBA</option><option>MBA</option><option>M.Tech</option><option>Ph.D.</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-group"><label>Institution / University <span class="req">*</span></label><input type="text" name="institution" class="form-control" placeholder="Name of college / university" required></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Specialization / Stream</label><input type="text" name="specialization" class="form-control" placeholder="e.g. Computer Science, Commerce"></div>
+            <div class="form-group"><label>Passing Year <span class="req">*</span></label><input type="text" name="passing_year" class="form-control" placeholder="e.g. 2022" required></div>
+          </div>
+          <div class="form-row single">
+            <div class="form-group"><label>Percentage / CGPA</label><input type="text" name="percentage_cgpa" class="form-control" placeholder="e.g. 75% or 8.2 CGPA"></div>
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      {% if is_experienced %}
+      <!-- STEP 5: Work Experience (experienced only) -->
+      <div class="form-section" id="section-5">
+        <div class="ob-card-header"><i class="fas fa-briefcase"></i><div><h4>Work Experience</h4><small>Step 5 of 8</small></div></div>
+        <div class="ob-card-body">
+          <div class="form-row">
+            <div class="form-group"><label>Previous Company <span class="req">*</span></label><input type="text" name="previous_company" class="form-control" placeholder="Company name" required></div>
+            <div class="form-group"><label>Designation <span class="req">*</span></label><input type="text" name="previous_designation" class="form-control" placeholder="Your job title" required></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Duration</label><input type="text" name="previous_experience_duration" class="form-control" placeholder="e.g. 1 year 6 months"></div>
+            <div class="form-group"><label>Last Drawn Salary (CTC)</label><input type="text" name="previous_salary" class="form-control" placeholder="e.g. ₹4,50,000 per annum"></div>
+          </div>
+          <div class="form-row single">
+            <div class="form-group"><label>Reason for Leaving</label><textarea name="reason_for_leaving" class="form-control" placeholder="Brief reason for leaving previous job..."></textarea></div>
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- STEP 5/6: Documents -->
+      <div class="form-section" id="section-{% if is_experienced %}6{% else %}5{% endif %}">
+        <div class="ob-card-header"><i class="fas fa-folder-open"></i><div><h4>Documents & Identity Proof</h4><small>Step {% if is_experienced %}6{% else %}5{% endif %} of {% if is_experienced %}8{% else %}7{% endif %}</small></div></div>
+        <div class="ob-card-body">
+          <div class="info-banner"><i class="fas fa-lock me-1"></i> Upload clear scanned copies or photos. Accepted: PDF, JPG, PNG (max 5MB each).</div>
+
+          <div class="section-title"><i class="fas fa-id-card"></i> Identity Documents</div>
+          <div class="form-row">
+            <div class="form-group"><label>Aadhaar Number <span class="req">*</span></label><input type="text" name="aadhar_number" class="form-control" placeholder="12-digit Aadhaar" maxlength="12" required></div>
+            <div class="form-group"><label>PAN Number <span class="req">*</span></label><input type="text" name="pan_number" class="form-control" placeholder="10-character PAN" maxlength="10" style="text-transform:uppercase;" required></div>
+          </div>
+
+          <div class="section-title"><i class="fas fa-upload"></i> Upload Files</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Aadhaar Card (Front & Back) <span class="req">*</span></label>
+              <div class="upload-area" onclick="document.getElementById('aadhar_file').click()">
+                <div class="upload-icon"><i class="fas fa-id-card"></i></div>
+                <label>Click to upload Aadhaar</label>
+                <div class="file-name" id="aadhar_name">No file chosen</div>
+                <input type="file" id="aadhar_file" name="aadhar_file" accept=".pdf,.jpg,.jpeg,.png" onchange="showFileName(this,'aadhar_name')" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>PAN Card <span class="req">*</span></label>
+              <div class="upload-area" onclick="document.getElementById('pan_file').click()">
+                <div class="upload-icon"><i class="fas fa-credit-card"></i></div>
+                <label>Click to upload PAN Card</label>
+                <div class="file-name" id="pan_name">No file chosen</div>
+                <input type="file" id="pan_file" name="pan_file" accept=".pdf,.jpg,.jpeg,.png" onchange="showFileName(this,'pan_name')" required>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Resume / CV <span class="req">*</span></label>
+              <div class="upload-area" onclick="document.getElementById('resume').click()">
+                <div class="upload-icon"><i class="fas fa-file-alt"></i></div>
+                <label>Click to upload Resume</label>
+                <div class="file-name" id="resume_name">No file chosen</div>
+                <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx" onchange="showFileName(this,'resume_name')" required>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Passport Size Photo <span class="req">*</span></label>
+              <div class="upload-area" onclick="document.getElementById('passport_photo').click()">
+                <div class="upload-icon"><i class="fas fa-portrait"></i></div>
+                <label>Click to upload Photo</label>
+                <div class="file-name" id="photo_name">No file chosen</div>
+                <input type="file" id="passport_photo" name="passport_photo" accept=".jpg,.jpeg,.png" onchange="showFileName(this,'photo_name')" required>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Educational Certificate</label>
+              <div class="upload-area" onclick="document.getElementById('edu_cert').click()">
+                <div class="upload-icon"><i class="fas fa-graduation-cap"></i></div>
+                <label>Click to upload Certificate</label>
+                <div class="file-name" id="edu_name">No file chosen</div>
+                <input type="file" id="edu_cert" name="educational_certificate" accept=".pdf,.jpg,.jpeg,.png" onchange="showFileName(this,'edu_name')">
+              </div>
+            </div>
+            {% if is_experienced %}
+            <div class="form-group">
+              <label>Experience Letter</label>
+              <div class="upload-area" onclick="document.getElementById('exp_letter').click()">
+                <div class="upload-icon"><i class="fas fa-envelope-open-text"></i></div>
+                <label>Click to upload Experience Letter</label>
+                <div class="file-name" id="exp_name">No file chosen</div>
+                <input type="file" id="exp_letter" name="experience_letter" accept=".pdf,.jpg,.jpeg,.png" onchange="showFileName(this,'exp_name')">
+              </div>
+            </div>
+            {% endif %}
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 6/7: Bank Details -->
+      <div class="form-section" id="section-{% if is_experienced %}7{% else %}6{% endif %}">
+        <div class="ob-card-header"><i class="fas fa-university"></i><div><h4>Bank Account Details</h4><small>Step {% if is_experienced %}7{% else %}6{% endif %} of {% if is_experienced %}8{% else %}7{% endif %}</small></div></div>
+        <div class="ob-card-body">
+          <div class="info-banner"><i class="fas fa-info-circle me-1"></i> Salary will be credited to this account. Please ensure all details are accurate.</div>
+          <div class="form-row">
+            <div class="form-group"><label>Bank Name <span class="req">*</span></label><input type="text" name="bank_name" class="form-control" placeholder="e.g. State Bank of India" required></div>
+            <div class="form-group"><label>Account Holder Name <span class="req">*</span></label><input type="text" name="account_holder_name" class="form-control" placeholder="As per bank records" required></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Account Number <span class="req">*</span></label><input type="text" name="account_number" class="form-control" placeholder="Bank account number" required></div>
+            <div class="form-group"><label>Confirm Account Number <span class="req">*</span></label><input type="text" id="confirm_acc" class="form-control" placeholder="Re-enter account number"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>IFSC Code <span class="req">*</span></label><input type="text" name="ifsc_code" class="form-control" placeholder="e.g. SBIN0001234" style="text-transform:uppercase;" required></div>
+            <div class="form-group"><label>Account Type <span class="req">*</span></label>
+              <select name="account_type" class="form-control" required>
+                <option value="">Select...</option>
+                <option>Savings</option><option>Current</option>
+              </select>
+            </div>
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="button" class="btn-ob btn-ob-next" onclick="nextStep()">Next <i class="fas fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 7/8: Declaration -->
+      <div class="form-section" id="section-{% if is_experienced %}8{% else %}7{% endif %}">
+        <div class="ob-card-header"><i class="fas fa-file-signature"></i><div><h4>Declaration & Submission</h4><small>Final Step – Review and Submit</small></div></div>
+        <div class="ob-card-body">
+          <div class="declaration-box">
+            <strong>Employee Declaration</strong><br><br>
+            I, <strong>{{ candidate.candidate_name }}</strong>, hereby declare that the information provided in this form is true, complete, and accurate to the best of my knowledge and belief. I understand that any misrepresentation or omission of facts may lead to disqualification from employment or termination at any stage.<br><br>
+            I consent to APNI FACTORY verifying the information provided, including background checks, reference checks, and document verification as deemed necessary. I authorize the company to use the submitted documents for employment and payroll purposes.<br><br>
+            I agree to abide by the company's policies, code of conduct, and terms of employment as communicated to me.
+          </div>
+          <div class="check-row" style="margin-bottom: 1.5rem;">
+            <input type="checkbox" name="declaration_accepted" id="declarationCheck" required>
+            <label for="declarationCheck">I have read, understood, and accept the above declaration. I confirm that all information provided is accurate and true. <span class="req">*</span></label>
+          </div>
+          <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:1rem 1.25rem;margin-bottom:1.5rem;font-size:0.82rem;color:#166534;">
+            <i class="fas fa-check-circle me-2"></i>
+            By clicking <strong>Submit Documentation</strong>, your onboarding form will be sent to the HR team for review. You will not be able to edit your response after submission.
+          </div>
+          <div class="ob-nav">
+            <button type="button" class="btn-ob btn-ob-prev" onclick="prevStep()"><i class="fas fa-arrow-left"></i> Back</button>
+            <button type="submit" class="btn-ob btn-ob-submit" id="submitBtn">
+              <i class="fas fa-paper-plane me-1"></i> Submit Documentation
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+
+  <div style="text-align:center;color:rgba(255,255,255,0.4);font-size:0.75rem;margin-top:2rem;">
+    © 2026 APNI FACTORY – H Bose E Commerce Pvt Ltd. All rights reserved.
+  </div>
+</div>
+
+<script>
+  const TOTAL_STEPS = {% if is_experienced %}8{% else %}7{% endif %};
+  let currentStep = 1;
+
+  function updateUI() {
+    // Hide all sections
+    document.querySelectorAll('.form-section').forEach(s => s.classList.remove('active'));
+    document.getElementById('section-' + currentStep).classList.add('active');
+
+    // Update stepper
+    document.querySelectorAll('.step').forEach((step, idx) => {
+      const stepNum = idx + 1;
+      step.classList.remove('active', 'done');
+      if (stepNum < currentStep) step.classList.add('done');
+      else if (stepNum === currentStep) step.classList.add('active');
+    });
+
+    // Update step circle icons for done steps
+    document.querySelectorAll('.step.done .step-circle').forEach(c => {
+      if (!c.dataset.orig) c.dataset.orig = c.textContent;
+      c.innerHTML = '<i class="fas fa-check" style="font-size:0.75rem;"></i>';
+    });
+    document.querySelectorAll('.step:not(.done) .step-circle').forEach(c => {
+      if (c.dataset.orig) c.textContent = c.dataset.orig;
+    });
+
+    // Update lines
+    for (let i = 1; i < TOTAL_STEPS; i++) {
+      const line = document.getElementById('line-' + i);
+      if (line) {
+        line.classList.toggle('done-line', i < currentStep);
+      }
+    }
+
+    // Progress bar
+    document.getElementById('progressBar').style.width = ((currentStep / TOTAL_STEPS) * 100) + '%';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function nextStep() {
+    // Basic validation of current section
+    const section = document.getElementById('section-' + currentStep);
+    const required = section.querySelectorAll('[required]');
+    let valid = true;
+    required.forEach(el => {
+      el.style.borderColor = '';
+      if (!el.value.trim()) {
+        el.style.borderColor = '#e74c3c';
+        el.style.boxShadow = '0 0 0 3px rgba(231,76,60,0.12)';
+        valid = false;
+        if (valid === false) el.focus();
+      }
+    });
+    if (!valid) return;
+    if (currentStep < TOTAL_STEPS) { currentStep++; updateUI(); }
+  }
+
+  function prevStep() {
+    if (currentStep > 1) { currentStep--; updateUI(); }
+  }
+
+  function showFileName(input, labelId) {
+    const label = document.getElementById(labelId);
+    label.textContent = input.files.length > 0 ? input.files[0].name : 'No file chosen';
+  }
+
+  function copyAddress(checkbox) {
+    if (checkbox.checked) {
+      document.getElementById('cur_addr').value = document.querySelector('[name=permanent_address]').value;
+      document.getElementById('cur_city').value = document.querySelector('[name=permanent_city]').value;
+      document.getElementById('cur_state').value = document.querySelector('[name=permanent_state]').value;
+      document.getElementById('cur_pincode').value = document.querySelector('[name=permanent_pincode]').value;
+    } else {
+      document.getElementById('cur_addr').value = '';
+      document.getElementById('cur_city').value = '';
+      document.getElementById('cur_state').value = '';
+      document.getElementById('cur_pincode').value = '';
+    }
+  }
+
+  // Prevent double submit
+  document.getElementById('onboardingForm').addEventListener('submit', function() {
+    var btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+  });
+
+  updateUI();
+</script>
+</body>
+</html>
