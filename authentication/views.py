@@ -1,3 +1,4 @@
+from core.services import telegram_service
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from core.models import ApprovedIPAddress, LoginApprovalRequest
@@ -62,6 +63,12 @@ class CustomLoginView(LoginView):
                     req.latitude = lat
                     req.longitude = lng
                     req.save()
+
+                # Dispatch Telegram approval alert with 1-click action buttons
+                try:
+                    telegram_service.send_employee_login_approval_alert(req)
+                except Exception as e:
+                    pass
                 
                 self.request.session['pending_login_user_id'] = user.id
                 self.request.session['pending_login_request_id'] = req.id

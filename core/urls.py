@@ -1,3 +1,4 @@
+from . import telegram_views
 from django.urls import path
 from . import views
 from . import gst_api_view
@@ -99,4 +100,5 @@ urlpatterns = [
     path('join/<uuid:token>/', views.onboarding_public_form, name='onboarding_public_form'),
     path('join/<uuid:token>/submit/', views.onboarding_public_submit, name='onboarding_public_submit'),
     path('join/success/', views.onboarding_success, name='onboarding_success'),
+    path('api/telegram/webhook/', telegram_views.telegram_webhook_view, name='telegram_webhook'),
 ]

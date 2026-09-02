@@ -30,7 +30,7 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'django-insecure-default-key')
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
 # In production, we must specify ALLOWED_HOSTS. Defaulting to '*' if not provided.
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,crm.apnifactory.co.in').split(',')
+ALLOWED_HOSTS = ['*'] if DEBUG else os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,crm.apnifactory.co.in').split(',')
 if '*' not in ALLOWED_HOSTS and not DEBUG:
     ALLOWED_HOSTS.append('crm.apnifactory.co.in')
 
@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'hostinger_data',
     'employee_portal',
     'vendor_network',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -64,6 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.middleware.telegram_error_middleware.TelegramErrorMiddleware',
 ]
 
 ROOT_URLCONF = 'ApniFactoryCRM.urls'
@@ -219,4 +221,11 @@ WHATSAPP_CLICK_TO_CHAT_MSG = os.environ.get('WHATSAPP_CLICK_TO_CHAT_MSG', '')
 
 # Media Files Configurations
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'media'
+
+# ==============================================================================
+# TELEGRAM BOT & REAL-TIME ALERTS CONFIGURATION
+# ==============================================================================
+TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
+TELEGRAM_ALERTS_ENABLED = os.getenv('TELEGRAM_ALERTS_ENABLED', 'True').lower() in ('true', '1', 'yes')
