@@ -7,29 +7,65 @@
     <div class="row g-3 mb-4 align-items-center justify-content-between">
         <div class="col-auto">
             <a href="{% url 'employee_portal:customer_list' %}" class="btn btn-link p-0 mb-2">
-                <i class="fas fa-arrow-left me-2"></i>Back to My Buyers
+                <i class="fas fa-arrow-left me-2"></i>Back to My Customers & Buyers
             </a>
             <h2 class="mb-0">{{ customer.first_name }} {{ customer.last_name }}</h2>
-            <p class="text-body-tertiary mb-0">Assigned buyer profile card.</p>
+            <p class="text-body-tertiary mb-0">Assigned {% if customer.customer_type == "seller" %}Seller / Vendor{% else %}Buyer / Contractor{% endif %} profile card.</p>
         </div>
         
         <!-- Status Toggles & Conversions -->
-        <div class="col-auto d-flex gap-2">
-            {% if customer.status == 'lead' %}
-            <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post">
+        <div class="col-auto d-flex flex-wrap gap-2 align-items-center">
+            <!-- Category Switcher Dropdown -->
+            <div class="dropdown">
+                <button class="btn btn-phoenix-secondary dropdown-toggle fs-9" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    {% if customer.customer_type == 'seller' %}
+                    <span class="fas fa-industry text-success me-1"></span> Seller / Vendor
+                    {% else %}
+                    <span class="fas fa-shopping-bag text-warning me-1"></span> Buyer / Contractor
+                    {% endif %}
+                </button>
+                <ul class="dropdown-menu shadow-sm">
+                    <li>
+                        <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post" class="m-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="target_type" value="buyer">
+                            <button class="dropdown-item fs-9 py-2 d-flex align-items-center" type="submit">
+                                <span class="fas fa-shopping-bag text-warning me-2"></span> Convert to Buyer / Contractor
+                            </button>
+                        </form>
+                    </li>
+                    <li>
+                        <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post" class="m-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="target_type" value="seller">
+                            <button class="dropdown-item fs-9 py-2 d-flex align-items-center" type="submit">
+                                <span class="fas fa-industry text-success me-2"></span> Convert to Seller / Vendor
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+
+            {% if customer.status == 'lead' or customer.status == 'prospect' %}
+            <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post" class="m-0">
                 {% csrf_token %}
-                <button class="btn btn-success" type="submit">
-                    <i class="fas fa-check-double me-2"></i>Convert to Active Buyer
+                <input type="hidden" name="target_status" value="customer">
+                <button class="btn btn-success fs-9" type="submit">
+                    <i class="fas fa-check-double me-1"></i>Convert to Active {% if customer.customer_type == 'seller' %}Seller{% else %}Buyer{% endif %}
                 </button>
             </form>
             {% endif %}
-            
-            <span class="btn btn-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}info{% else %}warning{% endif %} disabled">
+
+            <a href="{% url 'employee_portal:start_whatsapp_chat' %}?customer_id={{ customer.id }}" class="btn btn-phoenix-success fs-9">
+                <i class="fab fa-whatsapp me-1"></i>Chat on WhatsApp
+            </a>
+
+            <span class="btn btn-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}info{% else %}warning{% endif %} fs-9 disabled">
                 Status: {{ customer.get_status_display }}
             </span>
 
-            <button class="btn btn-phoenix-primary" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
-                <i class="fas fa-user-edit me-2"></i>Edit Profile
+            <button class="btn btn-phoenix-primary fs-9" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                <i class="fas fa-user-edit me-1"></i>Edit Profile
             </button>
         </div>
     </div>
@@ -55,7 +91,7 @@
             <!-- Basic Details Card -->
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-body-tertiary">
-                    <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>Buyer Details</h5>
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2 text-primary"></i>{% if customer.customer_type == "seller" %}Seller / Vendor Details{% else %}Buyer Details{% endif %}</h5>
                 </div>
                 <div class="card-body">
                     <div class="mb-3">

@@ -469,22 +469,44 @@ def log_call(request, customer_id):
 @employee_required
 @attendance_required
 def convert_lead(request, customer_id):
-    """Converts a Lead status to Customer status."""
-    customer = get_object_or_404(Customer, id=customer_id, assigned_to=request.user)
+    """Converts a Lead status to Customer status or switches party type between Buyer and Seller."""
+    if request.user.is_superuser or request.user.role == 'admin':
+        customer = get_object_or_404(Customer, id=customer_id)
+    else:
+        customer = get_object_or_404(
+            Customer,
+            Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
+        )
     
-    if customer.status == 'lead':
+    target_type = request.POST.get('target_type') or request.GET.get('target_type')
+    target_status = request.POST.get('target_status') or request.GET.get('target_status')
+    
+    if target_type in ('buyer', 'seller'):
+        customer.customer_type = target_type
+        customer.save()
+        type_label = "Buyer / Contractor" if target_type == 'buyer' else "Customer / Seller / Vendor"
+        CustomerActivityLog.objects.create(
+            customer=customer,
+            employee=request.user,
+            action="Classification Changed",
+            description=f"Account classified as {type_label}."
+        )
+        messages.success(request, f"{customer.first_name} classification updated to {type_label}.")
+        return redirect('employee_portal:customer_detail', customer_id=customer_id)
+        
+    if target_status == 'customer' or customer.status == 'lead' or customer.status == 'prospect':
         customer.status = 'customer'
         customer.save()
-        
+        type_label = customer.get_customer_type_display()
         CustomerActivityLog.objects.create(
             customer=customer,
             employee=request.user,
             action="Lead Converted",
-            description="Status changed from Lead to Customer."
+            description=f"Status changed to Active {type_label}."
         )
-        messages.success(request, f"{customer.first_name} converted to Customer.")
+        messages.success(request, f"{customer.first_name} converted to Active {type_label} successfully!")
     else:
-        messages.info(request, "Customer is already converted.")
+        messages.info(request, "Account is already active.")
         
     return redirect('employee_portal:customer_detail', customer_id=customer_id)
 
@@ -1012,12 +1034,17 @@ def vendor_directory(request):
 @employee_required
 def convert_vendor_to_customer(request, vendor_id):
     """
-    Converts a searched Vendor/Buyer into an official Customer lead in the employee's CRM pipeline.
+    Converts a searched Vendor/Buyer into an official Customer/Buyer lead in the employee's CRM pipeline.
+    Allows passing ?target_type=buyer or ?target_type=seller.
     """
     vendor = get_object_or_404(VendorProfile, id=vendor_id)
     phone = vendor.mobile_number or vendor.phone_number or ''
 
-    cust_type = 'seller' if vendor.party_type == 'SELLER' else 'buyer'
+    requested_type = request.GET.get('target_type') or request.POST.get('target_type')
+    if requested_type in ('buyer', 'seller'):
+        cust_type = requested_type
+    else:
+        cust_type = 'seller' if vendor.party_type == 'SELLER' else 'buyer'
 
     if phone:
         existing = Customer.objects.filter(phone=phone).first()

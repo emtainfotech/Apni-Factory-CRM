@@ -131,11 +131,25 @@
                                         <span class="fas fa-phone"></span>
                                     </a>
                                     {% endif %}
-                                    <a href="{% url 'employee_portal:convert_vendor_to_customer' v.id %}" 
-                                       class="btn btn-phoenix-primary px-2" title="Convert to CRM Lead/Customer"
-                                       onclick="return confirm('Convert {{ v.store_name|escapejs }} into an official CRM Customer/Buyer lead?')">
-                                        <span class="fas fa-user-plus me-1"></span> Convert
-                                    </a>
+                                    <div class="btn-group btn-group-sm">
+                                        <button type="button" class="btn btn-phoenix-primary dropdown-toggle px-2" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="fas fa-user-plus me-1"></span> Convert
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm fs-10">
+                                            <li>
+                                                <a class="dropdown-item py-1" href="{% url 'employee_portal:convert_vendor_to_customer' v.id %}?target_type=buyer"
+                                                   onclick="return confirm('Convert {{ v.store_name|escapejs }} as a Buyer / Contractor?')">
+                                                    <span class="fas fa-shopping-bag text-warning me-1"></span> Convert as Buyer / Contractor
+                                                </a>
+                                            </li>
+                                            <li>
+                                                <a class="dropdown-item py-1" href="{% url 'employee_portal:convert_vendor_to_customer' v.id %}?target_type=seller"
+                                                   onclick="return confirm('Convert {{ v.store_name|escapejs }} as a Customer / Seller / Vendor?')">
+                                                    <span class="fas fa-industry text-success me-1"></span> Convert as Customer / Seller
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
                                 </div>
                             </td>
                         </tr>

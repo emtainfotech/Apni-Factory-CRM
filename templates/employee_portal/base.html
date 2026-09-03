@@ -240,7 +240,7 @@
                 <div class="search-box navbar-top-search-box d-none d-lg-block position-relative" style="width:25rem;">
                     <form method="GET" action="{% url 'employee_portal:customer_list' %}" class="position-relative">
                         <input class="form-control search-input rounded-pill form-control-sm" type="search"
-                            name="q" placeholder="Search my buyers..." aria-label="Search" value="{{ query|default:'' }}" 
+                            name="q" placeholder="Search customers & buyers..." aria-label="Search" value="{{ query|default:'' }}" 
                             hx-get="{% url 'global_search' %}"
                             hx-trigger="keyup changed delay:300ms, focus"
                             hx-target="#global-search-results"
