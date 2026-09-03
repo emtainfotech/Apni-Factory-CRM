@@ -123,8 +123,8 @@
                             <td class="text-end">
                                 <div class="btn-group btn-group-sm">
                                     {% if v.phone_number or v.mobile_number %}
-                                    <a href="https://wa.me/91{{ v.mobile_number|default:v.phone_number|cut:' '|cut:'-'|cut:'+'|slice:'-10:' }}" 
-                                       target="_blank" class="btn btn-phoenix-success px-2" title="Chat on WhatsApp">
+                                    <a href="{% url 'employee_portal:start_whatsapp_chat' %}?vendor_id={{ v.id }}" 
+                                       class="btn btn-phoenix-success px-2" title="Open in CRM WhatsApp Inbox">
                                         <span class="fab fa-whatsapp"></span>
                                     </a>
                                     <a href="tel:{{ v.phone_number|default:v.mobile_number }}" class="btn btn-phoenix-info px-2" title="Call">

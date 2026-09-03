@@ -208,6 +208,22 @@
 
 <script>
 let currentCustomerId = null;
+
+// Auto-load chat if active_customer_id or URL parameter is present
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetCustId = '{{ active_customer_id }}' || urlParams.get('customer_id');
+    if (targetCustId) {
+        const targetEl = document.getElementById('contact-' + targetCustId);
+        if (targetEl) {
+            loadChat(targetCustId, targetEl);
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            loadChat(targetCustId, null);
+        }
+    }
+});
+
 let chatPollInterval = null;
 
 function loadChat(customerId, element) {

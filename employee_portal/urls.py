@@ -42,6 +42,7 @@ urlpatterns = [
     
     # WhatsApp Inbox (Employee Scoped)
     path('whatsapp/', views.whatsapp_inbox, name='whatsapp_inbox'),
+    path('whatsapp/start/', views.start_whatsapp_chat, name='start_whatsapp_chat'),
     path('whatsapp/<int:customer_id>/', views.get_whatsapp_chat, name='get_whatsapp_chat'),
     path('whatsapp/<int:customer_id>/send/', views.send_whatsapp_message, name='send_whatsapp_message'),
 ]

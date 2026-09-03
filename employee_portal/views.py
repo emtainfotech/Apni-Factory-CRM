@@ -1090,6 +1090,8 @@ def whatsapp_inbox(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    active_cust_id = request.GET.get('customer_id', '')
+
     return render(request, 'employee_portal/whatsapp_inbox.html', {
         'page_obj': page_obj,
         'customers': page_obj,
@@ -1098,6 +1100,7 @@ def whatsapp_inbox(request):
         'sellers_count': my_sellers_count,
         'current_party_type': party_type,
         'current_query': query,
+        'active_customer_id': active_cust_id,
     })
 
 
@@ -1178,3 +1181,56 @@ def send_whatsapp_message(request, customer_id):
         'text': chat.message,
         'timestamp': timezone.localtime(chat.timestamp).strftime('%I:%M %p | %d %b'),
     })
+
+
+@login_required
+@employee_required
+def start_whatsapp_chat(request):
+    """
+    Seamlessly initiates or redirects to a WhatsApp chat in the Employee CRM WhatsApp Inbox
+    from vendor search, directory, or customer cards.
+    """
+    customer_id = request.GET.get('customer_id')
+    vendor_id = request.GET.get('vendor_id')
+
+    if customer_id:
+        customer = get_object_or_404(
+            Customer,
+            Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
+        )
+        return redirect(f"/employee/whatsapp/?customer_id={customer.id}")
+
+    if vendor_id:
+        vendor = get_object_or_404(
+            VendorProfile,
+            Q(id=vendor_id) & (Q(created_by=request.user) | Q(assigned_to=request.user))
+        )
+        phone = vendor.mobile_number or vendor.phone_number or ''
+
+        # Check if customer already exists for this phone
+        existing = None
+        if phone:
+            existing = Customer.objects.filter(phone=phone).first()
+
+        if not existing:
+            cust_type = 'seller' if vendor.party_type == 'SELLER' else 'buyer'
+            existing = Customer.objects.create(
+                first_name=vendor.store_name,
+                phone=phone or f"TEMP_{vendor.id}",
+                email=vendor.email_address or None,
+                company_name=vendor.store_name,
+                address=vendor.street_address or '',
+                city=vendor.city or '',
+                state=vendor.state or '',
+                pincode=vendor.pincode or '',
+                customer_type=cust_type,
+                lead_source='manual',
+                status='lead',
+                assigned_to=request.user,
+                created_by=request.user,
+                notes=f"Auto-created from {vendor.get_party_type_display()} on {timezone.localdate().strftime('%d %b %Y')} for WhatsApp support."
+            )
+
+        return redirect(f"/employee/whatsapp/?customer_id={existing.id}")
+
+    return redirect('employee_portal:whatsapp_inbox')
