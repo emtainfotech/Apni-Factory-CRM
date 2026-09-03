@@ -1111,10 +1111,13 @@ def get_whatsapp_chat(request, customer_id):
     Fetches WhatsApp message thread for a customer.
     Ensures employee can only access their own assigned/created customers.
     """
-    customer = get_object_or_404(
-        Customer,
-        Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user) | Q(user__is_superuser=True))
-    )
+    if request.user.is_superuser or request.user.role == 'admin':
+        customer = get_object_or_404(Customer, id=customer_id)
+    else:
+        customer = get_object_or_404(
+            Customer,
+            Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
+        )
 
     chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
     chat_data = []
@@ -1128,10 +1131,11 @@ def get_whatsapp_chat(request, customer_id):
             'timestamp': timezone.localtime(chat.timestamp).strftime('%I:%M %p | %d %b'),
         })
 
+    full_name = f"{customer.first_name} {customer.last_name}".strip()
     return JsonResponse({
         'status': 'success',
         'chats': chat_data,
-        'customer_name': customer.get_full_name() or customer.first_name,
+        'customer_name': full_name or customer.first_name,
         'company_name': customer.company_name or '',
         'phone': customer.phone,
         'customer_type': customer.get_customer_type_display(),
@@ -1148,10 +1152,13 @@ def send_whatsapp_message(request, customer_id):
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
 
-    customer = get_object_or_404(
-        Customer,
-        Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
-    )
+    if request.user.is_superuser or request.user.role == 'admin':
+        customer = get_object_or_404(Customer, id=customer_id)
+    else:
+        customer = get_object_or_404(
+            Customer,
+            Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
+        )
 
     message_text = request.POST.get('message', '').strip()
     attachment_file = request.FILES.get('attachment')
