@@ -1,3 +1,4 @@
+import os
 import json
 import time
 import random
@@ -21,25 +22,46 @@ def generate_live_token():
     token = jwt.encode(payload, GST_SECRET_KEY, algorithm="HS256")
     return token
 
+def format_whatsapp_phone(raw_phone):
+    """Normalizes phone number to international E.164 without leading plus."""
+    digits = ''.join(c for c in str(raw_phone) if c.isdigit())
+    if len(digits) == 10:
+        return '91' + digits
+    elif len(digits) == 11 and digits.startswith('0'):
+        return '91' + digits[1:]
+    elif len(digits) == 12 and digits.startswith('91'):
+        return digits
+    return digits
+
 def send_text_message(to_number, text):
-    """Sends a standard WhatsApp text message via Meta API."""
+    """Sends a standard WhatsApp text message via Meta Cloud API."""
+    clean_number = format_whatsapp_phone(to_number)
+    if not clean_number:
+        return False
+
+    meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
+    meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
+
     payload = {
         "messaging_product": "whatsapp",
-        "to": to_number,
+        "recipient_type": "individual",
+        "to": clean_number,
         "type": "text",
-        "text": {"body": text},
-        "category": "utility"
+        "text": {"body": text}
     }
     try:
         headers = {
-            "Authorization": f"Bearer {META_ACCESS_TOKEN}",
+            "Authorization": f"Bearer {meta_token}",
             "Content-Type": "application/json",
         }
-        response = requests.post(META_API_URL, headers=headers, json=payload)
-        response.raise_for_status()
-        return True
+        response = requests.post(meta_url, headers=headers, json=payload, timeout=10)
+        if response.status_code == 200:
+            return True
+        else:
+            print(f"Meta API Error ({response.status_code}): {response.text}")
+            return False
     except Exception as e:
-        print(f"Meta API Error: {e}")
+        print(f"Meta API Dispatch Exception: {e}")
         return False
 
 def verify_gst_number_live(gst_number):

@@ -1147,7 +1147,8 @@ def get_whatsapp_chat(request, customer_id):
 @employee_required
 def send_whatsapp_message(request, customer_id):
     """
-    Sends an outgoing WhatsApp message to the customer from employee portal.
+    Sends an outgoing WhatsApp message to the customer from employee portal
+    and immediately dispatches it to the recipient's phone via Meta Cloud API.
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
@@ -1166,6 +1167,16 @@ def send_whatsapp_message(request, customer_id):
     if not message_text and not attachment_file:
         return JsonResponse({'status': 'error', 'message': 'Message or attachment cannot be empty.'}, status=400)
 
+    # 1. Target recipient phone number
+    target_phone = customer.whatsapp_number or customer.phone
+
+    # 2. Dispatch via Meta WhatsApp Cloud API
+    from core.utils import send_text_message
+    api_dispatched = False
+    if message_text:
+        api_dispatched = send_text_message(target_phone, message_text)
+
+    # 3. Save to chat history
     chat = WhatsAppChat.objects.create(
         customer=customer,
         direction='outgoing',
@@ -1175,10 +1186,13 @@ def send_whatsapp_message(request, customer_id):
         timestamp=timezone.now()
     )
 
-    # Dispatch to WhatsApp Cloud API if configured
+    # 4. Update WhatsApp lead state for live human agent handoff
     try:
-        from core.views import send_whatsapp_message as core_send_wa
-        # If core WA sender exists, attempt delivery
+        from core.models import WhatsAppLead
+        lead, _ = WhatsAppLead.objects.get_or_create(phone_number=target_phone)
+        lead.customer = customer
+        lead.needs_human = True
+        lead.save()
     except Exception:
         pass
 
@@ -1186,6 +1200,7 @@ def send_whatsapp_message(request, customer_id):
         'status': 'success',
         'message_id': chat.id,
         'text': chat.message,
+        'dispatched': api_dispatched,
         'timestamp': timezone.localtime(chat.timestamp).strftime('%I:%M %p | %d %b'),
     })
 
