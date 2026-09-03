@@ -36,44 +36,43 @@ class CustomLoginView(LoginView):
             login(self.request, user)
             return redirect(self.get_success_url())
             
-        if getattr(user, 'role', '') == 'employee':
-            ip_address = self.get_client_ip()
+        # All non-admin staff (employees, field agents, etc.) require network/device approval
+        ip_address = self.get_client_ip()
+        
+        # Check if IP is approved
+        is_approved = ApprovedIPAddress.objects.filter(user=user, ip_address=ip_address).exists()
+        
+        if not is_approved:
+            lat = self.request.POST.get('latitude')
+            lng = self.request.POST.get('longitude')
             
-            # Check if IP is approved
-            is_approved = ApprovedIPAddress.objects.filter(user=user, ip_address=ip_address).exists()
-            
-            if not is_approved:
-                # Need approval
-                lat = self.request.POST.get('latitude')
-                lng = self.request.POST.get('longitude')
-                
-                # Check for existing pending request for this IP
-                req, created = LoginApprovalRequest.objects.get_or_create(
-                    user=user, 
+            # Check for existing pending request for this IP, or create a new one
+            req = LoginApprovalRequest.objects.filter(user=user, ip_address=ip_address, status='pending').first()
+            if not req:
+                req = LoginApprovalRequest.objects.create(
+                    user=user,
                     ip_address=ip_address,
                     status='pending',
-                    defaults={
-                        'latitude': lat if lat else None,
-                        'longitude': lng if lng else None
-                    }
+                    latitude=lat if lat else None,
+                    longitude=lng if lng else None
                 )
-                
-                # If not created, explicitly update location if provided
-                if not created and lat and lng:
+            else:
+                if lat and lng:
                     req.latitude = lat
                     req.longitude = lng
                     req.save()
 
-                # Dispatch Telegram approval alert with 1-click action buttons
-                try:
-                    telegram_service.send_employee_login_approval_alert(req)
-                except Exception as e:
-                    pass
-                
-                self.request.session['pending_login_user_id'] = user.id
-                self.request.session['pending_login_request_id'] = req.id
-                
-                return redirect('waiting_room')
+            # Dispatch Telegram approval alert with 1-click action buttons
+            try:
+                telegram_service.send_employee_login_approval_alert(req)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning(f"Failed to send Telegram approval alert: {e}")
+            
+            self.request.session['pending_login_user_id'] = user.id
+            self.request.session['pending_login_request_id'] = req.id
+            
+            return redirect('waiting_room')
                 
         # For non-employees or approved employees
         login(self.request, user)

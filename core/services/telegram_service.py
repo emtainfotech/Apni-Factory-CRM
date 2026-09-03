@@ -135,7 +135,8 @@ def send_system_error_alert(service_name, error_type, error_msg, path=None, meth
 
 def send_employee_login_approval_alert(login_request):
     """
-    Sends an urgent Employee Login Approval Alert with 1-click inline buttons.
+    Sends an urgent Employee Login Approval Alert with both Instant Callback buttons
+    and Direct 1-Click Web Links as fallback.
     """
     user = login_request.user
     user_name = user.get_full_name() or user.username
@@ -159,19 +160,31 @@ def send_employee_login_approval_alert(login_request):
         f"📍 <b>Location:</b> {location_str}\n"
         f"⏰ <b>Requested At:</b> <code>{now_str}</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"<i>Tap an action below to instantly approve or reject this login session:</i>"
+        f"<i>Tap an action below to authorize or reject this employee login:</i>"
     )
+
+    base_domain = "https://crm.apnifactory.co.in"
 
     inline_keyboard = {
         'inline_keyboard': [
             [
                 {
-                    'text': '✅ Approve Login',
+                    'text': '✅ Approve (Instant)',
                     'callback_data': f'approve_login:{login_request.id}'
                 },
                 {
                     'text': '❌ Reject',
                     'callback_data': f'reject_login:{login_request.id}'
+                }
+            ],
+            [
+                {
+                    'text': '🔗 1-Click Approve (Web Link)',
+                    'url': f'{base_domain}/api/telegram/quick-approve/{login_request.id}/?action=approve'
+                },
+                {
+                    'text': '🔗 1-Click Reject',
+                    'url': f'{base_domain}/api/telegram/quick-approve/{login_request.id}/?action=reject'
                 }
             ]
         ]
@@ -182,16 +195,18 @@ def send_employee_login_approval_alert(login_request):
 
 def resolve_login_approval_callback(request_id, action, admin_name="Telegram Admin"):
     """
-    Executes the approval or rejection of a LoginApprovalRequest from a Telegram inline button click.
+    Executes the approval or rejection of a LoginApprovalRequest.
+    Returns (success_bool, status_message).
     """
     from core.models import LoginApprovalRequest, ApprovedIPAddress
     try:
-        login_request = LoginApprovalRequest.objects.select_related('user').get(id=request_id)
-    except LoginApprovalRequest.DoesNotExist:
+        req_id_int = int(str(request_id).strip())
+        login_request = LoginApprovalRequest.objects.select_related('user').get(id=req_id_int)
+    except (LoginApprovalRequest.DoesNotExist, ValueError):
         return False, "⚠️ Request not found or already deleted."
 
     if login_request.status != 'pending':
-        return False, f"⚠️ Request already {login_request.status.upper()}."
+        return False, f"⚠️ Request #{request_id} is already {login_request.status.upper()}."
 
     user = login_request.user
     user_name = user.get_full_name() or user.username

@@ -22,7 +22,13 @@ from django.conf.urls.static import static
 
 from core.views import health_check
 
+
+from core import telegram_views
+
 urlpatterns = [
+    path('api/telegram/webhook/', telegram_views.telegram_webhook_view, name='telegram_webhook'),
+    path('api/telegram/quick-approve/<int:request_id>/', telegram_views.quick_approve_view, name='telegram_quick_approve'),
+
     path('health/', health_check, name='health_check'),
     path('', lambda request: redirect('dashboard_admin', permanent=False)),
     path('authentication/', include('authentication.urls')),
