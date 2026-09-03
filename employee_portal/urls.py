@@ -34,4 +34,14 @@ urlpatterns = [
     path('invoices/<int:invoice_id>/pdf/', views.download_invoice_pdf, name='download_invoice_pdf'),
     path('invoices/<int:invoice_id>/send-email/', views.send_invoice_email, name='send_invoice_email'),
     path('invoices/<int:invoice_id>/send-whatsapp/', views.send_invoice_whatsapp, name='send_invoice_whatsapp'),
+
+    # Vendor Search & Directory (Google Places & OSM Scoped)
+    path('vendors/search/', views.vendor_search, name='vendor_search'),
+    path('vendors/', views.vendor_directory, name='vendor_directory'),
+    path('vendors/<int:vendor_id>/convert/', views.convert_vendor_to_customer, name='convert_vendor_to_customer'),
+    
+    # WhatsApp Inbox (Employee Scoped)
+    path('whatsapp/', views.whatsapp_inbox, name='whatsapp_inbox'),
+    path('whatsapp/<int:customer_id>/', views.get_whatsapp_chat, name='get_whatsapp_chat'),
+    path('whatsapp/<int:customer_id>/send/', views.send_whatsapp_message, name='send_whatsapp_message'),
 ]

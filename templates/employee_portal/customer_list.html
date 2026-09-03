@@ -3,47 +3,78 @@
 
 {% block content %}
 <div class="mb-9">
-    <div class="row g-3 mb-4 align-items-center justify-content-between">
+    <div class="row g-3 mb-3 align-items-center justify-content-between">
         <div class="col-auto">
-            <h2 class="mb-0">My Buyers</h2>
-            <p class="text-body-tertiary mb-0">Manage buyer relationships and leads assigned directly to you.</p>
+            <h2 class="mb-0 text-body-emphasis">👥 My Customers & Buyers</h2>
+            <p class="text-body-tertiary mb-0 fs-9">Manage customer and buyer relationships, leads, and contacts assigned directly to you.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:vendor_search' %}" class="btn btn-primary btn-sm">
+                <span class="fas fa-search-plus me-1"></span> Search & Sync New Leads
+            </a>
         </div>
     </div>
 
+    <!-- Party Type Tabs -->
+    <ul class="nav nav-links mb-3 mb-lg-2 mx-n3">
+        <li class="nav-item">
+            <a class="nav-link {% if not current_customer_type %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
+               href="{% url 'employee_portal:customer_list' %}">
+                All Contacts
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_customer_type == 'buyer' %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
+               href="{% url 'employee_portal:customer_list' %}?customer_type=buyer">
+                🛍️ Buyers / Contractors
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_customer_type == 'seller' %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
+               href="{% url 'employee_portal:customer_list' %}?customer_type=seller">
+                🏭 Customers / Sellers / Vendors
+            </a>
+        </li>
+    </ul>
+
     <!-- Search & Filters -->
-    <div class="card shadow-sm border-0 mb-4">
-        <div class="card-body">
-            <form method="get" action="{% url 'employee_portal:customer_list' %}" class="row g-3">
+    <div class="card shadow-sm border border-translucent mb-4">
+        <div class="card-body p-3">
+            <form method="get" action="{% url 'employee_portal:customer_list' %}" class="row g-2">
+                {% if current_customer_type %}
+                <input type="hidden" name="customer_type" value="{{ current_customer_type }}">
+                {% endif %}
                 <div class="col-12 col-md-4">
-                    <div class="position-relative">
-                        <input class="form-control form-control-sm search-input ps-5" type="search" name="q" value="{{ query }}" placeholder="Search by name, email, phone, or company..." />
-                        <span class="fas fa-search position-absolute start-0 top-50 translate-middle-y ms-3 text-body-tertiary"></span>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-body-tertiary"><span class="fas fa-search"></span></span>
+                        <input class="form-control fs-9" type="search" name="q" value="{{ query }}" placeholder="Search by name, email, phone, company..." />
                     </div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <select name="status" class="form-select form-select-sm">
+                    <select name="status" class="form-select form-select-sm fs-9">
                         <option value="">All Statuses</option>
-                        <option value="lead" {% if status_filter == 'lead' %}selected{% endif %}>Lead</option>
-                        <option value="prospect" {% if status_filter == 'prospect' %}selected{% endif %}>Prospect</option>
-                        <option value="customer" {% if status_filter == 'customer' %}selected{% endif %}>Customer</option>
-                        <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
-                        <option value="lost" {% if status_filter == 'lost' %}selected{% endif %}>Lost</option>
+                        <option value="lead" {% if current_status == 'lead' %}selected{% endif %}>Lead</option>
+                        <option value="prospect" {% if current_status == 'prospect' %}selected{% endif %}>Prospect</option>
+                        <option value="customer" {% if current_status == 'customer' %}selected{% endif %}>Customer</option>
+                        <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        <option value="lost" {% if current_status == 'lost' %}selected{% endif %}>Lost</option>
                     </select>
                 </div>
                 <div class="col-6 col-md-2">
-                    <select name="lead_source" class="form-select form-select-sm">
+                    <select name="lead_source" class="form-select form-select-sm fs-9">
                         <option value="">All Sources</option>
                         {% for code, label in source_choices %}
-                            <option value="{{ code }}" {% if source_filter == code %}selected{% endif %}>{{ label }}</option>
+                            <option value="{{ code }}" {% if current_source == code %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="col-12 col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
-                        <i class="fas fa-filter me-2"></i>Filter
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1 fs-9 fw-semibold">
+                        <i class="fas fa-filter me-1"></i> Filter
                     </button>
-                    <a href="{% url 'employee_portal:customer_list' %}" class="btn btn-outline-secondary btn-sm flex-grow-1">
-                        Clear
+                    <a href="{% url 'employee_portal:customer_list' %}{% if current_customer_type %}?customer_type={{ current_customer_type }}{% endif %}" 
+                       class="btn btn-phoenix-secondary btn-sm" title="Clear Filters">
+                        ✕
                     </a>
                 </div>
             </form>
@@ -51,18 +82,19 @@
     </div>
 
     <!-- Customer Table Card -->
-    <div class="card shadow-sm border-0">
+    <div class="card shadow-sm border border-translucent">
         <div class="card-body p-0">
+            {% if page_obj %}
             <div class="table-responsive">
-                <table class="table table-sm fs-9 mb-0">
-                    <thead>
-                        <tr class="bg-body-tertiary">
-                            <th class="ps-4 py-3">Buyer Name</th>
+                <table class="table table-hover table-striped align-middle fs-9 mb-0">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th class="ps-4 py-3">Account / Name</th>
+                            <th class="py-3">Classification</th>
                             <th class="py-3">Company Details</th>
                             <th class="py-3">Contact</th>
                             <th class="py-3">Lead Source</th>
                             <th class="py-3">Status</th>
-                            <th class="py-3">Created Date</th>
                             <th class="text-end pe-4 py-3">Actions</th>
                         </tr>
                     </thead>
@@ -75,82 +107,107 @@
                                     {{ customer.first_name }} {{ customer.last_name }}
                                 </a>
                                 {% if customer.is_gst_verified %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 ms-1" style="font-size: 8px;">
-                                    <i class="fas fa-check-circle me-1"></i>GST Verified
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-1 ms-1" style="font-size: 8px;">
+                                    <i class="fas fa-check-circle me-1"></i>GST
                                 </span>
+                                {% endif %}
+                            </td>
+                            <!-- Classification -->
+                            <td>
+                                {% if customer.customer_type == 'seller' %}
+                                <span class="badge badge-phoenix badge-phoenix-success">🏭 Seller / Vendor</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-warning">🛍️ Buyer / Contractor</span>
                                 {% endif %}
                             </td>
                             <!-- Company -->
                             <td>
                                 {% if customer.company_name %}
-                                <div class="text-dark fw-semibold">{{ customer.company_name }}</div>
-                                <div class="text-body-tertiary fs-10">{{ customer.city }}, {{ customer.state }}</div>
+                                <div class="text-body-highlight fw-semibold">{{ customer.company_name }}</div>
+                                <div class="text-body-tertiary fs-10">{{ customer.city }}{% if customer.state %}, {{ customer.state }}{% endif %}</div>
                                 {% else %}
                                 <span class="text-body-quaternary italic">-</span>
                                 {% endif %}
                             </td>
                             <!-- Contact -->
                             <td>
-                                <div class="text-dark"><i class="fas fa-phone-alt me-1 text-body-tertiary"></i>{{ customer.phone }}</div>
+                                <div class="fw-semibold text-body-highlight">{{ customer.phone }}</div>
                                 {% if customer.email %}
-                                <div class="text-body-tertiary fs-10"><i class="fas fa-envelope me-1 text-body-tertiary"></i>{{ customer.email }}</div>
+                                <div class="text-body-tertiary fs-10">{{ customer.email }}</div>
                                 {% endif %}
                             </td>
-                            <!-- Lead Source -->
+                            <!-- Source -->
                             <td>
-                                <span class="badge badge-phoenix badge-phoenix-secondary fs-10 text-capitalize">
-                                    {{ customer.lead_source }}
+                                <span class="badge bg-body-tertiary text-body-highlight border">
+                                    {{ customer.get_lead_source_display }}
                                 </span>
                             </td>
                             <!-- Status -->
                             <td>
-                                <span class="badge badge-phoenix badge-phoenix-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}info{% elif customer.status == 'prospect' %}warning{% else %}danger{% endif %} fs-10 text-capitalize">
-                                    {{ customer.get_status_display }}
-                                </span>
+                                {% if customer.status == 'lead' %}
+                                    <span class="badge badge-phoenix badge-phoenix-primary">Lead</span>
+                                {% elif customer.status == 'prospect' %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning">Prospect</span>
+                                {% elif customer.status == 'customer' %}
+                                    <span class="badge badge-phoenix badge-phoenix-success">Customer</span>
+                                {% elif customer.status == 'inactive' %}
+                                    <span class="badge badge-phoenix badge-phoenix-secondary">Inactive</span>
+                                {% else %}
+                                    <span class="badge badge-phoenix badge-phoenix-danger">Lost</span>
+                                {% endif %}
                             </td>
-                            <!-- Created Date -->
-                            <td class="text-body-secondary">{{ customer.created_at|date:"d M Y" }}</td>
                             <!-- Actions -->
-                            <td class="text-end pe-4">
-                                <a href="{% url 'employee_portal:customer_detail' customer.id %}" class="btn btn-phoenix-primary btn-xs" title="View 360 Card">
-                                    <i class="fas fa-eye me-1"></i>View Profile
-                                </a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="text-center py-6 text-body-tertiary">
-                                <i class="fas fa-user-friends d-block fs-2 mb-3"></i>No assigned buyers or leads match your filters.
+                            <td class="text-end pe-4 py-3">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="https://wa.me/91{{ customer.phone|cut:' '|cut:'-'|cut:'+'|slice:'-10:' }}" target="_blank" 
+                                       class="btn btn-phoenix-success px-2" title="Chat on WhatsApp">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </a>
+                                    <a href="tel:{{ customer.phone }}" class="btn btn-phoenix-info px-2" title="Call">
+                                        <i class="fas fa-phone"></i>
+                                    </a>
+                                    <a href="{% url 'employee_portal:customer_detail' customer.id %}" class="btn btn-phoenix-primary px-2" title="View Profile">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
-            
-            <!-- Pagination Footer -->
+
+            <!-- Pagination -->
             {% if page_obj.has_other_pages %}
-            <div class="card-footer bg-body-tertiary py-3 d-flex justify-content-between align-items-center">
-                <span class="fs-10 text-body-tertiary">Showing page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-                <nav>
-                    <ul class="pagination pagination-sm mb-0">
-                        {% if page_obj.has_previous %}
-                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}&status={{ status_filter }}&lead_source={{ source_filter }}">Previous</a></li>
-                        {% endif %}
-                        
-                        {% for num in page_obj.paginator.page_range %}
-                        {% if page_obj.number == num %}
-                        <li class="page-item active"><span class="page-link">{{ num }}</span></li>
-                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
-                        <li class="page-item"><a class="page-link" href="?page={{ num }}&q={{ query }}&status={{ status_filter }}&lead_source={{ source_filter }}">{{ num }}</a></li>
-                        {% endif %}
-                        {% endfor %}
-                        
-                        {% if page_obj.has_next %}
-                        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}&status={{ status_filter }}&lead_source={{ source_filter }}">Next</a></li>
-                        {% endif %}
-                    </ul>
-                </nav>
+            <div class="d-flex align-items-center justify-content-between p-3 border-top">
+                <span class="text-body-secondary fs-9">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} contacts
+                </span>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_source %}&lead_source={{ current_source }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_source %}&lead_source={{ current_source }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <div class="avatar avatar-3xl bg-body-tertiary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                    <span class="fas fa-user-slash text-primary fs-4"></span>
+                </div>
+                <h5 class="text-body-emphasis">No contacts found</h5>
+                <p class="text-body-secondary fs-9 mb-3">No customers or buyers match your selected filter.</p>
             </div>
             {% endif %}
         </div>

@@ -107,14 +107,42 @@
 
                                         <li class="nav-item-wrapper py-2">
                                             <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Buyers & Sales</span>
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'whatsapp' in request.path %}active{% endif %}"
+                                                href="{% url 'employee_portal:whatsapp_inbox' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="message-circle"></span></span>
+                                                    <span class="nav-link-text">WhatsApp Inbox</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'vendors/search' in request.path %}active{% endif %}"
+                                                href="{% url 'employee_portal:vendor_search' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="search"></span></span>
+                                                    <span class="nav-link-text">Search & Sync Places</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'vendors' in request.path and 'search' not in request.path %}active{% endif %}"
+                                                href="{% url 'employee_portal:vendor_directory' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="briefcase"></span></span>
+                                                    <span class="nav-link-text">Vendor Directory</span>
+                                                </div>
+                                            </a>
                                         </li>
 
                                         <li class="nav-item">
                                             <a class="nav-link {% if 'customers' in request.path and 'kanban' not in request.path %}active{% endif %}"
                                                 href="{% url 'employee_portal:customer_list' %}">
                                                 <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="user"></span></span>
-                                                    <span class="nav-link-text">My Buyers</span>
+                                                    <span class="nav-link-icon"><span data-feather="users"></span></span>
+                                                    <span class="nav-link-text">My Customers & Buyers</span>
                                                 </div>
                                             </a>
                                         </li>

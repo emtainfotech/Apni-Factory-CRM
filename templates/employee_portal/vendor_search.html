@@ -1,0 +1,165 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0 text-body-emphasis">🔍 Search & Sync Places (Google Places API)</h2>
+            <p class="text-body-secondary mb-0 fs-9">Discover and sync verified local stores, wholesalers, contractors & buyers directly into your CRM workspace.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:vendor_directory' %}" class="btn btn-phoenix-primary btn-sm">
+                <span class="fas fa-list me-1"></span> View My Directory
+            </a>
+        </div>
+    </div>
+
+    <!-- Search Form Card -->
+    <div class="card mb-4 border border-translucent shadow-sm">
+        <div class="card-body p-4">
+            <form method="POST" action="{% url 'employee_portal:vendor_search' %}">
+                {% csrf_token %}
+                <div class="row g-3">
+                    <div class="col-12 col-md-7">
+                        <label class="form-label fw-bold text-body-highlight fs-9">Search Query / Location</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-body-tertiary"><span class="fas fa-search"></span></span>
+                            <input type="text" name="search_query" id="search_query" class="form-control form-control-lg fs-9" 
+                                   placeholder="e.g. Paint stores in Indore, Hardware shops in Bhopal, Contractors..." required autofocus>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-3">
+                        <label class="form-label fw-bold text-body-highlight fs-9">Classification / Party Type</label>
+                        <select name="party_type" class="form-select form-select-lg fs-9">
+                            <option value="SELLER" selected>🏭 Seller / Supplier / Vendor</option>
+                            <option value="BUYER">🛍️ Buyer / Commercial Contractor</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-lg w-100 fs-9 fw-bold">
+                            <span class="fas fa-cloud-download-alt me-2"></span> Search & Sync
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Suggested Filters -->
+                <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="text-body-tertiary fs-10 fw-semibold">Quick Search:</span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fs-10 py-1" onclick="setQuery('Paint shops in Indore', 'SELLER')">🎨 Paint Shops (Indore)</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fs-10 py-1" onclick="setQuery('Hardware dealers in Bhopal', 'SELLER')">🔧 Hardware Dealers (Bhopal)</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fs-10 py-1" onclick="setQuery('Building Contractors in Indore', 'BUYER')">🏗️ Building Contractors (Buyer)</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fs-10 py-1" onclick="setQuery('Cleaning chemicals distributors in Ujjain', 'SELLER')">🧼 Chemical Wholesalers</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill fs-10 py-1" onclick="setQuery('Interior Designers in Indore', 'BUYER')">🏠 Interior Designers (Buyer)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results / Synced Records Table -->
+    <div class="card border border-translucent shadow-sm">
+        <div class="card-header bg-body-tertiary border-bottom d-flex align-items-center justify-content-between py-3">
+            <h5 class="mb-0 text-body-emphasis">
+                <span class="fas fa-history text-primary me-2"></span> My Synced Places & History ({{ vendors|length }} Recent)
+            </h5>
+            <span class="badge badge-phoenix badge-phoenix-info">Private Scoped to You</span>
+        </div>
+        <div class="card-body p-0">
+            {% if vendors %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0 fs-9">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th>Store / Business Name</th>
+                            <th>Classification</th>
+                            <th>Category</th>
+                            <th>City / Address</th>
+                            <th>Phone / WhatsApp</th>
+                            <th>Rating</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in vendors %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-body-highlight">{{ v.store_name }}</div>
+                                {% if v.website_url %}
+                                <a href="{{ v.website_url }}" target="_blank" class="text-body-quaternary fs-10 text-decoration-none">
+                                    <span class="fas fa-external-link-alt me-1"></span>Website
+                                </a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if v.party_type == 'BUYER' %}
+                                <span class="badge badge-phoenix badge-phoenix-warning">🛍️ Buyer / Contractor</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-success">🏭 Seller / Vendor</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-body-tertiary text-body-highlight">{{ v.category|default:'General Store' }}</span>
+                            </td>
+                            <td>
+                                <div class="text-truncate" style="max-width: 220px;" title="{{ v.street_address }}">
+                                    {{ v.city|default:v.street_address|truncatechars:35 }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if v.phone_number or v.mobile_number %}
+                                <div class="fw-semibold text-body-highlight">{{ v.phone_number|default:v.mobile_number }}</div>
+                                {% else %}
+                                <span class="text-body-quaternary">Not Listed</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if v.rating %}
+                                <span class="text-warning"><span class="fas fa-star"></span> {{ v.rating }}</span>
+                                <span class="text-body-quaternary fs-10">({{ v.user_ratings_total }})</span>
+                                {% else %}
+                                <span class="text-body-quaternary">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    {% if v.phone_number or v.mobile_number %}
+                                    <a href="https://wa.me/91{{ v.mobile_number|default:v.phone_number|cut:' '|cut:'-'|cut:'+'|slice:'-10:' }}" 
+                                       target="_blank" class="btn btn-phoenix-success px-2" title="Chat on WhatsApp">
+                                        <span class="fab fa-whatsapp"></span>
+                                    </a>
+                                    <a href="tel:{{ v.phone_number|default:v.mobile_number }}" class="btn btn-phoenix-info px-2" title="Call">
+                                        <span class="fas fa-phone"></span>
+                                    </a>
+                                    {% endif %}
+                                    <a href="{% url 'employee_portal:convert_vendor_to_customer' v.id %}" 
+                                       class="btn btn-phoenix-primary px-2" title="Convert to CRM Lead/Customer"
+                                       onclick="return confirm('Convert {{ v.store_name|escapejs }} into an official CRM Customer/Buyer lead?')">
+                                        <span class="fas fa-user-plus me-1"></span> Convert
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <div class="avatar avatar-3xl bg-body-tertiary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                    <span class="fas fa-map-marker-alt text-primary fs-4"></span>
+                </div>
+                <h5 class="text-body-emphasis">No synced places yet</h5>
+                <p class="text-body-secondary fs-9 mb-3">Type a city or trade search above to discover and sync leads instantly with Google Places API.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function setQuery(text, partyType) {
+    document.getElementById('search_query').value = text;
+    document.querySelector('select[name="party_type"]').value = partyType;
+}
+</script>
+{% endblock %}

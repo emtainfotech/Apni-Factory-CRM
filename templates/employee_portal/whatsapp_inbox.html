@@ -1,0 +1,308 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<style>
+    .chat-layout {
+        height: calc(100vh - 125px);
+        min-height: 550px;
+        display: flex;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--phoenix-border-color, #e5e7eb);
+        background: var(--phoenix-card-bg, #ffffff);
+    }
+    .chat-sidebar {
+        width: 340px;
+        min-width: 300px;
+        max-width: 380px;
+        border-right: 1px solid var(--phoenix-border-color, #e5e7eb);
+        display: flex;
+        flex-direction: column;
+        background: var(--phoenix-card-bg, #ffffff);
+    }
+    .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--phoenix-body-bg, #f8f9fa);
+    }
+    .contact-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--phoenix-border-color, #f1f3f5);
+        cursor: pointer;
+        transition: background 0.15s ease;
+        text-decoration: none;
+        display: block;
+        color: inherit;
+    }
+    .contact-item:hover {
+        background: rgba(37, 99, 235, 0.05);
+    }
+    .contact-item.active {
+        background: rgba(37, 99, 235, 0.1);
+        border-left: 3px solid #2563eb;
+    }
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .msg-bubble {
+        max-width: 70%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 0.9rem;
+        position: relative;
+        word-wrap: break-word;
+    }
+    .msg-incoming {
+        align-self: flex-start;
+        background: var(--phoenix-card-bg, #ffffff);
+        border: 1px solid var(--phoenix-border-color, #e5e7eb);
+        color: var(--phoenix-body-color, #111827);
+        border-bottom-left-radius: 2px;
+    }
+    .msg-outgoing {
+        align-self: flex-end;
+        background: #2563eb;
+        color: #ffffff;
+        border-bottom-right-radius: 2px;
+    }
+    .msg-time {
+        font-size: 0.7rem;
+        margin-top: 4px;
+        opacity: 0.75;
+        text-align: right;
+    }
+</style>
+
+<div class="container-fluid px-0">
+    <div class="chat-layout shadow-sm">
+        <!-- Left Sidebar: Contacts -->
+        <div class="chat-sidebar">
+            <div class="p-3 border-bottom">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <h5 class="mb-0 text-body-emphasis">💬 WhatsApp Inbox</h5>
+                    <span class="badge badge-phoenix badge-phoenix-success fs-10"><span class="fab fa-whatsapp me-1"></span>Connected</span>
+                </div>
+                
+                <!-- Search Box -->
+                <form method="GET" action="{% url 'employee_portal:whatsapp_inbox' %}" class="mb-2">
+                    {% if current_party_type %}
+                    <input type="hidden" name="party_type" value="{{ current_party_type }}">
+                    {% endif %}
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-body-tertiary"><span class="fas fa-search"></span></span>
+                        <input type="text" name="q" class="form-control fs-10" placeholder="Search my chats..." value="{{ current_query }}">
+                    </div>
+                </form>
+
+                <!-- Buyer vs Seller Filter Pills -->
+                <div class="d-flex gap-1">
+                    <a href="{% url 'employee_portal:whatsapp_inbox' %}" 
+                       class="btn btn-xs flex-grow-1 {% if not current_party_type %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                        All ({{ total_count }})
+                    </a>
+                    <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=buyer" 
+                       class="btn btn-xs flex-grow-1 {% if current_party_type == 'buyer' %}btn-warning{% else %}btn-phoenix-secondary{% endif %}">
+                        Buyers ({{ buyers_count }})
+                    </a>
+                    <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=seller" 
+                       class="btn btn-xs flex-grow-1 {% if current_party_type == 'seller' %}btn-success{% else %}btn-phoenix-secondary{% endif %}">
+                        Sellers ({{ sellers_count }})
+                    </a>
+                </div>
+            </div>
+
+            <!-- Contacts Scroll List -->
+            <div class="flex-grow-1 overflow-auto" id="contactsList">
+                {% if customers %}
+                    {% for c in customers %}
+                    <div class="contact-item" onclick="loadChat('{{ c.id }}', this)" id="contact-{{ c.id }}">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="fw-bold text-body-highlight text-truncate" style="max-width: 170px;">
+                                {{ c.get_full_name|default:c.first_name }}
+                            </span>
+                            {% if c.customer_type == 'seller' %}
+                            <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
+                            {% else %}
+                            <span class="badge badge-phoenix badge-phoenix-warning fs-10">Buyer</span>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between fs-10 text-body-tertiary">
+                            <span><span class="fas fa-phone me-1"></span>{{ c.phone }}</span>
+                            <span>{{ c.city|default:'' }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center p-4 text-body-quaternary">
+                        <span class="fas fa-comment-slash fs-2 mb-2 d-block"></span>
+                        <p class="fs-9 mb-0">No assigned chats found for this filter.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Main: Active Chat Window -->
+        <div class="chat-main" id="chatMain">
+            <!-- Empty Placeholder -->
+            <div class="d-flex flex-column align-items-center justify-content-center h-100 p-4 text-center" id="noChatSelected">
+                <div class="avatar avatar-4xl bg-body-tertiary rounded-circle mb-3 d-flex align-items-center justify-content-center">
+                    <span class="fab fa-whatsapp text-success fs-2"></span>
+                </div>
+                <h5 class="text-body-emphasis">Select a Customer or Buyer to Start Chatting</h5>
+                <p class="text-body-secondary fs-9 max-w-400">Provide real-time support, answer wholesale inquiries, send product quotes, and follow up with your assigned accounts.</p>
+            </div>
+
+            <!-- Active Chat Box (Hidden by default) -->
+            <div class="d-flex flex-column h-100 d-none" id="activeChatBox">
+                <!-- Header -->
+                <div class="p-3 bg-body border-bottom d-flex align-items-center justify-content-between">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar avatar-m bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold fs-9" id="chatAvatar">
+                            C
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-bold text-body-highlight" id="chatCustomerName">Customer Name</h6>
+                            <small class="text-body-tertiary fs-10">
+                                <span id="chatPhone">Phone</span> • <span id="chatTypeBadge" class="badge badge-phoenix badge-phoenix-primary fs-10">Type</span>
+                            </small>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="#" id="viewProfileBtn" class="btn btn-phoenix-secondary btn-sm" target="_blank">
+                            <span class="fas fa-user me-1"></span> View Profile
+                        </a>
+                        <a href="#" id="waDirectBtn" class="btn btn-phoenix-success btn-sm" target="_blank">
+                            <span class="fab fa-whatsapp me-1"></span> WhatsApp Web
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Messages Stream -->
+                <div class="chat-messages" id="messagesContainer">
+                    <!-- Dynamic Messages Injected Here -->
+                </div>
+
+                <!-- Input Footer -->
+                <div class="p-3 bg-body border-top">
+                    <form id="sendMessageForm" onsubmit="submitMessage(event)">
+                        {% csrf_token %}
+                        <div class="input-group">
+                            <input type="text" name="message" id="messageInput" class="form-control fs-9" placeholder="Type a WhatsApp message..." autocomplete="off">
+                            <button type="submit" class="btn btn-primary px-4">
+                                <span class="fas fa-paper-plane me-1"></span> Send
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentCustomerId = null;
+let chatPollInterval = null;
+
+function loadChat(customerId, element) {
+    currentCustomerId = customerId;
+
+    // Highlight contact item
+    document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+    if (element) {
+        element.classList.add('active');
+    }
+
+    // Toggle containers
+    document.getElementById('noChatSelected').classList.add('d-none');
+    document.getElementById('activeChatBox').classList.remove('d-none');
+
+    // Fetch messages
+    fetchChatMessages(customerId);
+
+    // Set polling
+    if (chatPollInterval) clearInterval(chatPollInterval);
+    chatPollInterval = setInterval(() => {
+        if (currentCustomerId) fetchChatMessages(currentCustomerId, false);
+    }, 4000);
+}
+
+function fetchChatMessages(customerId, scroll = true) {
+    fetch(`/employee/whatsapp/${customerId}/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                document.getElementById('chatCustomerName').innerText = data.customer_name;
+                document.getElementById('chatPhone').innerText = data.phone;
+                document.getElementById('chatAvatar').innerText = data.customer_name.charAt(0).toUpperCase();
+                document.getElementById('chatTypeBadge').innerText = data.customer_type;
+                document.getElementById('viewProfileBtn').href = `/employee/customers/${customerId}/`;
+                document.getElementById('waDirectBtn').href = `https://wa.me/91${data.phone.replace(/[^0-9]/g, '').slice(-10)}`;
+
+                const container = document.getElementById('messagesContainer');
+                if (data.chats.length === 0) {
+                    container.innerHTML = '<div class="text-center text-body-quaternary my-auto fs-9">No messages yet. Send a message to start the conversation.</div>';
+                } else {
+                    container.innerHTML = data.chats.map(chat => {
+                        const isOutgoing = (chat.direction === 'outgoing');
+                        const bubbleClass = isOutgoing ? 'msg-outgoing' : 'msg-incoming';
+                        let attachHtml = '';
+                        if (chat.attachment_url) {
+                            attachHtml = `<div class="mb-1"><a href="${chat.attachment_url}" target="_blank" class="text-white text-decoration-underline"><span class="fas fa-paperclip me-1"></span>Attachment</a></div>`;
+                        }
+                        return `
+                            <div class="msg-bubble ${bubbleClass}">
+                                ${attachHtml}
+                                <div>${escapeHtml(chat.message || '')}</div>
+                                <div class="msg-time">${chat.timestamp}</div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                if (scroll) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            }
+        })
+        .catch(err => console.error("Error fetching chat:", err));
+}
+
+function submitMessage(e) {
+    e.preventDefault();
+    if (!currentCustomerId) return;
+
+    const input = document.getElementById('messageInput');
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    const formData = new FormData();
+    formData.append('message', msg);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch(`/employee/whatsapp/${currentCustomerId}/send/`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === 'success') {
+            input.value = '';
+            fetchChatMessages(currentCustomerId, true);
+        }
+    })
+    .catch(err => console.error("Error sending message:", err));
+}
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+</script>
+{% endblock %}

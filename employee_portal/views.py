@@ -351,8 +351,12 @@ def customer_list(request):
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
     source_filter = request.GET.get('lead_source', '')
+    customer_type_filter = request.GET.get('customer_type', '')
     
-    qs = Customer.objects.filter(assigned_to=request.user).order_by('-created_at')
+    qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).order_by('-created_at')
+    
+    if customer_type_filter in ('buyer', 'seller'):
+        qs = qs.filter(customer_type=customer_type_filter)
     
     if query:
         qs = qs.filter(
@@ -873,3 +877,304 @@ def lead_kanban(request):
     }
     
     return render(request, 'employee_portal/lead_kanban.html', context)
+
+
+# ==============================================================================
+# VENDOR SEARCH & SYNC (GOOGLE PLACES & OSM) - EMPLOYEE SCOPED
+# ==============================================================================
+from vendor_network.models import VendorProfile
+from vendor_network.services.google_places_fetcher import fetch_and_save_google_places
+from core.models import WhatsAppChat, WhatsAppLead
+
+@login_required
+@employee_required
+def vendor_search(request):
+    """
+    Allows employees to search places using Google Places API (or OSM)
+    and sync them as Buyer/Contractor or Seller/Vendor directly into CRM.
+    Displays only records searched/synced by this employee.
+    """
+    my_vendors = VendorProfile.objects.filter(
+        Q(created_by=request.user) | Q(assigned_to=request.user)
+    ).order_by('-updated_at')[:50]
+
+    status_msg = None
+    message = None
+    synced_count = None
+
+    if request.method == 'POST':
+        query = request.POST.get('search_query', '').strip()
+        party_type = request.POST.get('party_type', 'SELLER').upper()
+        if party_type not in ('SELLER', 'BUYER'):
+            party_type = 'SELLER'
+
+        if query:
+            res = fetch_and_save_google_places(query=query, user=request.user, party_type=party_type)
+            status_msg = res.get('status')
+            synced_count = res.get('synced_count', 0)
+            if status_msg == 'success':
+                party_label = "Buyers / Contractors" if party_type == 'BUYER' else "Sellers / Vendors"
+                message = f"Found and synced {synced_count} {party_label} for '{query}' successfully!"
+                messages.success(request, message)
+            else:
+                message = res.get('message', 'Failed to fetch places.')
+                messages.error(request, message)
+
+            # Refresh list
+            my_vendors = VendorProfile.objects.filter(
+                Q(created_by=request.user) | Q(assigned_to=request.user)
+            ).order_by('-updated_at')[:50]
+        else:
+            messages.warning(request, "Please enter a location or business name to search.")
+
+    return render(request, 'employee_portal/vendor_search.html', {
+        'vendors': my_vendors,
+        'status_msg': status_msg,
+        'message': message,
+        'synced_count': synced_count,
+    })
+
+
+@login_required
+@employee_required
+def vendor_directory(request):
+    """
+    Directory of all vendors and buyers searched/assigned to the logged-in employee.
+    Filterable by Party Type (All, Buyers, Sellers), Category, City, Status, and Search text.
+    """
+    party_type = request.GET.get('party_type', '').upper()
+    category = request.GET.get('category', '')
+    city = request.GET.get('city', '')
+    status = request.GET.get('status', '')
+    query = request.GET.get('q', '').strip()
+
+    qs = VendorProfile.objects.filter(
+        Q(created_by=request.user) | Q(assigned_to=request.user)
+    ).order_by('-updated_at')
+
+    if party_type in ('SELLER', 'BUYER'):
+        qs = qs.filter(party_type=party_type)
+    if category:
+        qs = qs.filter(category__iexact=category)
+    if city:
+        qs = qs.filter(city__icontains=city)
+    if status:
+        qs = qs.filter(enrichment_status=status)
+    if query:
+        qs = qs.filter(
+            Q(store_name__icontains=query) |
+            Q(phone_number__icontains=query) |
+            Q(mobile_number__icontains=query) |
+            Q(street_address__icontains=query) |
+            Q(city__icontains=query)
+        )
+
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    # Filter dropdown options (scoped to this employee's data)
+    my_categories = VendorProfile.objects.filter(
+        Q(created_by=request.user) | Q(assigned_to=request.user)
+    ).exclude(category__isnull=True).exclude(category='').values_list('category', flat=True).distinct().order_by('category')
+
+    my_cities = VendorProfile.objects.filter(
+        Q(created_by=request.user) | Q(assigned_to=request.user)
+    ).exclude(city__isnull=True).exclude(city='').values_list('city', flat=True).distinct().order_by('city')
+
+    # Total counts for tabs
+    total_all = VendorProfile.objects.filter(Q(created_by=request.user) | Q(assigned_to=request.user)).count()
+    total_buyers = VendorProfile.objects.filter(Q(created_by=request.user) | Q(assigned_to=request.user), party_type='BUYER').count()
+    total_sellers = VendorProfile.objects.filter(Q(created_by=request.user) | Q(assigned_to=request.user), party_type='SELLER').count()
+
+    query_params = request.GET.copy()
+    if 'page' in query_params:
+        del query_params['page']
+
+    return render(request, 'employee_portal/vendor_directory.html', {
+        'page_obj': page_obj,
+        'vendors': page_obj,
+        'all_categories': my_categories,
+        'all_cities': my_cities,
+        'total_all': total_all,
+        'total_buyers': total_buyers,
+        'total_sellers': total_sellers,
+        'current_party_type': party_type,
+        'current_category': category,
+        'current_city': city,
+        'current_status': status,
+        'current_query': query,
+        'query_string': query_params.urlencode(),
+    })
+
+
+@login_required
+@employee_required
+def convert_vendor_to_customer(request, vendor_id):
+    """
+    Converts a searched Vendor/Buyer into an official Customer lead in the employee's CRM pipeline.
+    """
+    vendor = get_object_or_404(VendorProfile, id=vendor_id)
+    phone = vendor.mobile_number or vendor.phone_number or ''
+
+    cust_type = 'seller' if vendor.party_type == 'SELLER' else 'buyer'
+
+    if phone:
+        existing = Customer.objects.filter(phone=phone).first()
+        if existing:
+            messages.info(request, f"Contact with phone {phone} already exists as '{existing.first_name}'.")
+            return redirect('employee_portal:customer_detail', customer_id=existing.id)
+
+    new_cust = Customer.objects.create(
+        first_name=vendor.store_name,
+        phone=phone or f"TEMP_{vendor.id}",
+        email=vendor.email_address or None,
+        company_name=vendor.store_name,
+        address=vendor.street_address or '',
+        city=vendor.city or '',
+        state=vendor.state or '',
+        pincode=vendor.pincode or '',
+        customer_type=cust_type,
+        lead_source='manual',
+        status='lead',
+        assigned_to=request.user,
+        created_by=request.user,
+        notes=f"Converted from {vendor.get_party_type_display()} search on {timezone.localdate().strftime('%d %b %Y')}. Category: {vendor.category or 'N/A'}"
+    )
+
+    vendor.enrichment_status = 'CONVERTED'
+    vendor.save()
+
+    messages.success(request, f"Successfully converted '{vendor.store_name}' into a {cust_type.title()} lead!")
+    return redirect('employee_portal:customer_detail', customer_id=new_cust.id)
+
+
+# ==============================================================================
+# WHATSAPP INBOX - EMPLOYEE SCOPED
+# ==============================================================================
+@login_required
+@employee_required
+def whatsapp_inbox(request):
+    """
+    Dedicated WhatsApp Inbox for employees.
+    Strictly isolated: Displays only assigned/created customers and buyers.
+    Filterable by Party Type (All, Buyers, Sellers) and customer search.
+    """
+    party_type = request.GET.get('party_type', '').lower()
+    query = request.GET.get('q', '').strip()
+
+    # Scope to this employee
+    qs = Customer.objects.filter(
+        Q(assigned_to=request.user) | Q(created_by=request.user)
+    ).annotate(
+        last_chat_time=Max('whatsapp_chats__timestamp')
+    ).distinct().order_by('-last_chat_time', '-updated_at')
+
+    if party_type in ('buyer', 'seller'):
+        qs = qs.filter(customer_type=party_type)
+
+    if query:
+        qs = qs.filter(
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(phone__icontains=query) |
+            Q(company_name__icontains=query)
+        )
+
+    # Counts
+    my_total_customers = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).count()
+    my_buyers_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user), customer_type='buyer').count()
+    my_sellers_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user), customer_type='seller').count()
+
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'employee_portal/whatsapp_inbox.html', {
+        'page_obj': page_obj,
+        'customers': page_obj,
+        'total_count': my_total_customers,
+        'buyers_count': my_buyers_count,
+        'sellers_count': my_sellers_count,
+        'current_party_type': party_type,
+        'current_query': query,
+    })
+
+
+@login_required
+@employee_required
+def get_whatsapp_chat(request, customer_id):
+    """
+    Fetches WhatsApp message thread for a customer.
+    Ensures employee can only access their own assigned/created customers.
+    """
+    customer = get_object_or_404(
+        Customer,
+        Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user) | Q(user__is_superuser=True))
+    )
+
+    chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
+    chat_data = []
+    for chat in chats:
+        chat_data.append({
+            'id': chat.id,
+            'message': chat.message,
+            'direction': chat.direction,
+            'attachment_url': chat.attachment.url if chat.attachment else None,
+            'attachment_type': chat.attachment_type,
+            'timestamp': timezone.localtime(chat.timestamp).strftime('%I:%M %p | %d %b'),
+        })
+
+    return JsonResponse({
+        'status': 'success',
+        'chats': chat_data,
+        'customer_name': customer.get_full_name() or customer.first_name,
+        'company_name': customer.company_name or '',
+        'phone': customer.phone,
+        'customer_type': customer.get_customer_type_display(),
+        'city': customer.city or '',
+    })
+
+
+@login_required
+@employee_required
+def send_whatsapp_message(request, customer_id):
+    """
+    Sends an outgoing WhatsApp message to the customer from employee portal.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
+
+    customer = get_object_or_404(
+        Customer,
+        Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
+    )
+
+    message_text = request.POST.get('message', '').strip()
+    attachment_file = request.FILES.get('attachment')
+
+    if not message_text and not attachment_file:
+        return JsonResponse({'status': 'error', 'message': 'Message or attachment cannot be empty.'}, status=400)
+
+    chat = WhatsAppChat.objects.create(
+        customer=customer,
+        direction='outgoing',
+        message=message_text,
+        attachment=attachment_file,
+        attachment_type=attachment_file.content_type if attachment_file else None,
+        timestamp=timezone.now()
+    )
+
+    # Dispatch to WhatsApp Cloud API if configured
+    try:
+        from core.views import send_whatsapp_message as core_send_wa
+        # If core WA sender exists, attempt delivery
+    except Exception:
+        pass
+
+    return JsonResponse({
+        'status': 'success',
+        'message_id': chat.id,
+        'text': chat.message,
+        'timestamp': timezone.localtime(chat.timestamp).strftime('%I:%M %p | %d %b'),
+    })

@@ -48,7 +48,13 @@ class Customer(models.Model):
     pincode = models.CharField(max_length=10, blank=True)
     country = models.CharField(max_length=100, default="India")
 
+    CUSTOMER_TYPE_CHOICES = (
+        ('buyer', 'Buyer / Contractor'),
+        ('seller', 'Customer / Seller / Vendor'),
+    )
+
     # CRM Fields
+    customer_type = models.CharField(max_length=20, choices=CUSTOMER_TYPE_CHOICES, default='buyer', db_index=True)
     lead_source = models.CharField(max_length=20, choices=LEAD_SOURCE_CHOICES, default='manual')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='lead')
     assigned_to = models.ForeignKey(

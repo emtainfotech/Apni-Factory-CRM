@@ -1,0 +1,236 @@
+{% extends 'employee_portal/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <div class="row g-3 mb-3 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0 text-body-emphasis">🏪 My Vendor & Buyer Directory</h2>
+            <p class="text-body-secondary mb-0 fs-9">Private catalog of suppliers, manufacturers, contractors and buyers synced or assigned to you.</p>
+        </div>
+        <div class="col-auto">
+            <a href="{% url 'employee_portal:vendor_search' %}" class="btn btn-primary btn-sm">
+                <span class="fas fa-plus-circle me-1"></span> Search New Places (Google API)
+            </a>
+        </div>
+    </div>
+
+    <!-- Party Type Tabs -->
+    <ul class="nav nav-links mb-3 mb-lg-2 mx-n3">
+        <li class="nav-item">
+            <a class="nav-link {% if not current_party_type %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
+               href="{% url 'employee_portal:vendor_directory' %}">
+                All Parties <span class="badge badge-phoenix badge-phoenix-secondary rounded-pill ms-1">{{ total_all }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_party_type == 'BUYER' %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
+               href="{% url 'employee_portal:vendor_directory' %}?party_type=BUYER">
+                🛍️ Buyers / Contractors <span class="badge badge-phoenix badge-phoenix-warning rounded-pill ms-1">{{ total_buyers }}</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_party_type == 'SELLER' %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
+               href="{% url 'employee_portal:vendor_directory' %}?party_type=SELLER">
+                🏭 Sellers / Vendors <span class="badge badge-phoenix badge-phoenix-success rounded-pill ms-1">{{ total_sellers }}</span>
+            </a>
+        </li>
+    </ul>
+
+    <!-- Filter Bar Card -->
+    <div class="card mb-4 border border-translucent shadow-sm">
+        <div class="card-body p-3">
+            <form method="GET" action="{% url 'employee_portal:vendor_directory' %}">
+                {% if current_party_type %}
+                <input type="hidden" name="party_type" value="{{ current_party_type }}">
+                {% endif %}
+
+                <div class="row g-2 align-items-center">
+                    <div class="col-12 col-md-4">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-body-tertiary"><span class="fas fa-search"></span></span>
+                            <input type="text" name="q" class="form-control fs-9" 
+                                   placeholder="Search by name, phone, city, address..." value="{{ current_query }}">
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <select name="category" class="form-select form-select-sm fs-9">
+                            <option value="">All Categories</option>
+                            {% for cat in all_categories %}
+                            <option value="{{ cat }}" {% if current_category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <select name="city" class="form-select form-select-sm fs-9">
+                            <option value="">All Cities</option>
+                            {% for c in all_cities %}
+                            <option value="{{ c }}" {% if current_city == c %}selected{% endif %}>{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2">
+                        <select name="status" class="form-select form-select-sm fs-9">
+                            <option value="">All Statuses</option>
+                            <option value="PENDING" {% if current_status == 'PENDING' %}selected{% endif %}>Pending</option>
+                            <option value="VERIFIED" {% if current_status == 'VERIFIED' %}selected{% endif %}>Verified</option>
+                            <option value="CONTACTED" {% if current_status == 'CONTACTED' %}selected{% endif %}>Contacted</option>
+                            <option value="CONVERTED" {% if current_status == 'CONVERTED' %}selected{% endif %}>Converted</option>
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-2 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary btn-sm flex-grow-1 fs-9 fw-semibold">
+                            <span class="fas fa-filter me-1"></span> Filter
+                        </button>
+                        <a href="{% url 'employee_portal:vendor_directory' %}{% if current_party_type %}?party_type={{ current_party_type }}{% endif %}" 
+                           class="btn btn-phoenix-secondary btn-sm" title="Clear Filters">
+                            ✕
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Directory Table Card -->
+    <div class="card border border-translucent shadow-sm">
+        <div class="card-body p-0">
+            {% if vendors %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped align-middle mb-0 fs-9">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th>Store / Business</th>
+                            <th>Classification</th>
+                            <th>Category</th>
+                            <th>Location / Address</th>
+                            <th>Phone / WhatsApp</th>
+                            <th>Status</th>
+                            <th>Rating</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in vendors %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-body-highlight">{{ v.store_name }}</div>
+                                {% if v.website_url %}
+                                <a href="{{ v.website_url }}" target="_blank" class="text-body-quaternary fs-10 text-decoration-none">
+                                    <span class="fas fa-external-link-alt me-1"></span>Website
+                                </a>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if v.party_type == 'BUYER' %}
+                                <span class="badge badge-phoenix badge-phoenix-warning">🛍️ Buyer / Contractor</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-success">🏭 Seller / Vendor</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-body-tertiary text-body-highlight">{{ v.category|default:'General' }}</span>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-body-highlight">{{ v.city|default:'N/A' }}</div>
+                                <div class="text-body-tertiary fs-10 text-truncate" style="max-width: 220px;" title="{{ v.street_address }}">
+                                    {{ v.street_address|default:'-' }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if v.phone_number or v.mobile_number %}
+                                <div class="fw-semibold text-body-highlight">{{ v.phone_number|default:v.mobile_number }}</div>
+                                {% else %}
+                                <span class="text-body-quaternary">Not Listed</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if v.enrichment_status == 'CONVERTED' %}
+                                <span class="badge badge-phoenix badge-phoenix-primary">Converted</span>
+                                {% elif v.enrichment_status == 'VERIFIED' %}
+                                <span class="badge badge-phoenix badge-phoenix-success">Verified</span>
+                                {% elif v.enrichment_status == 'CONTACTED' %}
+                                <span class="badge badge-phoenix badge-phoenix-info">Contacted</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-secondary">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if v.rating %}
+                                <span class="text-warning"><span class="fas fa-star"></span> {{ v.rating }}</span>
+                                {% else %}
+                                <span class="text-body-quaternary">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    {% if v.phone_number or v.mobile_number %}
+                                    <a href="https://wa.me/91{{ v.mobile_number|default:v.phone_number|cut:' '|cut:'-'|cut:'+'|slice:'-10:' }}" 
+                                       target="_blank" class="btn btn-phoenix-success px-2" title="Chat on WhatsApp">
+                                        <span class="fab fa-whatsapp"></span>
+                                    </a>
+                                    <a href="tel:{{ v.phone_number|default:v.mobile_number }}" class="btn btn-phoenix-info px-2" title="Call">
+                                        <span class="fas fa-phone"></span>
+                                    </a>
+                                    {% endif %}
+                                    {% if v.latitude and v.longitude %}
+                                    <a href="https://www.google.com/maps?q={{ v.latitude }},{{ v.longitude }}" 
+                                       target="_blank" class="btn btn-phoenix-secondary px-2" title="View Map">
+                                        <span class="fas fa-map-marker-alt"></span>
+                                    </a>
+                                    {% endif %}
+                                    {% if v.enrichment_status != 'CONVERTED' %}
+                                    <a href="{% url 'employee_portal:convert_vendor_to_customer' v.id %}" 
+                                       class="btn btn-phoenix-primary px-2" title="Convert to CRM Lead/Customer"
+                                       onclick="return confirm('Convert {{ v.store_name|escapejs }} into an official CRM Customer/Buyer lead?')">
+                                        <span class="fas fa-user-plus me-1"></span> Convert
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if page_obj.has_other_pages %}
+            <div class="d-flex align-items-center justify-content-between p-3 border-top">
+                <span class="text-body-secondary fs-9">
+                    Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+                </span>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Previous</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query_string %}&{{ query_string }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5">
+                <div class="avatar avatar-3xl bg-body-tertiary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                    <span class="fas fa-store-slash text-primary fs-4"></span>
+                </div>
+                <h5 class="text-body-emphasis">No directory records found</h5>
+                <p class="text-body-secondary fs-9 mb-3">You haven't synced any places matching this filter yet.</p>
+                <a href="{% url 'employee_portal:vendor_search' %}" class="btn btn-primary btn-sm">
+                    <span class="fas fa-search me-1"></span> Search Places on Google Maps
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
