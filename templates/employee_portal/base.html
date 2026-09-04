@@ -7,28 +7,27 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>{% block title %}Employee Portal | CRM{% endblock %}</title>
+    <title>{% block title %}Employee Portal | Apni Factory CRM{% endblock %}</title>
 
     <link rel="apple-touch-icon" sizes="180x180" href="/static/assets/img/favicons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/static/assets/img/favicons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/static/assets/img/favicons/favicon-16x16.png">
     <link rel="shortcut icon" type="image/x-icon" href="/static/assets/img/favicons/favicon.ico">
-    <link rel="manifest" href="/static/assets/img/favicons/manifest.json">
-    <meta name="msapplication-TileImage" content="/static/assets/img/favicons/mstile-150x150.png">
     <meta name="theme-color" content="#ffffff">
-
+    <script src="/static/vendors/imagesloaded/imagesloaded.pkgd.min.js"></script>
     <script src="/static/vendors/simplebar/simplebar.min.js"></script>
     <script src="/static/assets/js/config.js"></script>
-    <script src="https://unpkg.com/htmx.org@1.9.10"
-        integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC"
-        crossorigin="anonymous"></script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
     <link href="/static/vendors/dropzone/dropzone.css" rel="stylesheet">
     <link href="/static/vendors/flatpickr/flatpickr.min.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700;800;900&amp;display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@300;400;600;700;800;900&amp;display=swap" rel="stylesheet">
     <link href="/static/vendors/simplebar/simplebar.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.8/css/line.css">
     <link href="/static/assets/css/theme-rtl.min.css" type="text/css" rel="stylesheet" id="style-rtl">
@@ -62,37 +61,43 @@
             userLinkRTL.setAttribute('disabled', true);
         }
     </script>
+    <style>
+        html, body {
+            max-width: 100vw;
+        }
+        .content {
+            box-sizing: border-box;
+        }
+        .content.app-layout-content {
+            padding-top: calc(var(--phoenix-navbar-top-height, 4rem) + 0.5rem) !important;
+            padding-bottom: 0.5rem !important;
+            padding-left: 1.25rem !important;
+            padding-right: 1.25rem !important;
+            height: 100vh !important;
+            max-height: 100vh !important;
+            display: flex !important;
+            flex-direction: column !important;
+            overflow: hidden !important;
+        }
+    </style>
 </head>
 
 <body>
-
     <main class="main" id="top">
 
         {% with request.resolver_match.url_name as url_name %}
 
+        <!-- SIDEBAR -->
         <nav class="navbar navbar-vertical navbar-expand-lg" style="display:none;">
             <div class="collapse navbar-collapse" id="navbarVerticalCollapse">
                 <div class="navbar-vertical-content">
                     <ul class="navbar-nav flex-column" id="navbarVerticalNav">
-                        <li class="nav-item">
-                            <div class="nav-item-wrapper">
-                                <a class="nav-link dropdown-indicator label-1" href="#nv-home" role="button"
-                                    data-bs-toggle="collapse"
-                                    aria-expanded="true"
-                                    aria-controls="nv-home">
-                                    <div class="d-flex align-items-center">
-                                        <div class="dropdown-indicator-icon-wrapper">
-                                            <span class="fas fa-caret-right dropdown-indicator-icon"></span>
-                                        </div>
-                                        <span class="nav-link-icon"><span data-feather="pie-chart"></span></span>
-                                        <span class="nav-link-text">Workspace</span>
-                                    </div>
-                                </a>
+                        <!-- Workspace Overview -->
+                        <li class="nav-item-wrapper py-2">
+                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Workspace</span>
+                        </li>
 
-                                <div class="parent-wrapper label-1">
-                                    <ul class="nav collapse parent show" data-bs-parent="#navbarVerticalCollapse" id="nv-home">
-
-                                        <!-- Employee Portal Sidebar (Strictly restricted, no admin modules) -->
+                                        <!-- 1. Dashboard -->
                                         <li class="nav-item">
                                             <div class="nav-item-wrapper">
                                                 <a class="nav-link {% if url_name == 'dashboard' %}active{% endif %}"
@@ -105,122 +110,163 @@
                                             </div>
                                         </li>
 
+                                        <!-- 2. Communication -->
                                         <li class="nav-item-wrapper py-2">
                                             <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Communication</span>
-                        <li class="nav-item">
-                            <a class="nav-link {% if 'chat' in request.path %}active{% endif %}" href="/chat/">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="nav-link-icon"><span class="fas fa-comments" style="color:#25d366;"></span></span>
-                                    <span class="nav-link-text">Team Chat</span>
-                                    <span class="badge rounded-pill ms-auto" id="globalChatBadge" style="background:#B70000;font-size:.6rem;display:none;">0</span>
-                                </div>
-                            </a>
-                        </li>
-                        <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Buyers & Sales</span>
-                                        <li class="nav-item">
-                                            <a class="nav-link {% if 'whatsapp' in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:whatsapp_inbox' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="message-circle"></span></span>
-                                                    <span class="nav-link-text">WhatsApp Inbox</span>
-                                                </div>
-                                            </a>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'vendors/search' in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:vendor_search' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="search"></span></span>
-                                                    <span class="nav-link-text">Search & Sync Places</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'chat' in request.path %}active{% endif %}" href="/chat/">
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="nav-link-icon"><span class="fas fa-comments" style="color:#25d366;"></span></span>
+                                                        <span class="nav-link-text">Team Chat</span>
+                                                        <span class="badge rounded-pill ms-auto" id="globalChatBadge" style="background:#B70000;font-size:.6rem;display:none;">0</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'vendors' in request.path and 'search' not in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:vendor_directory' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="briefcase"></span></span>
-                                                    <span class="nav-link-text">Vendor Directory</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'whatsapp' in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:whatsapp_inbox' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span class="fab fa-whatsapp" style="color:#25d366;"></span></span>
+                                                        <span class="nav-link-text">WhatsApp Inbox</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+
+                                        <!-- 3. Leads, Vendors & Buyers -->
+                                        <li class="nav-item-wrapper py-2">
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Leads & Buyers</span>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'customers' in request.path and 'kanban' not in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:customer_list' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="users"></span></span>
-                                                    <span class="nav-link-text">My Customers & Buyers</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'vendors/search' in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:vendor_search' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="search"></span></span>
+                                                        <span class="nav-link-text">Search & Sync Places</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'leads/kanban' in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:lead_kanban' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="columns"></span></span>
-                                                    <span class="nav-link-text">My Kanban Board</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'vendors' in request.path and 'search' not in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:vendor_directory' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="briefcase"></span></span>
+                                                        <span class="nav-link-text">Vendor Directory</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'orders' in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:order_list' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="shopping-cart"></span></span>
-                                                    <span class="nav-link-text">Buyer Orders</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'customers' in request.path and 'kanban' not in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:customer_list' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="users"></span></span>
+                                                        <span class="nav-link-text">My Customers & Buyers</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'leads/kanban' in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:lead_kanban' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="columns"></span></span>
+                                                        <span class="nav-link-text">My Kanban Board</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'orders' in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:order_list' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="shopping-cart"></span></span>
+                                                        <span class="nav-link-text">Buyer Orders</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+
+                                        <!-- 4. Catalog (Hostinger Data) -->
+                                        <li class="nav-item-wrapper py-2">
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Catalog</span>
+                                        </li>
+
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'products' in request.path %}active{% endif %}"
+                                                    href="{% url 'product_list' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="package"></span></span>
+                                                        <span class="nav-link-text">App Products</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+
+                                        <!-- 5. Billing & Attendance -->
                                         <li class="nav-item-wrapper py-2">
                                             <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Billing & Attendance</span>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'invoices' in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:invoice_list' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="file-text"></span></span>
-                                                    <span class="nav-link-text">Marketing Invoices</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'invoices' in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:invoice_list' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="file-text"></span></span>
+                                                        <span class="nav-link-text">Marketing Invoices</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'attendance' in request.path and 'apply-leave' not in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:attendance_history' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="clock"></span></span>
-                                                    <span class="nav-link-text">Attendance History</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'attendance' in request.path and 'apply-leave' not in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:attendance_history' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="clock"></span></span>
+                                                        <span class="nav-link-text">Attendance History</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
                                         <li class="nav-item">
-                                            <a class="nav-link {% if 'apply-leave' in request.path %}active{% endif %}"
-                                                href="{% url 'employee_portal:apply_leave' %}">
-                                                <div class="d-flex align-items-center">
-                                                    <span class="nav-link-icon"><span data-feather="calendar"></span></span>
-                                                    <span class="nav-link-text">Apply for Leave</span>
-                                                </div>
-                                            </a>
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'apply-leave' in request.path %}active{% endif %}"
+                                                    href="{% url 'employee_portal:apply_leave' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="calendar"></span></span>
+                                                        <span class="nav-link-text">Apply for Leave</span>
+                                                    </div>
+                                                </a>
+                                            </div>
                                         </li>
 
-                                    </ul>
-                                </div>
-                            </div>
-                        </li>
                     </ul>
                 </div>
             </div>
             <div class="navbar-vertical-footer">
-                <button
-                    class="btn navbar-vertical-toggle border-0 fw-semibold w-100 white-space-nowrap d-flex align-items-center">
+                <button class="btn navbar-vertical-toggle border-0 fw-semibold w-100 white-space-nowrap d-flex align-items-center">
                     <span class="uil uil-left-arrow-to-left fs-8"></span>
                     <span class="uil uil-arrow-from-right fs-8"></span>
                     <span class="navbar-vertical-footer-text ms-2">Collapsed View</span>
@@ -230,8 +276,10 @@
 
         {% endwith %}
 
+        <!-- TOP NAVBAR (HOSTINGER CRM FUNCTIONALITY) -->
         <nav class="navbar navbar-top fixed-top navbar-expand" id="navbarDefault" style="display:none;">
             <div class="collapse navbar-collapse justify-content-between">
+                <!-- Logo -->
                 <div class="navbar-logo">
                     <button class="btn navbar-toggler navbar-toggler-humburger-icon hover-bg-transparent" type="button"
                         data-bs-toggle="collapse" data-bs-target="#navbarVerticalCollapse"
@@ -240,17 +288,16 @@
                                 class="toggle-line"></span></span></button>
                     <a class="navbar-brand me-1 me-sm-3" href="{% url 'employee_portal:dashboard' %}">
                         <div class="d-flex align-items-center">
-                            <div class="d-flex align-items-center"><img src="/static/assets/img/images/logo-black.png"
-                                    alt="logo" width="100" />
-                            </div>
+                            <img src="/static/assets/img/images/logo-black.png" alt="Apni Factory" width="100" />
                         </div>
                     </a>
                 </div>
-                
+
+                <!-- Global Search -->
                 <div class="search-box navbar-top-search-box d-none d-lg-block position-relative" style="width:25rem;">
                     <form method="GET" action="{% url 'employee_portal:customer_list' %}" class="position-relative">
                         <input class="form-control search-input rounded-pill form-control-sm" type="search"
-                            name="q" placeholder="Search customers & buyers..." aria-label="Search" value="{{ query|default:'' }}" 
+                            name="q" placeholder="Search customers, buyers, orders..." aria-label="Search" value="{{ query|default:'' }}" 
                             hx-get="{% url 'global_search' %}"
                             hx-trigger="keyup changed delay:300ms, focus"
                             hx-target="#global-search-results"
@@ -264,58 +311,182 @@
                     </form>
                     <div id="global-search-results" class="position-absolute mt-2 shadow-lg border rounded-3 bg-body-highlight" style="z-index: 1050; width: 100%; left: 0;"></div>
                 </div>
-                
-                <ul class="navbar-nav navbar-nav-icons flex-row">
+
+                <!-- Right Nav Icons -->
+                <ul class="navbar-nav navbar-nav-icons flex-row align-items-center">
+                    <!-- Theme Toggle -->
                     <li class="nav-item">
                         <div class="theme-control-toggle feather-icon-wait px-2">
                             <input class="form-check-input ms-0 theme-control-toggle-input" type="checkbox"
                                 data-theme-control="phoenixTheme" value="dark" id="themeControlToggle" />
                             <label class="mb-0 theme-control-toggle-label theme-control-toggle-light"
                                 for="themeControlToggle" data-bs-toggle="tooltip" data-bs-placement="left"
-                                data-bs-title="Switch theme" style="height:32px;width:32px;"><span class="icon"
-                                    data-feather="moon"></span></label>
+                                data-bs-title="Switch theme" style="height:32px;width:32px;">
+                                <span class="icon" data-feather="moon"></span>
+                            </label>
                             <label class="mb-0 theme-control-toggle-label theme-control-toggle-dark"
                                 for="themeControlToggle" data-bs-toggle="tooltip" data-bs-placement="left"
-                                data-bs-title="Switch theme" style="height:32px;width:32px;"><span class="icon"
-                                    data-feather="sun"></span></label>
+                                data-bs-title="Switch theme" style="height:32px;width:32px;">
+                                <span class="icon" data-feather="sun"></span>
+                            </label>
                         </div>
                     </li>
-                    
+
+                    <!-- Mobile search icon -->
+                    <li class="nav-item d-lg-none">
+                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#searchBoxModal">
+                            <span class="d-block" style="height:20px;width:20px;">
+                                <span data-feather="search" style="height:19px;width:19px;margin-bottom:2px;"></span>
+                            </span>
+                        </a>
+                    </li>
+
+                    <!-- Notification Bell (Hostinger CRM Feature) -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link" id="navbarDropdownUser" href="#!"
+                        <a class="nav-link" href="#" style="min-width: 2.25rem" role="button" data-bs-toggle="dropdown"
+                            aria-haspopup="true" aria-expanded="false" data-bs-auto-close="outside">
+                            <span class="d-block position-relative" style="height:20px;width:20px;">
+                                <span data-feather="bell" style="height:20px;width:20px;"></span>
+                                <div id="notification-indicator">
+                                    {% if user.notifications.filter.exists %}
+                                    {% if user.notifications.filter.first.is_read == False %}
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger p-1">
+                                        <span class="visually-hidden">New alerts</span>
+                                    </span>
+                                    {% endif %}
+                                    {% endif %}
+                                </div>
+                            </span>
+                        </a>
+
+                        <div class="dropdown-menu dropdown-menu-end notification-dropdown-menu py-0 shadow border navbar-dropdown-caret"
+                            id="navbarDropdownNotfication" aria-labelledby="navbarDropdownNotfication">
+                            <div class="card position-relative border-0">
+                                <div class="card-header p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="text-body-emphasis mb-0 fs-9 fw-bold">Notifications</h6>
+                                        <button class="btn btn-link p-0 fs-10 fw-normal" type="button"
+                                            hx-post="{% url 'mark_notifications_read' %}"
+                                            hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'
+                                            hx-target="#notification-indicator" hx-swap="innerHTML">
+                                            Mark all as read
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="card-body p-0">
+                                    <div class="scrollbar-overlay" style="height: 24rem;" id="notification-container"
+                                        hx-get="{% url 'get_notifications' %}"
+                                        hx-trigger="intersect once, refreshNotifications from:body" hx-swap="innerHTML">
+                                        <div class="p-4 text-center">
+                                            <div class="spinner-border text-danger" role="status" style="width:1.4rem;height:1.4rem;">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card-footer p-0 border-top border-translucent">
+                                    <div class="my-2 text-center fs-10 text-body-tertiary">
+                                        <a class="fw-bold text-decoration-none" href="{% url 'notification_history' %}">Notification history</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+
+                    <!-- User Profile Dropdown (with Hostinger Punch In/Out Widget) -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link lh-1 pe-0" id="navbarDropdownUser" href="#!"
                             role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-haspopup="true"
                             aria-expanded="false">
-                            <div class="avatar avatar-l ">
+                            <div class="avatar avatar-l">
                                 {% if request.user.employee_profile.photo %}
-                                    <img class="rounded-circle " src="{{ request.user.employee_profile.photo.url }}" alt="" style="width: 40px; height: 40px; object-fit: cover;" />
+                                    <img class="rounded-circle" src="{{ request.user.employee_profile.photo.url }}" alt="" style="width: 38px; height: 38px; object-fit: cover;" />
                                 {% else %}
-                                    <img class="rounded-circle " src="/static/assets/img/team/40x40/57.webp" alt="" />
+                                    <img class="rounded-circle" src="/static/assets/img/team/40x40/57.webp" alt="" />
                                 {% endif %}
                             </div>
                         </a>
                         <div class="dropdown-menu dropdown-menu-end navbar-dropdown-caret py-0 dropdown-profile shadow border"
-                            aria-labelledby="navbarDropdownUser">
+                            aria-labelledby="navbarDropdownUser" style="min-width: 270px;">
                             <div class="card position-relative border-0">
                                 <div class="card-body p-0">
                                     <div class="text-center pt-4 pb-3">
-                                        <div class="avatar avatar-xl ">
+                                        <div class="avatar avatar-xl">
                                             {% if request.user.employee_profile.photo %}
-                                                <img class="rounded-circle " src="{{ request.user.employee_profile.photo.url }}" alt="" style="width: 80px; height: 80px; object-fit: cover;" />
+                                                <img class="rounded-circle" src="{{ request.user.employee_profile.photo.url }}" alt="" style="width: 72px; height: 72px; object-fit: cover;" />
                                             {% else %}
-                                                <img class="rounded-circle " src="/static/assets/img/team/72x72/57.webp" alt="" />
+                                                <img class="rounded-circle" src="/static/assets/img/team/72x72/57.webp" alt="" />
                                             {% endif %}
                                         </div>
-                                        <h6 class="mt-2 text-body-emphasis">{{ request.user.username|default:"Employee" }}</h6>
+                                        <h6 class="mt-2 text-body-emphasis mb-0">{{ request.user.get_full_name|default:request.user.username }}</h6>
                                         <p class="fs-10 text-body-tertiary mb-0">{{ request.user.get_role_display }}</p>
                                     </div>
+
+                                    <!-- Profile link -->
+                                    <div class="border-top border-translucent px-2 py-1">
+                                        <ul class="nav d-flex flex-column">
+                                            <li class="nav-item">
+                                                <a class="nav-link px-3 py-2 d-flex align-items-center text-body" href="{% url 'user_profile' %}">
+                                                    <span class="me-2" data-feather="user"></span>
+                                                    <span>My Profile</span>
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+
+                                    <!-- Global Punch In/Out System for Employees -->
+                                    {% if request.user.is_authenticated %}
+                                    <div class="px-3 py-2 border-top border-translucent bg-body-highlight">
+                                        <div class="bg-body-emphasis rounded p-3 text-center border shadow-sm">
+                                            {% with latest_att=request.user.attendances.all.0 %}
+                                            {% if latest_att and latest_att.is_punched_in %}
+                                            <div class="fs-10 fw-bold text-success mb-2">
+                                                <span class="spinner-grow spinner-grow-sm text-success me-1" role="status" style="width: 8px; height: 8px;"></span>
+                                                Active - Punched In since {{ latest_att.punch_in|date:"H:i" }}
+                                            </div>
+                                            {% if latest_att.on_break %}
+                                            <div class="badge bg-warning-subtle text-warning mb-2 fs-11 w-100">
+                                                <i class="fas fa-coffee me-1"></i>On Break
+                                            </div>
+                                            {% endif %}
+                                            <div class="d-flex gap-2">
+                                                <form method="post" action="{% url 'employee_portal:punch_out' %}" style="flex: 1;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-xs btn-danger w-100 rounded-pill">
+                                                        <i class="fas fa-sign-out-alt me-1"></i>Punch Out
+                                                    </button>
+                                                </form>
+                                                <form method="post" action="{% url 'employee_portal:toggle_break' %}" style="flex: 1;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-xs btn-warning w-100 rounded-pill">
+                                                        {% if latest_att.on_break %}<i class="fas fa-play me-1"></i>Resume{% else %}<i class="fas fa-pause me-1"></i>Break{% endif %}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            {% else %}
+                                            <div class="fs-10 fw-bold text-body-tertiary mb-2">
+                                                <i class="fas fa-user-slash me-1"></i>Punched Out
+                                            </div>
+                                            <form method="post" action="{% url 'employee_portal:punch_in' %}">
+                                                {% csrf_token %}
+                                                <button type="submit" class="btn btn-xs btn-success w-100 rounded-pill py-1">
+                                                    <i class="fas fa-sign-in-alt me-1"></i>Punch In Now
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                            {% endwith %}
+                                        </div>
+                                    </div>
+                                    {% endif %}
                                 </div>
                                 <div class="card-footer p-0 border-top border-translucent">
                                     <div class="px-3 py-3">
                                         <form action="{% url 'logout' %}" method="post">
                                             {% csrf_token %}
-                                            <button type="submit"
-                                                class="btn btn-phoenix-secondary d-flex flex-center w-100">
-                                                <span class="me-2" data-feather="log-out"> </span>Sign out
+                                            <button type="submit" class="btn btn-phoenix-secondary d-flex flex-center w-100">
+                                                <span class="me-2" data-feather="log-out"></span>Sign out
                                             </button>
                                         </form>
                                     </div>
@@ -327,18 +498,17 @@
             </div>
         </nav>
 
-        <div class="content">
+        <!-- CONTENT -->
+        <div class="content {% block content_class %}{% endblock %}">
             {% if messages %}
             <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1050;">
                 {% for message in messages %}
-                <div class="toast show align-items-center text-white bg-{{ message.tags }} border-0" role="alert"
-                    aria-live="assertive" aria-atomic="true">
+                <div class="toast show align-items-center text-white bg-{{ message.tags }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
                     <div class="d-flex">
                         <div class="toast-body">
                             {{ message }}
                         </div>
-                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
-                            aria-label="Close"></button>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
                     </div>
                 </div>
                 {% endfor %}
@@ -384,6 +554,7 @@
         </script>
 
     </main>
+
     <script src="/static/vendors/popper/popper.min.js"></script>
     <script src="/static/vendors/bootstrap/bootstrap.min.js"></script>
     <script src="/static/vendors/anchorjs/anchor.min.js"></script>
@@ -398,6 +569,117 @@
     <script src="/static/vendors/flatpickr/flatpickr.min.js"></script>
     <script src="/static/assets/js/phoenix.js"></script>
 
+    <!-- Real-Time WhatsApp & CRM Notification Worker -->
+    <script>
+    (function() {
+        let lastNotificationId = 0;
+        const notifIndicator = document.getElementById('notification-indicator');
+        const notifContainer = document.getElementById('notification-container');
+
+        function playNotificationChime() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+                osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.5);
+            } catch (e) {}
+        }
+
+        function showToastNotification(notif) {
+            let toastContainer = document.getElementById('global-toast-container');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'global-toast-container';
+                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+                toastContainer.style.zIndex = '999999';
+                document.body.appendChild(toastContainer);
+            }
+            const toastId = 'toast-notif-' + notif.id;
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-bg-success border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex p-2">
+                        <div class="toast-body d-flex align-items-center p-0">
+                            <i class="fab fa-whatsapp fs-4 me-2"></i>
+                            <div>
+                                <strong class="d-block">New WhatsApp Message</strong>
+                                <span class="fs-9">${notif.message}</span>
+                            </div>
+                        </div>
+                        <a href="${notif.url || '/employee/whatsapp/'}" class="btn btn-sm btn-light ms-3 me-2 my-auto">Open</a>
+                        <button type="button" class="btn-close btn-close-white me-1 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            const toastEl = document.getElementById(toastId);
+            if (window.bootstrap && window.bootstrap.Toast) {
+                const toast = new window.bootstrap.Toast(toastEl, { delay: 6000 });
+                toast.show();
+            }
+        }
+
+        function checkNewNotifications() {
+            fetch(`/notifications/check-new/?last_id=${lastNotificationId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        if (notifIndicator) {
+                            if (data.has_unread) {
+                                notifIndicator.innerHTML = `<span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger p-1"><span class="visually-hidden">New alerts</span></span>`;
+                            } else {
+                                notifIndicator.innerHTML = `<span class="d-none"></span>`;
+                            }
+                        }
+                        if (lastNotificationId === 0) {
+                            lastNotificationId = data.latest_id;
+                            return;
+                        }
+                        if (data.new_notifications && data.new_notifications.length > 0) {
+                            lastNotificationId = data.latest_id;
+                            data.new_notifications.forEach(n => {
+                                playNotificationChime();
+                                if ("Notification" in window && Notification.permission === "granted") {
+                                    const desktopNotif = new Notification("Message | Apni Factory", {
+                                        body: n.message,
+                                        icon: "/static/assets/img/favicons/favicon-32x32.png",
+                                        tag: "crm-" + n.id,
+                                        requireInteraction: false
+                                    });
+                                    desktopNotif.onclick = function() {
+                                        window.focus();
+                                        if (n.url) window.location.href = n.url;
+                                    };
+                                }
+                                showToastNotification(n);
+                            });
+                            if (notifContainer && window.htmx) {
+                                window.htmx.trigger(document.body, 'refreshNotifications');
+                            }
+                        }
+                    }
+                })
+                .catch(() => {});
+        }
+
+        setInterval(checkNewNotifications, 5000);
+        document.addEventListener('DOMContentLoaded', () => {
+            checkNewNotifications();
+            if ("Notification" in window && Notification.permission === "default") {
+                Notification.requestPermission();
+            }
+        });
+    })();
+    </script>
+
+    <!-- Global Chat Badge Poller -->
     <script>
     (function() {
         function pollChatBadge() {
@@ -416,5 +698,4 @@
     })();
     </script>
 </body>
-
 </html>

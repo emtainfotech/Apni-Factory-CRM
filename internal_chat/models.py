@@ -98,11 +98,14 @@ class ChatMessage(models.Model):
 
     def to_dict(self, current_user=None):
         """Serialize for JSON API response."""
+        sender_name = self.sender.get_full_name() or self.sender.username
         data = {
             'id': self.id,
             'sender_id': self.sender_id,
-            'sender_name': self.sender.get_full_name() or self.sender.username,
-            'sender_initials': (self.sender.get_full_name() or self.sender.username)[:2].upper(),
+            'sender_name': sender_name,
+            'sender_initials': sender_name[:2].upper(),
+            'sender_role': getattr(self.sender, 'role', 'employee'),
+            'sender_is_superuser': self.sender.is_superuser,
             'content': self.content if not self.is_deleted else '🚫 This message was deleted.',
             'is_deleted': self.is_deleted,
             'timestamp': self.timestamp.strftime('%Y-%m-%dT%H:%M:%S'),

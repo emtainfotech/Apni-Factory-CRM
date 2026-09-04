@@ -1,191 +1,516 @@
-{% extends "core/base.html" %}
+{% extends base_template %}
 {% load static %}
-{% block title %}Employee Chat Monitor | CRM Admin{% endblock %}
+{% block title %}Employee Chat Monitor | ApniFactory CRM{% endblock %}
 {% block content %}
 <style>
-.monitor-header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:16px;padding:24px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
-.monitor-header h4{margin:0;font-weight:700}
-.room-card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.07);transition:all .2s;border:1px solid #e9ecef;overflow:hidden;cursor:pointer}
-.room-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.12);transform:translateY(-2px)}
-.room-card .rc-header{padding:14px 18px;background:#f8f9fa;border-bottom:1px solid #e9ecef;display:flex;align-items:center;gap:12px}
-.rc-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#B70000,#7c0000);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.85rem;flex-shrink:0}
-.rc-av.grp{background:linear-gradient(135deg,#1a1a2e,#16213e)}
-.rc-title{font-weight:700;font-size:.88rem;color:#111}
-.rc-sub{font-size:.73rem;color:#8696a0}
-.rc-body{padding:12px 18px}
-.member-chip{display:inline-flex;align-items:center;gap:4px;background:#f0f2f5;border-radius:20px;padding:3px 10px;font-size:.73rem;color:#333;margin:2px}
-.preview-msg{font-size:.82rem;color:#555;border-left:3px solid #B70000;padding-left:10px;margin-top:8px;line-height:1.4}
-.msg-viewer{background:#efeae2;border-radius:12px;padding:0;height:calc(100vh - 200px);display:flex;flex-direction:column;position:sticky;top:20px}
-.mv-header{padding:12px 18px;background:#1a1a2e;color:#fff;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between}
-.mv-msgs{flex:1;overflow-y:auto;padding:16px;scrollbar-width:thin}
-.mv-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#aaa;text-align:center;padding:40px}
-.mr2{display:flex;gap:7px;margin:3px 0}
-.mr2.s{flex-direction:row-reverse}
-.mb2{max-width:65%;padding:7px 11px;border-radius:12px;font-size:.84rem;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,.1)}
-.mr2:not(.s) .mb2{background:#fff;color:#111;border-radius:0 12px 12px 12px}
-.mr2.s .mb2{background:#005c4b;color:#fff;border-radius:12px 12px 0 12px}
-.av-mini2{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#B70000,#7c0000);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.56rem;font-weight:700;flex-shrink:0;align-self:flex-end}
-.msg-sndr2{font-size:.68rem;font-weight:700;color:#B70000;margin-bottom:2px}
-.msg-t2{font-size:.63rem;color:rgba(0,0,0,.45);text-align:right;margin-top:2px}
-.mr2.s .mb2 .msg-t2{color:rgba(255,255,255,.55)}
-.att-img2{max-width:180px;border-radius:8px;cursor:pointer;display:block;margin-bottom:3px}
+:root {
+  --hdr-bg: #1a1a2e;
+  --accent: #B70000;
+  --chat-bg: #efeae2;
+  --border-c: #e9ecef;
+  --muted-c: #667781;
+}
+
+.monitor-header {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #fff;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.monitor-header h4 {
+  margin: 0;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.room-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  border: 2px solid transparent;
+  transition: all 0.18s ease;
+  margin-bottom: 12px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.room-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.09);
+}
+.room-card.selected {
+  border-color: var(--accent);
+}
+.rc-top {
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border-bottom: 1px solid var(--border-c);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rc-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #7c0000);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.rc-avatar.group-av {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+}
+.rc-body {
+  padding: 12px 16px;
+}
+.rc-member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f0f2f5;
+  border-radius: 16px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  color: #333;
+  margin: 2px;
+}
+.rc-preview {
+  font-size: 0.78rem;
+  color: #555;
+  border-left: 3px solid var(--accent);
+  padding-left: 8px;
+  margin-top: 8px;
+  line-height: 1.4;
+}
+
+/* Right Viewer */
+.monitor-viewer {
+  background: var(--chat-bg);
+  border-radius: 12px;
+  height: calc(100vh - 190px);
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-c);
+  overflow: hidden;
+  position: sticky;
+  top: 15px;
+}
+.mv-header {
+  padding: 12px 18px;
+  background: #1a1a2e;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.mv-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scrollbar-width: thin;
+}
+.mv-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  text-align: center;
+  padding: 30px;
+}
+
+.mv-input-row {
+  padding: 10px 14px;
+  background: #fff;
+  border-top: 1px solid var(--border-c);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.mv-input-row input {
+  flex: 1;
+  border-radius: 20px;
+  background: #f0f2f5;
+  border: none;
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  outline: none;
+}
+.mv-send-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mv-send-btn:hover {
+  background: #960000;
+}
+
+/* Bubbles in viewer */
+.mv-row {
+  display: flex;
+  gap: 6px;
+  margin: 2px 0;
+}
+.mv-row.own {
+  flex-direction: row-reverse;
+}
+.mv-bubble {
+  max-width: 70%;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  word-break: break-word;
+}
+.mv-row:not(.own) .mv-bubble {
+  background: #fff;
+  color: #111;
+  border-top-left-radius: 2px;
+}
+.mv-row.own .mv-bubble {
+  background: #d9fdd3;
+  color: #111;
+  border-top-right-radius: 2px;
+}
+.mv-sender {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+.mv-time {
+  font-size: 0.65rem;
+  color: var(--muted-c);
+  text-align: right;
+  margin-top: 2px;
+}
 </style>
 
-<div class="monitor-header">
-  <div>
-    <h4>👁 Employee Chat Monitor</h4>
-    <p class="mb-0 fs-9 opacity-75">Real-time view of all team conversations</p>
+<div class="container-fluid p-0">
+  <!-- Top Banner -->
+  <div class="monitor-header">
+    <div>
+      <h4><i class="fas fa-eye text-warning"></i> Employee Chat Monitor</h4>
+      <p class="mb-0 fs-9 opacity-75">Oversee all team conversations across the organization in real time.</p>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="/chat/" class="btn btn-sm btn-outline-light rounded-pill">
+        <i class="fas fa-comment-dots me-1"></i> Open Team Chat
+      </a>
+    </div>
   </div>
-  <a href="/chat/" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
-    <i class="fas fa-arrow-left me-1"></i> Back to My Chat
-  </a>
-</div>
 
-<div class="row g-3 mb-4">
-  <div class="col-md-8">
-    <form method="get" class="d-flex gap-2">
-      <input type="text" name="q" class="form-control form-control-sm" value="{{ search }}" placeholder="🔍 Search by employee name, message content...">
-      <button type="submit" class="btn btn-sm btn-danger px-3">Search</button>
-      {% if search %}<a href="/chat/admin/" class="btn btn-sm btn-secondary">Clear</a>{% endif %}
-    </form>
+  <!-- Search & Filter -->
+  <div class="row g-3 mb-3">
+    <div class="col-md-6 col-lg-5">
+      <form method="get" class="d-flex gap-2">
+        <input type="text" name="q" class="form-control form-control-sm" value="{{ search }}" placeholder="Search by name or message text...">
+        <button type="submit" class="btn btn-sm btn-danger px-3"><i class="fas fa-search"></i></button>
+        {% if search %}
+        <a href="/chat/admin/" class="btn btn-sm btn-light"><i class="fas fa-times"></i></a>
+        {% endif %}
+      </form>
+    </div>
+    <div class="col-md-6 col-lg-7 d-flex justify-content-end align-items-center">
+      <span class="fs-9 text-muted">{{ room_data|length }} active conversation{{ room_data|length|pluralize }}</span>
+    </div>
   </div>
-</div>
 
-<div class="row g-3">
-  <!-- Room list -->
-  <div class="col-lg-5">
-    <div class="row g-3" id="roomGrid">
-      {% for rd in room_data %}
-      <div class="col-12">
-        <div class="room-card" onclick="viewRoom({{ rd.room.id }}, '{% for m in rd.members %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %}, {% endif %}{% endfor %}')">
-          <div class="rc-header">
-            <div class="rc-av {% if rd.room.room_type == 'group' %}grp{% endif %}">
-              {% if rd.room.room_type == 'group' %}<i class="fas fa-users" style="font-size:.75rem;"></i>
-              {% else %}{{ rd.members.0.get_full_name|default:rd.members.0.username|slice:":2"|upper }}{% endif %}
-            </div>
-            <div>
-              <div class="rc-title">
-                {% if rd.room.room_type == 'direct' %}
-                  {% for m in rd.members %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %} ↔ {% endif %}{% endfor %}
+  <!-- Split View: Cards List + Live Inspector -->
+  <div class="row g-3">
+    <!-- Conversation Cards Column -->
+    <div class="col-lg-5 col-xl-5">
+      <div id="cardsContainer">
+        {% for rd in room_data %}
+        <div class="room-card {% if active_room_id == rd.room.id|stringformat:'s' %}selected{% endif %}"
+             id="card-{{ rd.room.id }}"
+             onclick="viewRoomLive({{ rd.room.id }}, '{{ rd.room.get_display_name|default:rd.room.name|escapejs }}', {{ rd.admin_is_member|yesno:'true,false' }})">
+          <div class="rc-top">
+            <div class="d-flex align-items-center gap-2 min-w-0">
+              <div class="rc-avatar {% if rd.room.room_type == 'group' %}group-av{% endif %}">
+                {% if rd.room.room_type == 'group' %}
+                <i class="fas fa-users"></i>
                 {% else %}
-                  {{ rd.room.name }} <span class="badge bg-secondary ms-1" style="font-size:.6rem;">Group</span>
+                {{ rd.room.get_display_name|slice:":2"|upper }}
                 {% endif %}
               </div>
-              <div class="rc-sub">{{ rd.message_count }} messages · Last active {% if rd.last_message %}{{ rd.last_message.timestamp|timesince }} ago{% else %}never{% endif %}</div>
+              <div class="min-w-0">
+                <div class="fw-bold fs-9 text-dark text-truncate">
+                  {% for m in rd.members %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %} & {% endif %}{% endfor %}
+                </div>
+                <div class="fs-10 text-muted">
+                  {{ rd.message_count }} msg{{ rd.message_count|pluralize }} •
+                  {% if rd.last_message %}{{ rd.last_message.timestamp|timesince }} ago{% else %}No messages{% endif %}
+                </div>
+              </div>
             </div>
-            <div class="ms-auto">
-              <span class="badge" style="background:rgba(183,0,0,.12);color:#B70000;font-size:.7rem;">{{ rd.message_count }}</span>
-            </div>
+            {% if rd.room.room_type == 'group' %}
+            <span class="badge bg-secondary-subtle text-secondary fs-10">Group</span>
+            {% else %}
+            <span class="badge bg-primary-subtle text-primary fs-10">1-on-1 DM</span>
+            {% endif %}
           </div>
           <div class="rc-body">
-            <div class="d-flex flex-wrap gap-1 mb-2">
+            <div>
               {% for m in rd.members %}
-              <span class="member-chip">
-                <i class="fas fa-user" style="font-size:.6rem;color:#888;"></i>
+              <span class="rc-member-chip">
+                <i class="fas fa-user text-muted" style="font-size:0.6rem;"></i>
                 {{ m.get_full_name|default:m.username }}
+                {% if m.pk in online_ids %}<i class="fas fa-circle text-success" style="font-size:0.45rem;"></i>{% endif %}
               </span>
               {% endfor %}
             </div>
             {% if rd.last_message %}
-            <div class="preview-msg">
-              <strong class="text-danger" style="font-size:.72rem;">{{ rd.last_message.sender.get_full_name|default:rd.last_message.sender.username }}:</strong>
-              {% if rd.last_message.attachment and not rd.last_message.content %}📎 Attachment
-              {% else %}{{ rd.last_message.content|truncatechars:80 }}{% endif %}
+            <div class="rc-preview text-truncate">
+              <strong>{{ rd.last_message.sender.get_full_name|default:rd.last_message.sender.username }}:</strong>
+              {% if rd.last_message.is_deleted %}
+                <em>Deleted</em>
+              {% elif rd.last_message.attachment and not rd.last_message.content %}
+                <i class="fas fa-paperclip"></i> Attachment
+              {% else %}
+                {{ rd.last_message.content|truncatechars:70 }}
+              {% endif %}
             </div>
             {% endif %}
           </div>
         </div>
+        {% empty %}
+        <div class="text-center text-muted py-5">
+          <i class="fas fa-comments fs-1 opacity-25"></i>
+          <p class="mt-2 fs-9">No conversations matching your criteria.</p>
+        </div>
+        {% endfor %}
       </div>
-      {% empty %}
-      <div class="col-12 text-center text-muted py-5">
-        <div style="font-size:3rem;">💬</div>
-        <p class="mt-2">No conversations found.</p>
-      </div>
-      {% endfor %}
     </div>
-  </div>
 
-  <!-- Message viewer panel -->
-  <div class="col-lg-7">
-    <div class="msg-viewer" id="msgViewer">
-      <div class="mv-header">
-        <span id="viewerTitle">Select a conversation to monitor</span>
-        <span class="fs-10 opacity-75" id="viewerRefreshStatus"></span>
+    <!-- Live Inspector Column -->
+    <div class="col-lg-7 col-xl-7">
+      <div class="monitor-viewer">
+        <!-- Viewer Header -->
+        <div class="mv-header">
+          <div class="d-flex align-items-center gap-2 min-w-0">
+            <i class="fas fa-shield-alt text-warning"></i>
+            <span class="fw-bold fs-9 text-truncate" id="mvTitle">Select a conversation</span>
+          </div>
+          <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success-subtle text-success fs-10" id="mvLiveIndicator" style="display:none;">
+              <i class="fas fa-circle me-1" style="font-size:0.45rem;"></i> Live
+            </span>
+            <button class="btn btn-sm btn-outline-success rounded-pill fs-10" id="mvJoinBtn" style="display:none;" onclick="joinAndIntervene()">
+              <i class="fas fa-user-plus me-1"></i> Join & Intervene
+            </button>
+          </div>
+        </div>
+
+        <!-- Messages Thread -->
+        <div class="mv-messages" id="mvMessages">
+          <div class="mv-placeholder" id="mvPlaceholder">
+            <div>
+              <i class="fas fa-comment-dots text-muted" style="font-size:3rem;opacity:0.3;"></i>
+              <p class="mt-3 fs-9">Click any conversation card on the left to inspect real-time messages.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Intervene/Send row -->
+        <div class="mv-input-row" id="mvInputRow" style="display:none;">
+          <input type="text" id="mvMessageInput" placeholder="Send a message or instruction as Admin..." onkeydown="handleMvKeyDown(event)">
+          <button class="mv-send-btn" onclick="sendAdminIntervention()" title="Send">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
       </div>
-      <div class="mv-empty" id="mvEmpty">
-        <div><div style="font-size:3rem;opacity:.4;">👁</div><p class="mt-2 fs-9">Click any conversation on the left to view messages in real-time.</p></div>
-      </div>
-      <div class="mv-msgs" id="mvMsgs" style="display:none;"></div>
     </div>
   </div>
 </div>
 
 <script>
-const CSRF='{{ csrf_token }}';
-let viewRoomId=null,viewLastTs=null,viewPollT=null;
+const CSRF = '{{ csrf_token }}';
+let currentRoomId = null;
+let mvPollInterval = null;
+let mvLastTimestamp = null;
+let currentUserId = {{ request.user.pk }};
 
-function viewRoom(id,title){
-  viewRoomId=id;viewLastTs=null;
-  document.getElementById('viewerTitle').textContent=title;
-  document.getElementById('mvEmpty').style.display='none';
-  document.getElementById('mvMsgs').style.display='block';
-  document.getElementById('mvMsgs').innerHTML='<div class="d-flex align-items-center justify-content-center" style="height:200px;"><div class="spinner-border text-muted" style="width:1.3rem;height:1.3rem;"></div></div>';
-  // Highlight selected card
-  document.querySelectorAll('.room-card').forEach(c=>c.style.borderColor='');
-  event.currentTarget.style.borderColor='#B70000';
-  clearInterval(viewPollT);
-  fetchViewerMsgs(id,false);
-  viewPollT=setInterval(()=>fetchViewerMsgs(id,true),3000);
-}
+function viewRoomLive(roomId, roomTitle, isAdminMember) {
+  currentRoomId = roomId;
+  mvLastTimestamp = null;
 
-function fetchViewerMsgs(id,inc){
-  if(id!==viewRoomId)return;
-  let url=`/chat/${id}/messages/`;
-  if(inc&&viewLastTs)url+=`?after=${encodeURIComponent(viewLastTs)}`;
-  fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}})
-    .then(r=>r.json()).then(d=>{
-      if(!d.messages)return;
-      document.getElementById('viewerRefreshStatus').textContent='Live ●';
-      if(!inc)renderViewer(d.messages,d.members||[]);
-      else appendViewer(d.messages,d.members||[]);
-      if(d.messages.length)viewLastTs=d.messages[d.messages.length-1].timestamp;
-    }).catch(()=>{document.getElementById('viewerRefreshStatus').textContent='';});
-}
+  // Highlight card
+  document.querySelectorAll('.room-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('card-' + roomId);
+  if (card) card.classList.add('selected');
 
-function renderViewer(msgs,members){
-  const c=document.getElementById('mvMsgs');c.innerHTML='';
-  if(!msgs.length){c.innerHTML='<div class="text-center text-muted py-5 fs-9">No messages yet.</div>';return;}
-  // Find admin user id from members
-  msgs.forEach(m=>c.appendChild(mkVMsg(m)));
-  c.scrollTop=c.scrollHeight;
-}
+  // Update viewer header
+  document.getElementById('mvTitle').textContent = roomTitle || ('Conversation #' + roomId);
+  document.getElementById('mvLiveIndicator').style.display = 'inline-flex';
+  document.getElementById('mvInputRow').style.display = 'flex';
 
-function appendViewer(msgs,members){
-  if(!msgs||!msgs.length)return;
-  const c=document.getElementById('mvMsgs');
-  const atBot=c.scrollHeight-c.scrollTop-c.clientHeight<80;
-  msgs.forEach(m=>c.appendChild(mkVMsg(m)));
-  if(atBot)c.scrollTop=c.scrollHeight;
-}
-
-function mkVMsg(m){
-  const row=document.createElement('div');
-  row.className=`mr2 ${m.is_own?'s':''}`;
-  const av=m.is_own?'':'<div class="av-mini2">'+m.sender_initials+'</div>';
-  let body='';
-  if(m.is_deleted){body='<em style="opacity:.6;font-size:.78rem;">🚫 Deleted</em>';}
-  else{
-    if(m.attachment_url){
-      if(m.attachment_type==='image')body+=`<img class="att-img2" src="${m.attachment_url}" onclick="window.open('${m.attachment_url}')" alt="img">`;
-      else body+=`<a style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.08);padding:5px 8px;border-radius:6px;text-decoration:none;color:inherit;font-size:.78rem;" href="${m.attachment_url}" download target="_blank"><i class="fas fa-file-alt"></i>${m.attachment_name||'File'}</a>`;
-    }
-    if(m.content)body+=`<div>${esc(m.content).replace(/\n/g,'<br>')}</div>`;
+  const joinBtn = document.getElementById('mvJoinBtn');
+  if (joinBtn) {
+    joinBtn.style.display = isAdminMember ? 'none' : 'inline-flex';
   }
-  const sn=!m.is_own?`<div class="msg-sndr2">${esc(m.sender_name)}</div>`:'';
-  row.innerHTML=`${av}<div class="mb2">${sn}${body}<div class="msg-t2">${m.sender_name} · ${m.time_display}</div></div>`;
-  return row;
+
+  // Clear messages container
+  document.getElementById('mvMessages').innerHTML = `
+    <div class="d-flex h-100 align-items-center justify-content-center">
+      <div class="spinner-border text-danger" style="width: 1.5rem; height: 1.5rem;"></div>
+    </div>`;
+
+  loadMonitorMessages(true);
+
+  if (mvPollInterval) clearInterval(mvPollInterval);
+  mvPollInterval = setInterval(() => {
+    if (!document.hidden && currentRoomId) {
+      loadMonitorMessages(false);
+    }
+  }, 3000);
 }
 
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function loadMonitorMessages(isInitial) {
+  if (!currentRoomId) return;
+  let url = '/chat/' + currentRoomId + '/messages/';
+  if (!isInitial && mvLastTimestamp) {
+    url += '?after=' + encodeURIComponent(mvLastTimestamp);
+  }
+
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) return;
+      if (data.server_time) mvLastTimestamp = data.server_time;
+
+      const container = document.getElementById('mvMessages');
+      if (isInitial) {
+        container.innerHTML = '';
+        if (data.messages.length === 0) {
+          container.innerHTML = '<div class="text-center text-muted my-auto py-4 fs-9">No messages yet.</div>';
+          return;
+        }
+      }
+
+      if (data.messages && data.messages.length > 0) {
+        data.messages.forEach(msg => {
+          if (document.getElementById('mvm-' + msg.id)) return;
+          const row = document.createElement('div');
+          row.className = 'mv-row' + (msg.is_own ? ' own' : '');
+          row.id = 'mvm-' + msg.id;
+
+          let body = '';
+          if (msg.is_deleted) {
+            body = '<em class="text-muted fs-10"><i class="fas fa-ban me-1"></i> Deleted</em>';
+          } else {
+            if (msg.attachment_url) {
+              if (msg.attachment_type === 'image') {
+                body += `<img src="${msg.attachment_url}" style="max-width:180px;border-radius:6px;display:block;margin-bottom:4px;" alt="">`;
+              } else {
+                body += `<a href="${msg.attachment_url}" download target="_blank" class="badge bg-light text-dark p-2 mb-1 d-inline-block text-decoration-none"><i class="fas fa-file-download me-1 text-danger"></i>${msg.attachment_name || 'File'}</a>`;
+              }
+            }
+            if (msg.content) {
+              body += `<div>${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>`;
+            }
+          }
+
+          const senderName = msg.sender_is_superuser || msg.sender_role === 'admin' ?
+            `<span class="text-warning"><i class="fas fa-shield-alt me-1"></i>${escapeHtml(msg.sender_name)} (Admin)</span>` :
+            escapeHtml(msg.sender_name);
+
+          row.innerHTML = `
+            <div class="mv-bubble">
+              <div class="mv-sender">${senderName}</div>
+              ${body}
+              <div class="mv-time">${msg.time_display}</div>
+            </div>`;
+          container.appendChild(row);
+        });
+        container.scrollTop = container.scrollHeight;
+      }
+    })
+    .catch(() => {});
+}
+
+function sendAdminIntervention() {
+  if (!currentRoomId) return;
+  const input = document.getElementById('mvMessageInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('content', text);
+
+  input.value = '';
+
+  fetch('/chat/' + currentRoomId + '/send/', {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.status === 'sent') {
+      loadMonitorMessages(false);
+    }
+  })
+  .catch(() => {});
+}
+
+function handleMvKeyDown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    sendAdminIntervention();
+  }
+}
+
+function joinAndIntervene() {
+  if (!currentRoomId) return;
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', CSRF);
+  fd.append('content', '👋 Admin joined the conversation.');
+
+  fetch('/chat/' + currentRoomId + '/send/', {
+    method: 'POST',
+    body: fd
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.status === 'sent') {
+      const joinBtn = document.getElementById('mvJoinBtn');
+      if (joinBtn) joinBtn.style.display = 'none';
+      loadMonitorMessages(false);
+    }
+  })
+  .catch(() => {});
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 </script>
 {% endblock %}

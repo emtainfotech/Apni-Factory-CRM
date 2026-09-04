@@ -1,25 +1,32 @@
 {% extends 'core/base.html' %}
 {% load static %}
 
+{% block content_class %}app-layout-content{% endblock %}
+{% block footer %}{% endblock %}
 
 {% block content %}
 <style>
-    /* Lock layout to viewport height and disable outer scroll */
-    body, html {
-        overflow: hidden !important;
-    }
     .content {
-        padding-bottom: 0 !important;
-        height: calc(100vh - 80px) !important;
+        padding-top: calc(var(--phoenix-navbar-top-height, 4rem) + 0.6rem) !important;
+        padding-bottom: 0.5rem !important;
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        box-sizing: border-box !important;
         display: flex !important;
         flex-direction: column !important;
         overflow: hidden !important;
+    }
+    .footer {
+        display: none !important;
     }
     #kanban-board-wrapper {
         display: flex !important;
         flex-direction: column !important;
-        flex-grow: 1 !important;
-        height: 100% !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
         overflow: hidden !important;
     }
     .kanban-container {
@@ -29,9 +36,10 @@
         gap: 1rem !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
-        flex-grow: 1 !important;
-        height: calc(100% - 90px) !important;
-        padding-bottom: 1rem !important;
+        flex: 1 1 auto !important;
+        min-height: 0 !important;
+        height: auto !important;
+        padding-bottom: 0.75rem !important;
     }
     .kanban-column {
         display: flex !important;
