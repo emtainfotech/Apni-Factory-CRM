@@ -106,7 +106,17 @@
                                         </li>
 
                                         <li class="nav-item-wrapper py-2">
-                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Buyers & Sales</span>
+                                            <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Communication</span>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'chat' in request.path %}active{% endif %}" href="/chat/">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="nav-link-icon"><span class="fas fa-comments" style="color:#25d366;"></span></span>
+                                    <span class="nav-link-text">Team Chat</span>
+                                    <span class="badge rounded-pill ms-auto" id="globalChatBadge" style="background:#B70000;font-size:.6rem;display:none;">0</span>
+                                </div>
+                            </a>
+                        </li>
+                        <span class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Buyers & Sales</span>
                                         <li class="nav-item">
                                             <a class="nav-link {% if 'whatsapp' in request.path %}active{% endif %}"
                                                 href="{% url 'employee_portal:whatsapp_inbox' %}">
@@ -387,6 +397,24 @@
     <script src="/static/vendors/echarts/echarts.min.js"></script>
     <script src="/static/vendors/flatpickr/flatpickr.min.js"></script>
     <script src="/static/assets/js/phoenix.js"></script>
+
+    <script>
+    (function() {
+        function pollChatBadge() {
+            fetch('/chat/rooms/')
+                .then(r => r.json())
+                .then(d => {
+                    var b = document.getElementById('globalChatBadge');
+                    if (b) {
+                        if (d.total_unread > 0) { b.textContent = d.total_unread; b.style.display = 'inline-flex'; }
+                        else { b.style.display = 'none'; }
+                    }
+                }).catch(function(){});
+        }
+        pollChatBadge();
+        setInterval(pollChatBadge, 8000);
+    })();
+    </script>
 </body>
 
 </html>

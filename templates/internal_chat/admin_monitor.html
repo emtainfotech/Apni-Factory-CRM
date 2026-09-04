@@ -1,0 +1,191 @@
+{% extends "core/base.html" %}
+{% load static %}
+{% block title %}Employee Chat Monitor | CRM Admin{% endblock %}
+{% block content %}
+<style>
+.monitor-header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;border-radius:16px;padding:24px 28px;margin-bottom:24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.monitor-header h4{margin:0;font-weight:700}
+.room-card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.07);transition:all .2s;border:1px solid #e9ecef;overflow:hidden;cursor:pointer}
+.room-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.12);transform:translateY(-2px)}
+.room-card .rc-header{padding:14px 18px;background:#f8f9fa;border-bottom:1px solid #e9ecef;display:flex;align-items:center;gap:12px}
+.rc-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#B70000,#7c0000);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.85rem;flex-shrink:0}
+.rc-av.grp{background:linear-gradient(135deg,#1a1a2e,#16213e)}
+.rc-title{font-weight:700;font-size:.88rem;color:#111}
+.rc-sub{font-size:.73rem;color:#8696a0}
+.rc-body{padding:12px 18px}
+.member-chip{display:inline-flex;align-items:center;gap:4px;background:#f0f2f5;border-radius:20px;padding:3px 10px;font-size:.73rem;color:#333;margin:2px}
+.preview-msg{font-size:.82rem;color:#555;border-left:3px solid #B70000;padding-left:10px;margin-top:8px;line-height:1.4}
+.msg-viewer{background:#efeae2;border-radius:12px;padding:0;height:calc(100vh - 200px);display:flex;flex-direction:column;position:sticky;top:20px}
+.mv-header{padding:12px 18px;background:#1a1a2e;color:#fff;border-radius:12px 12px 0 0;display:flex;align-items:center;justify-content:space-between}
+.mv-msgs{flex:1;overflow-y:auto;padding:16px;scrollbar-width:thin}
+.mv-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#aaa;text-align:center;padding:40px}
+.mr2{display:flex;gap:7px;margin:3px 0}
+.mr2.s{flex-direction:row-reverse}
+.mb2{max-width:65%;padding:7px 11px;border-radius:12px;font-size:.84rem;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.mr2:not(.s) .mb2{background:#fff;color:#111;border-radius:0 12px 12px 12px}
+.mr2.s .mb2{background:#005c4b;color:#fff;border-radius:12px 12px 0 12px}
+.av-mini2{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#B70000,#7c0000);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.56rem;font-weight:700;flex-shrink:0;align-self:flex-end}
+.msg-sndr2{font-size:.68rem;font-weight:700;color:#B70000;margin-bottom:2px}
+.msg-t2{font-size:.63rem;color:rgba(0,0,0,.45);text-align:right;margin-top:2px}
+.mr2.s .mb2 .msg-t2{color:rgba(255,255,255,.55)}
+.att-img2{max-width:180px;border-radius:8px;cursor:pointer;display:block;margin-bottom:3px}
+</style>
+
+<div class="monitor-header">
+  <div>
+    <h4>👁 Employee Chat Monitor</h4>
+    <p class="mb-0 fs-9 opacity-75">Real-time view of all team conversations</p>
+  </div>
+  <a href="/chat/" class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);">
+    <i class="fas fa-arrow-left me-1"></i> Back to My Chat
+  </a>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <form method="get" class="d-flex gap-2">
+      <input type="text" name="q" class="form-control form-control-sm" value="{{ search }}" placeholder="🔍 Search by employee name, message content...">
+      <button type="submit" class="btn btn-sm btn-danger px-3">Search</button>
+      {% if search %}<a href="/chat/admin/" class="btn btn-sm btn-secondary">Clear</a>{% endif %}
+    </form>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- Room list -->
+  <div class="col-lg-5">
+    <div class="row g-3" id="roomGrid">
+      {% for rd in room_data %}
+      <div class="col-12">
+        <div class="room-card" onclick="viewRoom({{ rd.room.id }}, '{% for m in rd.members %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %}, {% endif %}{% endfor %}')">
+          <div class="rc-header">
+            <div class="rc-av {% if rd.room.room_type == 'group' %}grp{% endif %}">
+              {% if rd.room.room_type == 'group' %}<i class="fas fa-users" style="font-size:.75rem;"></i>
+              {% else %}{{ rd.members.0.get_full_name|default:rd.members.0.username|slice:":2"|upper }}{% endif %}
+            </div>
+            <div>
+              <div class="rc-title">
+                {% if rd.room.room_type == 'direct' %}
+                  {% for m in rd.members %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %} ↔ {% endif %}{% endfor %}
+                {% else %}
+                  {{ rd.room.name }} <span class="badge bg-secondary ms-1" style="font-size:.6rem;">Group</span>
+                {% endif %}
+              </div>
+              <div class="rc-sub">{{ rd.message_count }} messages · Last active {% if rd.last_message %}{{ rd.last_message.timestamp|timesince }} ago{% else %}never{% endif %}</div>
+            </div>
+            <div class="ms-auto">
+              <span class="badge" style="background:rgba(183,0,0,.12);color:#B70000;font-size:.7rem;">{{ rd.message_count }}</span>
+            </div>
+          </div>
+          <div class="rc-body">
+            <div class="d-flex flex-wrap gap-1 mb-2">
+              {% for m in rd.members %}
+              <span class="member-chip">
+                <i class="fas fa-user" style="font-size:.6rem;color:#888;"></i>
+                {{ m.get_full_name|default:m.username }}
+              </span>
+              {% endfor %}
+            </div>
+            {% if rd.last_message %}
+            <div class="preview-msg">
+              <strong class="text-danger" style="font-size:.72rem;">{{ rd.last_message.sender.get_full_name|default:rd.last_message.sender.username }}:</strong>
+              {% if rd.last_message.attachment and not rd.last_message.content %}📎 Attachment
+              {% else %}{{ rd.last_message.content|truncatechars:80 }}{% endif %}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-12 text-center text-muted py-5">
+        <div style="font-size:3rem;">💬</div>
+        <p class="mt-2">No conversations found.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Message viewer panel -->
+  <div class="col-lg-7">
+    <div class="msg-viewer" id="msgViewer">
+      <div class="mv-header">
+        <span id="viewerTitle">Select a conversation to monitor</span>
+        <span class="fs-10 opacity-75" id="viewerRefreshStatus"></span>
+      </div>
+      <div class="mv-empty" id="mvEmpty">
+        <div><div style="font-size:3rem;opacity:.4;">👁</div><p class="mt-2 fs-9">Click any conversation on the left to view messages in real-time.</p></div>
+      </div>
+      <div class="mv-msgs" id="mvMsgs" style="display:none;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF='{{ csrf_token }}';
+let viewRoomId=null,viewLastTs=null,viewPollT=null;
+
+function viewRoom(id,title){
+  viewRoomId=id;viewLastTs=null;
+  document.getElementById('viewerTitle').textContent=title;
+  document.getElementById('mvEmpty').style.display='none';
+  document.getElementById('mvMsgs').style.display='block';
+  document.getElementById('mvMsgs').innerHTML='<div class="d-flex align-items-center justify-content-center" style="height:200px;"><div class="spinner-border text-muted" style="width:1.3rem;height:1.3rem;"></div></div>';
+  // Highlight selected card
+  document.querySelectorAll('.room-card').forEach(c=>c.style.borderColor='');
+  event.currentTarget.style.borderColor='#B70000';
+  clearInterval(viewPollT);
+  fetchViewerMsgs(id,false);
+  viewPollT=setInterval(()=>fetchViewerMsgs(id,true),3000);
+}
+
+function fetchViewerMsgs(id,inc){
+  if(id!==viewRoomId)return;
+  let url=`/chat/${id}/messages/`;
+  if(inc&&viewLastTs)url+=`?after=${encodeURIComponent(viewLastTs)}`;
+  fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r=>r.json()).then(d=>{
+      if(!d.messages)return;
+      document.getElementById('viewerRefreshStatus').textContent='Live ●';
+      if(!inc)renderViewer(d.messages,d.members||[]);
+      else appendViewer(d.messages,d.members||[]);
+      if(d.messages.length)viewLastTs=d.messages[d.messages.length-1].timestamp;
+    }).catch(()=>{document.getElementById('viewerRefreshStatus').textContent='';});
+}
+
+function renderViewer(msgs,members){
+  const c=document.getElementById('mvMsgs');c.innerHTML='';
+  if(!msgs.length){c.innerHTML='<div class="text-center text-muted py-5 fs-9">No messages yet.</div>';return;}
+  // Find admin user id from members
+  msgs.forEach(m=>c.appendChild(mkVMsg(m)));
+  c.scrollTop=c.scrollHeight;
+}
+
+function appendViewer(msgs,members){
+  if(!msgs||!msgs.length)return;
+  const c=document.getElementById('mvMsgs');
+  const atBot=c.scrollHeight-c.scrollTop-c.clientHeight<80;
+  msgs.forEach(m=>c.appendChild(mkVMsg(m)));
+  if(atBot)c.scrollTop=c.scrollHeight;
+}
+
+function mkVMsg(m){
+  const row=document.createElement('div');
+  row.className=`mr2 ${m.is_own?'s':''}`;
+  const av=m.is_own?'':'<div class="av-mini2">'+m.sender_initials+'</div>';
+  let body='';
+  if(m.is_deleted){body='<em style="opacity:.6;font-size:.78rem;">🚫 Deleted</em>';}
+  else{
+    if(m.attachment_url){
+      if(m.attachment_type==='image')body+=`<img class="att-img2" src="${m.attachment_url}" onclick="window.open('${m.attachment_url}')" alt="img">`;
+      else body+=`<a style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.08);padding:5px 8px;border-radius:6px;text-decoration:none;color:inherit;font-size:.78rem;" href="${m.attachment_url}" download target="_blank"><i class="fas fa-file-alt"></i>${m.attachment_name||'File'}</a>`;
+    }
+    if(m.content)body+=`<div>${esc(m.content).replace(/\n/g,'<br>')}</div>`;
+  }
+  const sn=!m.is_own?`<div class="msg-sndr2">${esc(m.sender_name)}</div>`:'';
+  row.innerHTML=`${av}<div class="mb2">${sn}${body}<div class="msg-t2">${m.sender_name} · ${m.time_display}</div></div>`;
+  return row;
+}
+
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+{% endblock %}

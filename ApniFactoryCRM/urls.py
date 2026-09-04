@@ -1,4 +1,4 @@
-"""
+﻿"""
 URL configuration for ApniFactoryCRM project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -35,6 +35,7 @@ urlpatterns = [
     path('core/', include('core.urls')),
     path('employee/', include('employee_portal.urls')),
     path('vendor-network/', include('vendor_network.urls')),
+    path('chat/', include('internal_chat.urls', namespace='internal_chat')),
     path('api/v1/', include('api.urls')),
     path('admin/', admin.site.urls),
 ]

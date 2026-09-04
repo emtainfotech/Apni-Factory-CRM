@@ -1,0 +1,433 @@
+{% extends "employee_portal/base.html" %}
+{% load static %}
+{% block title %}Team Chat | ApniFactory CRM{% endblock %}
+{% block content %}
+<style>
+:root{--chat-bg:#f0f2f5;--sidebar-bg:#fff;--hdr:#1a1a2e;--sent:#005c4b;--sent-txt:#fff;--recv:#fff;--recv-txt:#111;--accent:#B70000;--green:#25d366;--border:#e9ecef;--muted:#8696a0;--act:rgba(183,0,0,0.07);--hov:#f5f6f7}
+.chat-wrap{height:calc(100vh - 80px);display:flex;border-radius:16px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.12)}
+.chat-sb{width:320px;min-width:240px;background:var(--sidebar-bg);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}
+.chat-sb-hdr{padding:13px 16px;background:var(--hdr);display:flex;align-items:center;justify-content:space-between}
+.chat-sb-hdr h6{color:#fff;font-weight:700;font-size:.97rem;margin:0}
+.chat-search{padding:9px 11px;background:#f0f2f5}
+.chat-search input{border-radius:20px;background:#fff;border:none;padding:7px 15px;font-size:.83rem;width:100%;outline:none;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.chat-list{flex:1;overflow-y:auto;scrollbar-width:thin}
+.cli{display:flex;align-items:center;gap:11px;padding:11px 15px;cursor:pointer;border-bottom:1px solid #f5f6f7;transition:background .14s;position:relative}
+.cli:hover{background:var(--hov)}.cli.active{background:var(--act)}
+.cli.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--accent);border-radius:0 2px 2px 0}
+.av-wrap{position:relative;flex-shrink:0}
+.av{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#7c0000);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:.9rem}
+.av.grp{background:linear-gradient(135deg,#1a1a2e,#16213e)}
+.on-dot{position:absolute;bottom:1px;right:1px;width:11px;height:11px;border-radius:50%;background:var(--green);border:2px solid #fff}
+.cli-info{flex:1;min-width:0}
+.cli-name{font-weight:600;font-size:.85rem;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli-prev{font-size:.75rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli-meta{display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0}
+.cli-time{font-size:.68rem;color:var(--muted)}
+.ubadge{background:var(--accent);color:#fff;font-size:.65rem;font-weight:700;min-width:19px;height:19px;border-radius:10px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.chat-main{flex:1;display:flex;flex-direction:column;background:#efeae2}
+.chat-welcome{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#8696a0;text-align:center;padding:40px}
+.chat-panel{flex:1;display:none;flex-direction:column}
+.cpanel-hdr{padding:11px 18px;background:var(--sidebar-bg);display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.room-nm{font-weight:700;font-size:.9rem;color:#111}
+.room-st{font-size:.74rem;color:var(--muted)}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px 7%;display:flex;flex-direction:column;gap:3px;scrollbar-width:thin}
+.day-div{text-align:center;margin:10px 0}
+.day-div span{background:rgba(255,255,255,.75);padding:3px 12px;border-radius:8px;font-size:.71rem;color:#54656f;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.mr{display:flex;gap:7px;margin:2px 0;animation:mfi .17s ease}
+@keyframes mfi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.mr.sent{flex-direction:row-reverse}
+.av-mini{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#7c0000);display:flex;align-items:center;justify-content:center;color:#fff;font-size:.57rem;font-weight:700;flex-shrink:0;align-self:flex-end}
+.mb{max-width:60%;padding:7px 11px 5px;border-radius:12px;font-size:.85rem;line-height:1.44;box-shadow:0 1px 2px rgba(0,0,0,.1);cursor:context-menu;position:relative;word-break:break-word}
+.mr.received .mb{background:var(--recv);color:var(--recv-txt);border-radius:0 12px 12px 12px}
+.mr.sent .mb{background:var(--sent);color:var(--sent-txt);border-radius:12px 12px 0 12px}
+.msg-sndr{font-size:.69rem;font-weight:700;color:var(--accent);margin-bottom:2px}
+.msg-t{font-size:.64rem;color:var(--muted);text-align:right;margin-top:2px;display:flex;align-items:center;justify-content:flex-end;gap:3px}
+.mr.sent .mb .msg-t{color:rgba(255,255,255,.55)}
+.del-msg{font-style:italic;opacity:.6;font-size:.79rem}
+.att-img{max-width:210px;border-radius:8px;cursor:pointer;display:block;margin-bottom:3px}
+.file-card{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,.08);padding:6px 10px;border-radius:8px;text-decoration:none;color:inherit;margin-bottom:3px;font-size:.8rem}
+.chat-inp{padding:9px 13px;background:var(--sidebar-bg);border-top:1px solid var(--border);display:flex;align-items:flex-end;gap:8px}
+.inp-wrap{flex:1;background:#f0f2f5;border-radius:24px;display:flex;align-items:flex-end;padding:6px 13px;gap:8px}
+.inp-wrap textarea{flex:1;border:none;background:transparent;outline:none;resize:none;max-height:110px;font-size:.87rem;line-height:1.4}
+.bir{width:40px;height:40px;border-radius:50%;border:none;display:flex;align-items:center;justify-content:center;font-size:.9rem;cursor:pointer;transition:all .17s;flex-shrink:0}
+.b-send{background:var(--accent);color:#fff;box-shadow:0 3px 8px rgba(183,0,0,.3)}
+.b-send:hover{background:#9c0000;transform:scale(1.06)}
+.b-att{background:#e9ecef;color:#54656f}.b-att:hover{background:#dee2e6}
+.emoji-row{display:none;padding:7px 13px;gap:6px;background:#f8f9fa;border-top:1px solid var(--border);flex-wrap:wrap}
+.emoji-row.active{display:flex}
+.emoji-row span{font-size:1.35rem;cursor:pointer;transition:transform .1s}
+.emoji-row span:hover{transform:scale(1.3)}
+#attPrev{padding:7px 13px;background:#f8f9fa;border-top:1px solid var(--border);display:none;align-items:center;gap:8px}
+#attPrev.active{display:flex}
+.att-thumb{width:52px;height:52px;border-radius:8px;object-fit:cover;border:2px solid var(--border)}
+.ctx-menu{display:none;position:fixed;z-index:9999;background:#fff;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15);min-width:135px;overflow:hidden}
+.ctx-item{padding:9px 15px;cursor:pointer;font-size:.82rem;display:flex;align-items:center;gap:7px}
+.ctx-item:hover{background:#f5f6f7}
+.ctx-item.danger{color:#dc3545}
+.btn-grp-sm{padding:3px 9px;border-radius:11px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.28);font-size:.75rem;cursor:pointer}
+.btn-grp-sm:hover{background:rgba(255,255,255,.25)}
+.sec-lbl{padding:6px 15px 2px;font-size:.68rem;text-transform:uppercase;font-weight:700;color:#aaa;letter-spacing:.5px}
+@media(max-width:768px){.chat-sb{display:none}.chat-sb.mob-show{display:flex;width:100%;max-width:100%}.chat-main.mob-show{display:flex}}
+</style>
+
+<div class="mb-3">
+<div class="chat-wrap">
+  <!-- ======= SIDEBAR ======= -->
+  <div class="chat-sb" id="chatSb">
+    <div class="chat-sb-hdr">
+      <h6>💬 Team Chat</h6>
+      <div class="d-flex gap-2">
+        {% if request.user.is_superuser or request.user.role == 'admin' or request.user.role == 'manager' %}
+        <a href="/chat/admin/" class="btn-grp-sm" title="Admin Monitor">👁 Monitor</a>
+        {% endif %}
+        <button class="btn-grp-sm" data-bs-toggle="modal" data-bs-target="#newGrpModal">
+          <i class="fas fa-users me-1"></i>Group
+        </button>
+      </div>
+    </div>
+    <div class="chat-search">
+      <input type="text" id="chatSearch" placeholder="🔍 Search conversations..." autocomplete="off">
+    </div>
+    <div class="chat-list" id="chatList">
+      {% for rd in room_data %}
+      <div class="cli {% if active_room_id == rd.room.id|stringformat:'s' %}active{% endif %}"
+           data-room-id="{{ rd.room.id }}"
+           data-name="{{ rd.display_name }}"
+           onclick="selectRoom({{ rd.room.id }},'{{ rd.display_name|escapejs }}','{{ rd.room.room_type }}')">
+        <div class="av-wrap">
+          <div class="av {% if rd.room.room_type == 'group' %}grp{% endif %}">
+            {% if rd.room.room_type == 'group' %}<i class="fas fa-users" style="font-size:.85rem;"></i>
+            {% else %}{{ rd.display_name|slice:":2"|upper }}{% endif %}
+          </div>
+          {% if rd.other_online %}<div class="on-dot"></div>{% endif %}
+        </div>
+        <div class="cli-info">
+          <div class="cli-name">{{ rd.display_name }}</div>
+          <div class="cli-prev">
+            {% if rd.last_message %}
+              {% if rd.last_message.sender == request.user %}<span style="color:#aaa">You: </span>{% endif %}
+              {% if rd.last_message.attachment and not rd.last_message.content %}📎 Attachment
+              {% else %}{{ rd.last_message.content|truncatechars:42 }}{% endif %}
+            {% else %}<em>Say hello! 👋</em>{% endif %}
+          </div>
+        </div>
+        <div class="cli-meta">
+          {% if rd.last_message %}<span class="cli-time">{{ rd.last_message.timestamp|date:"g:i A" }}</span>{% endif %}
+          {% if rd.unread > 0 %}<span class="ubadge" id="ubadge-{{ rd.room.id }}">{{ rd.unread }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      <div class="sec-lbl mt-2">Start New Chat</div>
+      {% for u in all_users %}
+      <div class="cli new-user" data-name="{{ u.get_full_name|default:u.username }}"
+           onclick="startDM({{ u.pk }})">
+        <div class="av-wrap">
+          <div class="av" style="background:linear-gradient(135deg,#1a1a2e,#16213e);">
+            {{ u.get_full_name|default:u.username|slice:":2"|upper }}
+          </div>
+          {% if u.pk in online_ids %}<div class="on-dot"></div>{% endif %}
+        </div>
+        <div class="cli-info">
+          <div class="cli-name">{{ u.get_full_name|default:u.username }}</div>
+          <div class="cli-prev">{{ u.get_role_display }}{% if u.pk in online_ids %} <span class="text-success">● Online</span>{% endif %}</div>
+        </div>
+        <div class="cli-meta"><i class="fas fa-comment-dots" style="color:#ddd;font-size:.8rem;"></i></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- ======= MAIN PANEL ======= -->
+  <div class="chat-main" id="chatMain">
+    <!-- Welcome -->
+    <div class="chat-welcome" id="chatWelcome">
+      <div style="font-size:4.5rem;opacity:.6;margin-bottom:20px;">💬</div>
+      <h4 style="color:#41525d;font-weight:300;">ApniFactory Team Chat</h4>
+      <p class="fs-9 mt-2 mb-4" style="max-width:300px;">Real-time messaging with your team. Select a conversation or start a new one.</p>
+      <div class="d-flex gap-2 flex-wrap justify-content-center">
+        {% for u in all_users|slice:":5" %}
+        <button class="btn btn-sm btn-phoenix-primary" onclick="startDM({{ u.pk }})">
+          {{ u.get_full_name|default:u.username }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Active Chat Panel -->
+    <div class="chat-panel" id="chatPanel">
+      <div class="cpanel-hdr">
+        <div class="av-wrap">
+          <div class="av" id="panelAv">?</div>
+          <div class="on-dot" id="panelDot" style="display:none;"></div>
+        </div>
+        <div class="flex-grow-1">
+          <div class="room-nm" id="panelName">Loading...</div>
+          <div class="room-st" id="panelSt">...</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="fs-10 text-muted" id="pollingIndicator"></span>
+        </div>
+      </div>
+      <div class="chat-msgs" id="chatMsgs"><div class="d-flex h-100 align-items-center justify-content-center"><div class="spinner-border text-muted" style="width:1.4rem;height:1.4rem;"></div></div></div>
+      <div class="emoji-row" id="emojiRow">
+        {% for e in "😊 😂 🙏 👍 ❤️ 🎉 ✅ 🔥 💯 👋 😎 🤝 💪 🚀 😅 🎯 📌 ⚡ 🔔 🌟"|split:" " %}
+        <span onclick="insEmoji('{{ e }}')" title="{{ e }}">{{ e }}</span>
+        {% endfor %}
+      </div>
+      <div id="attPrev">
+        <span id="attPrevContent"></span>
+        <button class="btn btn-link btn-sm text-danger ms-auto p-0" onclick="clearAtt()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="chat-inp">
+        <button class="bir b-att" onclick="toggleEmoji()" title="Emoji">😊</button>
+        <div class="inp-wrap">
+          <label for="fileInp" style="cursor:pointer;color:#54656f;" title="Attach file"><i class="fas fa-paperclip"></i></label>
+          <input type="file" id="fileInp" style="display:none;" onchange="prevAtt(this)">
+          <textarea id="msgInp" placeholder="Type a message..." rows="1"
+            onkeydown="onKey(event)" oninput="autoR(this)"></textarea>
+        </div>
+        <button class="bir b-send" onclick="sendMsg()" id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Context menu -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-item" onclick="copyMsg()"><i class="fas fa-copy"></i> Copy</div>
+  <div class="ctx-item danger" id="ctxDelete" onclick="delMsg()"><i class="fas fa-trash-alt"></i> Delete</div>
+</div>
+
+<!-- New Group Modal -->
+<div class="modal fade" id="newGrpModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--hdr);color:#fff;">
+        <h5 class="modal-title"><i class="fas fa-users me-2"></i>Create Group</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold fs-9">Group Name *</label>
+          <input type="text" class="form-control form-control-sm" id="grpName" placeholder="e.g. Sales Team, Marketing...">
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold fs-9">Add Members</label>
+          <div class="border rounded p-3" style="max-height:200px;overflow-y:auto;">
+            {% for u in all_users %}
+            <div class="form-check mb-1">
+              <input class="form-check-input" type="checkbox" value="{{ u.pk }}" id="m{{ u.pk }}">
+              <label class="form-check-label fs-9" for="m{{ u.pk }}">
+                {{ u.get_full_name|default:u.username }} <span class="text-muted">({{ u.get_role_display }})</span>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer py-2">
+        <button class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-sm btn-danger" onclick="createGrp()"><i class="fas fa-check me-1"></i>Create Group</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const CSRF='{{ csrf_token }}';
+const ME={{ request.user.pk }};
+let room=null,roomName='',lastTs=null,pollT=null,presT=null,roomsT=null;
+let ctxMsgId=null,ctxTxt='',ctxOwn=false;
+
+document.addEventListener('DOMContentLoaded',()=>{
+  startPresence();startRoomsPoll();
+  const p=new URLSearchParams(location.search).get('room');
+  if(p)selectRoom(parseInt(p));
+  document.getElementById('chatSearch').addEventListener('input',filterList);
+  document.addEventListener('click',e=>{
+    if(!document.getElementById('ctxMenu').contains(e.target))hideCtx();
+  });
+});
+
+function selectRoom(id,name,type){
+  room=id;roomName=name||'Chat';lastTs=null;
+  document.querySelectorAll('.cli').forEach(e=>e.classList.remove('active'));
+  const li=document.querySelector(`.cli[data-room-id="${id}"]`);
+  if(li){li.classList.add('active');const b=li.querySelector(`#ubadge-${id}`);if(b)b.remove();}
+  document.getElementById('chatWelcome').style.display='none';
+  const cp=document.getElementById('chatPanel');cp.style.display='flex';
+  document.getElementById('panelName').textContent=name||'...';
+  document.getElementById('panelAv').textContent=(name||'??').slice(0,2).toUpperCase();
+  document.getElementById('panelSt').innerHTML='<span class="spinner-border spinner-border-sm me-1" style="width:.7rem;height:.7rem;"></span>Loading...';
+  document.getElementById('chatMsgs').innerHTML='<div class="d-flex h-100 align-items-center justify-content-center"><div class="spinner-border text-muted" style="width:1.4rem;height:1.4rem;"></div></div>';
+  history.pushState({},'',`?room=${id}`);
+  clearInterval(pollT);
+  loadMsgs(id,false);
+  pollT=setInterval(()=>{ if(!document.hidden&&room)loadMsgs(room,true); },2000);
+  setTimeout(()=>document.getElementById('msgInp').focus(),100);
+}
+
+function startDM(uid){location.href=`/chat/dm/${uid}/`;}
+
+function loadMsgs(id,inc){
+  if(id!==room)return;
+  let url=`/chat/${id}/messages/`;
+  if(inc&&lastTs)url+=`?after=${encodeURIComponent(lastTs)}`;
+  fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r=>r.json()).then(d=>{
+      if(d.error)return;
+      // Update header
+      if(d.members){
+        const online=d.members.filter(m=>m.online).length;
+        if(d.room_type==='direct'){
+          const oth=d.members.find(m=>m.id!==ME);
+          if(oth){
+            document.getElementById('panelName').textContent=oth.name;
+            document.getElementById('panelAv').textContent=oth.initials;
+            document.getElementById('panelSt').innerHTML=oth.online?'<span style="color:#25d366">● Online</span>':'<span style="color:#aaa">Offline</span>';
+            document.getElementById('panelDot').style.display=oth.online?'block':'none';
+          }
+        }else{
+          document.getElementById('panelSt').textContent=`${d.members.length} members, ${online} online`;
+        }
+      }
+      if(!d.messages||d.messages.length===0){
+        if(!inc&&document.getElementById('chatMsgs').querySelector('.spinner-border'))
+          document.getElementById('chatMsgs').innerHTML='<div class="text-center text-muted py-5"><div style="font-size:2.5rem">👋</div><p class="mt-2 fs-9">No messages yet. Say hello!</p></div>';
+        return;
+      }
+      if(!inc)renderAll(d.messages);
+      else appendMsgs(d.messages);
+      if(d.messages.length)lastTs=d.messages[d.messages.length-1].timestamp;
+    }).catch(()=>{});
+}
+
+function renderAll(msgs){
+  const c=document.getElementById('chatMsgs');c.innerHTML='';
+  let ld=null;
+  msgs.forEach(m=>{
+    const md=m.timestamp.split('T')[0];
+    if(md!==ld){c.appendChild(mkDay(m.date_display));ld=md;}
+    c.appendChild(mkMsg(m));
+  });
+  scrollBot();
+}
+
+function appendMsgs(msgs){
+  if(!msgs||!msgs.length)return;
+  const c=document.getElementById('chatMsgs');
+  const atBot=c.scrollHeight-c.scrollTop-c.clientHeight<70;
+  msgs.forEach(m=>c.appendChild(mkMsg(m)));
+  if(atBot)scrollBot();
+}
+
+function mkDay(d){
+  const el=document.createElement('div');el.className='day-div';
+  el.innerHTML=`<span>${d}</span>`;return el;
+}
+
+function mkMsg(m){
+  const row=document.createElement('div');
+  row.className=`mr ${m.is_own?'sent':'received'}`;
+  row.dataset.msgId=m.id;
+  let av=m.is_own?'':'<div class="av-mini">'+m.sender_initials+'</div>';
+  let body='';
+  if(m.is_deleted){body='<span class="del-msg">🚫 This message was deleted.</span>';}
+  else{
+    if(m.attachment_url){
+      if(m.attachment_type==='image')
+        body+=`<img class="att-img" src="${m.attachment_url}" onclick="window.open('${m.attachment_url}')" alt="img">`;
+      else
+        body+=`<a class="file-card" href="${m.attachment_url}" download target="_blank"><i class="fas fa-file-alt"></i>${esc(m.attachment_name||'File')}</a>`;
+    }
+    if(m.content)body+=`<div class="msg-txt">${esc(m.content).replace(/\n/g,'<br>')}</div>`;
+  }
+  const sn=!m.is_own?`<div class="msg-sndr">${esc(m.sender_name)}</div>`:'';
+  const ck=m.is_own?(m.read_by_count>1?'<i class="fas fa-check-double" style="font-size:.6rem;"></i>':'<i class="fas fa-check" style="font-size:.6rem;opacity:.5;"></i>'):'';
+  row.innerHTML=`${av}<div class="mb" oncontextmenu="showCtx(event,${m.id},'${(m.content||'').replace(/'/g,"\\'")}',${m.is_own})">${sn}${body}<div class="msg-t">${m.time_display}${ck}</div></div>`;
+  return row;
+}
+
+function sendMsg(){
+  const inp=document.getElementById('msgInp'),fi=document.getElementById('fileInp');
+  const txt=inp.value.trim(),file=fi.files[0];
+  if(!txt&&!file)return;if(!room)return;
+  const fd=new FormData();
+  fd.append('csrfmiddlewaretoken',CSRF);
+  if(txt)fd.append('content',txt);
+  if(file)fd.append('attachment',file);
+  const opt={id:'p'+Date.now(),is_own:true,sender_name:'You',sender_initials:'YO',content:txt,is_deleted:false,
+    time_display:new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true}),
+    read_by_count:1,timestamp:new Date().toISOString(),date_display:''};
+  if(file){opt.attachment_type=file.type.startsWith('image/')?'image':'file';opt.attachment_name=file.name;if(file.type.startsWith('image/'))opt.attachment_url=URL.createObjectURL(file);}
+  document.getElementById('chatMsgs').appendChild(mkMsg(opt));scrollBot();
+  inp.value='';autoR(inp);clearAtt();
+  fetch(`/chat/${room}/send/`,{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.status==='sent')lastTs=null;
+  }).catch(()=>{});
+}
+
+function onKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}}
+function autoR(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px';}
+function toggleEmoji(){document.getElementById('emojiRow').classList.toggle('active');}
+function insEmoji(e){document.getElementById('msgInp').value+=e;document.getElementById('msgInp').focus();}
+function prevAtt(inp){
+  const f=inp.files[0];if(!f)return;
+  const p=document.getElementById('attPrev'),pc=document.getElementById('attPrevContent');
+  p.classList.add('active');
+  if(f.type.startsWith('image/')){const i=document.createElement('img');i.src=URL.createObjectURL(f);i.className='att-thumb';pc.innerHTML='';pc.appendChild(i);}
+  else{pc.innerHTML=`<i class="fas fa-file me-1 text-muted"></i><span class="fs-10">${f.name}</span>`;}
+}
+function clearAtt(){document.getElementById('fileInp').value='';document.getElementById('attPrev').classList.remove('active');document.getElementById('attPrevContent').innerHTML='';}
+function showCtx(e,id,txt,own){
+  e.preventDefault();ctxMsgId=id;ctxTxt=txt;ctxOwn=own;
+  const m=document.getElementById('ctxMenu');
+  m.style.display='block';m.style.left=Math.min(e.clientX,window.innerWidth-150)+'px';m.style.top=e.clientY+'px';
+  document.getElementById('ctxDelete').style.display=own?'flex':'none';
+}
+function hideCtx(){document.getElementById('ctxMenu').style.display='none';ctxMsgId=null;}
+function copyMsg(){navigator.clipboard.writeText(ctxTxt).catch(()=>{});hideCtx();}
+function delMsg(){
+  if(!ctxMsgId)return;
+  fetch(`/chat/message/${ctxMsgId}/delete/`,{method:'POST',headers:{'X-CSRFToken':CSRF}})
+    .then(r=>r.json()).then(d=>{
+      if(d.status==='deleted'){const el=document.querySelector(`.mr[data-msg-id="${ctxMsgId}"] .mb`);if(el){const s=el.querySelector('.msg-txt');if(s)s.outerHTML='<span class="del-msg">🚫 This message was deleted.</span>';}}
+      lastTs=null;
+    });
+  hideCtx();
+}
+function startPresence(){
+  fetch('/chat/presence/update/',{method:'POST',headers:{'X-CSRFToken':CSRF}}).catch(()=>{});
+  presT=setInterval(()=>{fetch('/chat/presence/update/',{method:'POST',headers:{'X-CSRFToken':CSRF}}).catch(()=>{});},10000);
+}
+function startRoomsPoll(){
+  roomsT=setInterval(()=>{
+    if(document.hidden)return;
+    fetch('/chat/rooms/').then(r=>r.json()).then(d=>{
+      d.rooms.forEach(r=>{
+        if(r.id===room||r.unread===0){const b=document.getElementById(`ubadge-${r.id}`);if(b)b.remove();return;}
+        let b=document.getElementById(`ubadge-${r.id}`);
+        if(!b){const m=document.querySelector(`.cli[data-room-id="${r.id}"] .cli-meta`);if(m){b=document.createElement('span');b.className='ubadge';b.id=`ubadge-${r.id}`;m.appendChild(b);}}
+        if(b)b.textContent=r.unread;
+      });
+    }).catch(()=>{});
+  },5000);
+}
+function createGrp(){
+  const nm=document.getElementById('grpName').value.trim();if(!nm){document.getElementById('grpName').focus();return;}
+  const mids=[...document.querySelectorAll('.modal input[type=checkbox]:checked')].map(e=>e.value);
+  const fd=new FormData();fd.append('csrfmiddlewaretoken',CSRF);fd.append('name',nm);mids.forEach(id=>fd.append('member_ids',id));
+  fetch('/chat/group/create/',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status==='created')location.href=d.redirect;});
+}
+function filterList(){
+  const q=document.getElementById('chatSearch').value.toLowerCase();
+  document.querySelectorAll('.cli').forEach(el=>{
+    const n=(el.dataset.name||'').toLowerCase();
+    el.style.display=n.includes(q)?'flex':'none';
+  });
+}
+function scrollBot(){const c=document.getElementById('chatMsgs');c.scrollTop=c.scrollHeight;}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+</script>
+{% endblock %}
