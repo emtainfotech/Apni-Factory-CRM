@@ -1091,29 +1091,64 @@ def download_sample_file(request):
     
     return response
 
-# --- 2. BULK UPLOAD VIEW ---
+# --- 2. BULK UPLOAD VIEW (Secure, Async-friendly, In-page Results) ---
+import io
+import time
 from django.db import transaction
+from django.http import JsonResponse
 
 @login_required
 def bulk_upload_customers(request):
+    is_ajax = (
+        request.headers.get('X-Requested-With') == 'XMLHttpRequest' or
+        request.headers.get('Accept') == 'application/json' or
+        request.GET.get('ajax') == '1' or
+        'application/json' in request.META.get('HTTP_ACCEPT', '')
+    )
+
     if request.method == 'POST':
         if 'file' not in request.FILES:
-            messages.error(request, 'No file selected')
-            return redirect('bulk_upload_customers')
-            
+            err_msg = 'Please select a CSV or Excel file to upload.'
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
+            messages.error(request, err_msg)
+            return render(request, 'core/bulk_upload.html')
+
         file = request.FILES['file']
-        
-        # Determine file type
-        if file.name.endswith('.csv'):
-            try:
-                decoded_file = file.read().decode('utf-8', errors='ignore').splitlines()
-                reader = csv.DictReader(decoded_file)
-                process_import(reader, request)
-            except Exception as e:
-                messages.error(request, f"Error processing CSV: {str(e)}")
-                
-        elif file.name.endswith('.xlsx'):
-            try:
+        file_name = file.name.lower()
+
+        # Security: Maximum file size validation (50 MB limit)
+        MAX_SIZE = 50 * 1024 * 1024
+        if file.size > MAX_SIZE:
+            err_msg = f'File is too large ({round(file.size / (1024*1024), 1)} MB). Maximum allowed size is 50 MB.'
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
+            messages.error(request, err_msg)
+            return render(request, 'core/bulk_upload.html')
+
+        # Security: Extension validation
+        if not (file_name.endswith('.csv') or file_name.endswith('.xlsx')):
+            err_msg = 'Invalid file format. Only .csv and .xlsx files are supported.'
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
+            messages.error(request, err_msg)
+            return render(request, 'core/bulk_upload.html')
+
+        start_time = time.time()
+        result = None
+
+        try:
+            if file_name.endswith('.csv'):
+                try:
+                    text_stream = io.TextIOWrapper(file, encoding='utf-8', errors='ignore')
+                    reader = csv.DictReader(text_stream)
+                    result = process_import(reader, request, file.name)
+                except Exception:
+                    decoded = file.read().decode('utf-8', errors='ignore').splitlines()
+                    reader = csv.DictReader(decoded)
+                    result = process_import(reader, request, file.name)
+
+            elif file_name.endswith('.xlsx'):
                 wb = openpyxl.load_workbook(file, read_only=True, data_only=True)
                 sheet = wb.active
                 rows = sheet.iter_rows(values_only=True)
@@ -1121,31 +1156,50 @@ def bulk_upload_customers(request):
                 if headers:
                     headers = [str(h).strip() if h is not None else f'col_{i}' for i, h in enumerate(headers)]
                     data = (dict(zip(headers, row)) for row in rows)
-                    process_import(data, request)
+                    result = process_import(data, request, file.name)
                 else:
-                    messages.error(request, "Excel file is empty.")
-            except Exception as e:
-                messages.error(request, f"Error processing Excel: {str(e)}")
-        else:
-            messages.error(request, 'Invalid file format. Please upload CSV or XLSX.')
-            
-        return redirect('customer_list')
+                    err_msg = 'The uploaded Excel file contains no data or headers.'
+                    if is_ajax:
+                        return JsonResponse({'status': 'error', 'message': err_msg}, status=400)
+                    messages.error(request, err_msg)
+                    return render(request, 'core/bulk_upload.html')
+
+            elapsed = round(time.time() - start_time, 2)
+            if result:
+                result['elapsed_seconds'] = elapsed
+
+            if is_ajax:
+                return JsonResponse(result)
+            else:
+                # Render results directly on the same page (no redirect!)
+                return render(request, 'core/bulk_upload.html', {'result': result})
+
+        except Exception as e:
+            err_msg = f"Error processing file: {str(e)}"
+            if is_ajax:
+                return JsonResponse({'status': 'error', 'message': err_msg}, status=500)
+            messages.error(request, err_msg)
+            return render(request, 'core/bulk_upload.html')
 
     return render(request, 'core/bulk_upload.html')
 
-# --- 3. IMPORT LOGIC (Mobile is Mandatory; Name, Email, Address are Optional) ---
-def process_import(data, request):
+# --- 3. IMPORT LOGIC (Secure, High-Speed, Detailed Statistics) ---
+def process_import(data, request, filename="Uploaded File"):
     success_count = 0
     skipped_duplicates = 0
-    errors = []
-    
-    def clean_val(val, default=""):
+    failed_records = []
+    total_rows = 0
+
+    def clean_val(val, max_len=100, default=""):
         if val is None:
             return default
         s = str(val).strip()
+        # Security: Neutralize CSV formula injection
+        if s.startswith(('=', '+', '-', '@')) and not s.lstrip('+-').replace('.', '', 1).isdigit():
+            s = "'" + s
         if s.lower() in ('none', 'nan', 'null', '', '-', '--', '---', 'n/a', 'na', 'n.a.', 'nil'):
             return default
-        return s
+        return s[:max_len]
 
     def clean_email(val):
         if val is None:
@@ -1163,7 +1217,7 @@ def process_import(data, request):
         parts = val_str.split('@')
         if len(parts) != 2 or not parts[0] or '.' not in parts[1]:
             return None
-        return val_str
+        return val_str[:150]
 
     def find_col_val(row_dict, candidate_keys):
         # 1. Exact match in keys
@@ -1200,13 +1254,10 @@ def process_import(data, request):
     EMAIL_KEYS = ['email', 'email id', 'email address', 'mail', 'e-mail']
     NOTE_KEYS = ['notes', 'note', 'remark', 'remarks', 'comment', 'comments', 'description']
 
-    # Pre-cache existing phones to optimize 80,000+ row bulk imports
+    # Pre-cache existing phones
     existing_phones = set(Customer.objects.values_list('phone', flat=True))
-    
-    # Pre-cache users by username for assigned_to
     users_by_username = {u.username.lower(): u for u in User.objects.filter(is_active=True)}
 
-    # Helper maps for choices
     lead_source_map = {label.lower(): key for key, label in Customer.LEAD_SOURCE_CHOICES}
     lead_source_map.update({key.lower(): key for key, _ in Customer.LEAD_SOURCE_CHOICES})
     
@@ -1218,18 +1269,25 @@ def process_import(data, request):
     for index, raw_row in enumerate(data):
         if not raw_row:
             continue
+        total_rows += 1
 
-        # 1. Normalize Keys (Lowercase, strip spaces)
+        # 1. Normalize Keys
         row = {str(k).strip().lower(): v for k, v in raw_row.items() if k is not None}
         
         # 2. Extract Phone / Mobile (The ONLY mandatory field!)
-        raw_phone = clean_val(find_col_val(row, PHONE_KEYS))
+        raw_phone = clean_val(find_col_val(row, PHONE_KEYS), max_len=30)
         
-        # Skip completely blank rows without generating an error
         if not raw_phone:
+            has_any_data = any(str(v).strip() for v in raw_row.values() if v is not None)
+            if has_any_data:
+                failed_records.append({
+                    'row': index + 2,
+                    'phone': '—',
+                    'reason': 'Missing mobile / phone number'
+                })
             continue
             
-        # Clean Phone (remove tel:, +, spaces, dashes, dots, and float .0 from Excel)
+        # Clean Phone
         phone_str = str(raw_phone).strip()
         if phone_str.endswith('.0'):
             phone_str = phone_str[:-2]
@@ -1237,44 +1295,46 @@ def process_import(data, request):
         phone = digits_only[-10:] if len(digits_only) >= 10 else digits_only
         
         if len(phone) < 10:
-            errors.append(f"Row {index + 2}: Invalid phone number '{raw_phone}'")
+            failed_records.append({
+                'row': index + 2,
+                'phone': str(raw_phone)[:20],
+                'reason': f"Invalid number format '{raw_phone}' (must be at least 10 digits)"
+            })
             continue
 
-        # 3. Check Duplicates (both DB and current file batch)
-        # Skip duplicates cleanly without flooding the error log
+        # 3. Check Duplicates (both DB and batch)
         if phone in existing_phones:
             skipped_duplicates += 1
             continue
         existing_phones.add(phone)
 
         # 4. Extract Location Fields: City, State, Pincode
-        city = clean_val(find_col_val(row, CITY_KEYS), '')
-        state = clean_val(find_col_val(row, STATE_KEYS), '')
+        city = clean_val(find_col_val(row, CITY_KEYS), max_len=100)
+        state = clean_val(find_col_val(row, STATE_KEYS), max_len=100)
         
-        raw_pincode = clean_val(find_col_val(row, PIN_KEYS), '')
+        raw_pincode = clean_val(find_col_val(row, PIN_KEYS), max_len=20)
         if '.' in str(raw_pincode):
             raw_pincode = str(raw_pincode).split('.')[0]
-        pincode = clean_val(raw_pincode, '')
+        pincode = clean_val(raw_pincode, max_len=10)
 
-        # 5. Extract Optional Fields: First Name, Last Name, Company, Address, Email, Notes
-        first_name = clean_val(find_col_val(row, NAME_KEYS), '')
-        last_name = clean_val(find_col_val(row, ['last name', 'surname']), '')
-        company_name = clean_val(find_col_val(row, COMPANY_KEYS), '')
-        address = clean_val(find_col_val(row, ADDRESS_KEYS), '')
+        # 5. Extract Optional Fields
+        first_name = clean_val(find_col_val(row, NAME_KEYS), max_len=100)
+        last_name = clean_val(find_col_val(row, ['last name', 'surname']), max_len=100)
+        company_name = clean_val(find_col_val(row, COMPANY_KEYS), max_len=200)
+        address = clean_val(find_col_val(row, ADDRESS_KEYS), max_len=500)
         
         raw_email = find_col_val(row, EMAIL_KEYS)
         email = clean_email(raw_email)
         
-        notes = clean_val(find_col_val(row, NOTE_KEYS), '')
+        notes = clean_val(find_col_val(row, NOTE_KEYS), max_len=1000)
 
         # Lead Source & Status
-        source_raw = clean_val(find_col_val(row, ['lead source', 'source'])).lower()
-        status_raw = clean_val(find_col_val(row, ['status'])).lower()
+        source_raw = clean_val(find_col_val(row, ['lead source', 'source']), max_len=50).lower()
+        status_raw = clean_val(find_col_val(row, ['status']), max_len=50).lower()
         lead_source = lead_source_map.get(source_raw, 'manual')
         status = status_map.get(status_raw, 'lead')
 
-        # Assigned User
-        assigned_username = clean_val(find_col_val(row, ['assigned to (username)', 'assigned to', 'assigned_to'])).lower()
+        assigned_username = clean_val(find_col_val(row, ['assigned to (username)', 'assigned to', 'assigned_to']), max_len=100).lower()
         assigned_user = users_by_username.get(assigned_username) if assigned_username else None
 
         customer = Customer(
@@ -1296,35 +1356,36 @@ def process_import(data, request):
         )
         customers_to_create.append(customer)
 
-    # Bulk insert in batches of 1000 with transaction
+    # Bulk insert with transaction safety
     if customers_to_create:
         try:
             with transaction.atomic():
                 Customer.objects.bulk_create(customers_to_create, batch_size=1000)
             success_count = len(customers_to_create)
         except Exception as e:
-            # Fallback to individual creates if bulk fails
             for c in customers_to_create:
                 try:
                     c.save()
                     success_count += 1
                 except Exception as row_err:
-                    errors.append(f"Save error for {c.phone}: {str(row_err)}")
+                    failed_records.append({
+                        'row': '—',
+                        'phone': c.phone,
+                        'reason': f"Database error: {str(row_err)[:100]}"
+                    })
 
-    # Feedback message
-    if success_count > 0:
-        msg = f"Successfully imported {success_count} customers."
-        if skipped_duplicates > 0:
-            msg += f" ({skipped_duplicates} duplicate / already existing numbers were skipped)."
-        messages.success(request, msg)
-    elif skipped_duplicates > 0 and success_count == 0:
-        messages.info(request, f"No new records imported: all {skipped_duplicates} mobile numbers already exist in the system.")
-    
-    if errors:
-        error_msg = "Import Notices:<br>" + "<br>".join(errors[:5])
-        if len(errors) > 5:
-            error_msg += f"<br>...and {len(errors)-5} more."
-        messages.warning(request, error_msg)
+    return {
+        'status': 'success',
+        'filename': filename,
+        'total_rows': total_rows,
+        'imported_count': success_count,
+        'duplicates_count': skipped_duplicates,
+        'failed_count': len(failed_records),
+        'failed_records': failed_records[:500],
+        'total_failed': len(failed_records),
+        'has_more_failed': len(failed_records) > 500,
+        'message': f"Import finished: {success_count} customers successfully added."
+    }
         
 
 # ==========================================

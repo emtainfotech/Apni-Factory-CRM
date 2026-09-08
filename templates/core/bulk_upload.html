@@ -1,65 +1,694 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-    <nav class="mb-3" aria-label="breadcrumb">
-        <ol class="breadcrumb mb-0">
-            <li class="breadcrumb-item"><a href="{% url 'customer_list' %}">Customers</a></li>
-            <li class="breadcrumb-item active">Bulk Upload</li>
-        </ol>
-    </nav>
+<div class="container-fluid px-0">
+    <!-- Breadcrumb & Header -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{% url 'customer_list' %}" class="text-decoration-none">Customers</a></li>
+                    <li class="breadcrumb-item active">Bulk Import</li>
+                </ol>
+            </nav>
+            <h2 class="mb-0 fw-bolder text-body-emphasis">Customer Bulk Importer</h2>
+            <p class="text-body-tertiary mb-0 fs-9">Fast, secure spreadsheet ingestion with automated de-duplication and location mapping.</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'download_sample_file' %}" class="btn btn-phoenix-secondary btn-sm d-flex align-items-center">
+                <span class="fas fa-file-csv me-2 text-primary"></span>
+                <span>Download Sample Template</span>
+            </a>
+            <a href="{% url 'customer_list' %}" class="btn btn-subtle-secondary btn-sm">
+                <span class="fas fa-users me-1"></span> All Customers
+            </a>
+        </div>
+    </div>
 
-    <div class="row justify-content-center">
-        <div class="col-lg-6 col-md-8">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-body-tertiary border-bottom text-center py-4">
-                    <h4 class="mb-1">Import Customers</h4>
-                    <p class="text-body-secondary mb-0">Upload a CSV or Excel file to add customers in bulk.</p>
+    <!-- Main Content Grid -->
+    <div class="row g-4">
+        <!-- Left Column: Upload & Results Interface -->
+        <div class="col-xl-8 col-lg-7">
+            <!-- 1. UPLOAD CARD -->
+            <div class="card shadow-sm border-0 mb-4" id="uploadCard">
+                <div class="card-header bg-body-tertiary py-3 px-4 border-bottom d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <span class="fas fa-cloud-upload-alt fs-2 text-primary me-3"></span>
+                        <div>
+                            <h5 class="mb-0 text-body-highlight">Upload Data File</h5>
+                            <span class="fs-10 text-body-tertiary">Select or drag your .xlsx or .csv customer file</span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <span class="badge badge-phoenix badge-phoenix-primary fs-10">
+                            <span class="fas fa-shield-alt me-1"></span> CSRF Secured
+                        </span>
+                        <span class="badge badge-phoenix badge-phoenix-success fs-10">
+                            <span class="fas fa-bolt me-1"></span> Turbo Bulk Engine
+                        </span>
+                    </div>
                 </div>
-                
+
                 <div class="card-body p-4">
-                    <div class="alert alert-subtle-info mb-4">
-                        <div class="d-flex">
-                            <span class="fas fa-info-circle fs-3 me-3"></span>
-                            <div>
-                                <h5 class="alert-heading fw-bold mb-1">Instructions</h5>
-                                <ul class="mb-0 ps-3 fs-9">
-                                    <li><strong>Mandatory Field:</strong> Mobile / Phone Number (Only mobile number is required!).</li>
-                                    <li><strong>Optional Fields (NOT mandatory):</strong> City, State, Pincode, First Name, Last Name, Email, Address, Company Name, Notes.</li>
-                                    <li>Supported formats: <strong>.csv, .xlsx</strong></li>
-                                    <li>Phone numbers are automatically cleaned (country codes +91, 0, spaces, dashes removed).</li>
-                                    <li>Duplicate mobile numbers are automatically de-duplicated (kept 1 unique copy, duplicates skipped smoothly).</li>
-                                    <li>Missing names, addresses, or placeholder emails (e.g., <code>-</code>, <code>N/A</code>) are safely accepted.</li>
-                                </ul>
+                    <form id="bulkUploadForm" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+
+                        <!-- Drag & Drop Box -->
+                        <div class="dropzone-area p-5 text-center rounded-3 position-relative" id="dropzoneArea">
+                            <input type="file" id="fileInput" name="file" accept=".csv, .xlsx" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" style="z-index: 5;" required>
+                            
+                            <!-- Empty State -->
+                            <div id="dropzonePrompt" class="py-3">
+                                <div class="avatar avatar-xl bg-primary-subtle text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm">
+                                    <span class="fas fa-file-arrow-up fs-2"></span>
+                                </div>
+                                <h5 class="fw-bold text-body-highlight mb-1">Choose a file or drag & drop here</h5>
+                                <p class="text-body-tertiary fs-9 mb-3">Supports Excel (<strong>.xlsx</strong>) and CSV (<strong>.csv</strong>) up to 50 MB</p>
+                                <div class="d-inline-flex gap-2">
+                                    <span class="btn btn-outline-primary btn-sm px-3 py-1">
+                                        <span class="fas fa-folder-open me-1"></span> Browse File
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Selected File State (Hidden Initially) -->
+                            <div id="filePreview" class="d-none py-2">
+                                <div class="p-3 bg-body-tertiary rounded-3 border d-flex align-items-center justify-content-between gap-3 text-start mx-auto" style="max-width: 520px;">
+                                    <div class="d-flex align-items-center gap-3 overflow-hidden">
+                                        <div class="avatar avatar-l bg-success-subtle text-success rounded-3 d-flex align-items-center justify-content-center flex-shrink-0">
+                                            <span id="fileIcon" class="fas fa-file-excel fs-3"></span>
+                                        </div>
+                                        <div class="overflow-hidden">
+                                            <h6 class="mb-0 text-truncate text-body-highlight fw-bold" id="fileName">data.xlsx</h6>
+                                            <div class="d-flex align-items-center gap-2 mt-1">
+                                                <span class="badge bg-secondary-subtle text-body-secondary fs-10" id="fileSize">0 KB</span>
+                                                <span class="badge bg-info-subtle text-info fs-10" id="estTimeBadge">
+                                                    <span class="fas fa-stopwatch me-1"></span> Est. <span id="estTimeText">~2s</span>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-subtle-danger btn-sm rounded-circle p-2 flex-shrink-0" id="btnRemoveFile" title="Remove file" style="z-index: 10;">
+                                        <span class="fas fa-times"></span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div class="mb-4 text-center">
-                        <p class="mb-2 fs-9 text-body-tertiary">Not sure about the format?</p>
-                        <a href="{% url 'download_sample_file' %}" class="btn btn-outline-primary btn-sm">
-                            <i class="fas fa-download me-2"></i>Download Sample Template
-                        </a>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <form method="post" enctype="multipart/form-data" class="dropzone-form">
-                        {% csrf_token %}
-                        
-                        <div class="mb-3">
-                            <label class="form-label" for="customFile">Select File</label>
-                            <input type="file" class="form-control form-control-lg" id="customFile" name="file" accept=".csv, .xlsx" required>
-                        </div>
-
-                        <div class="d-grid gap-2 mt-4">
-                            <button class="btn btn-primary" type="submit">
-                                <i class="fas fa-cloud-upload-alt me-2"></i>Upload & Process
-                            </button>
-                            <a href="{% url 'customer_list' %}" class="btn btn-phoenix-secondary">Cancel</a>
+                        <!-- Action Bar -->
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mt-4 pt-3 border-top gap-3">
+                            <div class="text-body-tertiary fs-10">
+                                <span class="fas fa-info-circle me-1 text-primary"></span>
+                                Only <strong>Mobile Number</strong> is mandatory. Duplicates are automatically skipped.
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-phoenix-secondary px-4" id="btnResetForm">Reset</button>
+                                <button type="button" class="btn btn-primary px-4 shadow-sm" id="btnTriggerReview" disabled>
+                                    <span class="fas fa-cloud-arrow-up me-2"></span> Start Import
+                                </button>
+                            </div>
                         </div>
                     </form>
                 </div>
             </div>
+
+            <!-- 2. LOADING & ESTIMATED TIME STATE (Hidden Initially) -->
+            <div class="card shadow-sm border-0 mb-4 d-none" id="loadingCard">
+                <div class="card-body p-5 text-center">
+                    <div class="spinner-glow-container mb-4 position-relative mx-auto">
+                        <div class="spinner-border text-primary" role="status" style="width: 4.5rem; height: 4.5rem; border-width: 0.35rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="position-absolute top-50 start-50 translate-middle text-primary">
+                            <span class="fas fa-database fs-3 animate-pulse"></span>
+                        </div>
+                    </div>
+
+                    <h4 class="fw-bold text-body-highlight mb-1" id="loadingTitle">Processing Import Data...</h4>
+                    <p class="text-body-tertiary fs-9 mb-4" id="loadingSubtitle">Validating rows, deduplicating mobile numbers, and bulk saving to database.</p>
+
+                    <!-- Animated Progress Bar -->
+                    <div class="progress mb-3 mx-auto shadow-none" style="height: 10px; max-width: 500px;">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" id="progressBar" role="progressbar" style="width: 100%"></div>
+                    </div>
+
+                    <!-- Live Metrics -->
+                    <div class="d-flex justify-content-center align-items-center gap-4 text-body-secondary fs-9 mb-4">
+                        <div>
+                            <span class="fas fa-stopwatch me-1 text-primary"></span>
+                            Elapsed: <strong id="elapsedTimer" class="font-monospace">00:00</strong>
+                        </div>
+                        <div class="vr"></div>
+                        <div>
+                            <span class="fas fa-hourglass-half me-1 text-info"></span>
+                            Est. Total: <strong id="estimatedDuration">Calculating...</strong>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-subtle-warning d-inline-block py-2 px-3 fs-10 mb-0">
+                        <span class="fas fa-exclamation-triangle me-1"></span>
+                        Processing large datasets (up to 85,000 rows). Please do not refresh or close this tab.
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. RESULTS DASHBOARD (Hidden Initially unless result passed by server) -->
+            <div class="card shadow-sm border-0 mb-4 {% if not result %}d-none{% endif %}" id="resultsCard">
+                <div class="card-header bg-body-tertiary py-3 px-4 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fas fa-chart-pie text-primary fs-3"></span>
+                        <div>
+                            <h5 class="mb-0 text-body-highlight">Import Summary Report</h5>
+                            <span class="fs-10 text-body-tertiary" id="resultFilename">{{ result.filename|default:"Uploaded File" }}</span>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnUploadAnother">
+                            <span class="fas fa-redo me-1"></span> Upload Another File
+                        </button>
+                        <a href="{% url 'customer_list' %}" class="btn btn-primary btn-sm">
+                            <span class="fas fa-users me-1"></span> View Customers
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card-body p-4">
+                    <!-- Metric Cards Row -->
+                    <div class="row g-3 mb-4">
+                        <!-- Total Rows -->
+                        <div class="col-sm-6 col-md-3">
+                            <div class="p-3 rounded-3 bg-body-secondary border text-center h-100">
+                                <span class="fs-10 fw-bold text-body-tertiary text-uppercase letter-spacing-1">Total Processed</span>
+                                <h3 class="fw-bolder text-body-highlight my-2" id="resTotalRows">{{ result.total_rows|default:"0" }}</h3>
+                                <span class="badge bg-secondary-subtle text-body-secondary fs-10">Rows Evaluated</span>
+                            </div>
+                        </div>
+                        <!-- Imported -->
+                        <div class="col-sm-6 col-md-3">
+                            <div class="p-3 rounded-3 bg-success-subtle border border-success-subtle text-center h-100">
+                                <span class="fs-10 fw-bold text-success text-uppercase letter-spacing-1">Successfully Added</span>
+                                <h3 class="fw-bolder text-success my-2" id="resImported">{{ result.imported_count|default:"0" }}</h3>
+                                <span class="badge bg-success text-white fs-10">Live in CRM</span>
+                            </div>
+                        </div>
+                        <!-- Duplicates Skipped -->
+                        <div class="col-sm-6 col-md-3">
+                            <div class="p-3 rounded-3 bg-info-subtle border border-info-subtle text-center h-100">
+                                <span class="fs-10 fw-bold text-info text-uppercase letter-spacing-1">Duplicates Skipped</span>
+                                <h3 class="fw-bolder text-info my-2" id="resDuplicates">{{ result.duplicates_count|default:"0" }}</h3>
+                                <span class="badge bg-info text-white fs-10">Existing Kept</span>
+                            </div>
+                        </div>
+                        <!-- Failed Records -->
+                        <div class="col-sm-6 col-md-3">
+                            <div class="p-3 rounded-3 bg-danger-subtle border border-danger-subtle text-center h-100">
+                                <span class="fs-10 fw-bold text-danger text-uppercase letter-spacing-1">Failed / Invalid</span>
+                                <h3 class="fw-bolder text-danger my-2" id="resFailed">{{ result.failed_count|default:"0" }}</h3>
+                                <span class="badge bg-danger text-white fs-10">Action Needed</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Time & Speed Badge -->
+                    <div class="alert alert-subtle-success d-flex align-items-center justify-content-between p-3 rounded-3 mb-4" id="successBanner">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fas fa-check-circle fs-3 text-success"></span>
+                            <div>
+                                <h6 class="mb-0 text-success-emphasis fw-bold">Import Processing Complete</h6>
+                                <span class="fs-10 text-body-secondary">Execution time: <strong id="resElapsed">{{ result.elapsed_seconds|default:"0" }}s</strong></span>
+                            </div>
+                        </div>
+                        <span class="badge badge-phoenix badge-phoenix-success fs-9">Status: Complete</span>
+                    </div>
+
+                    <!-- Failed Records Table Section (Visible only when failed_count > 0) -->
+                    <div id="failedSection" class="{% if not result.failed_records %}d-none{% endif %} mt-4">
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+                            <div>
+                                <h5 class="mb-0 text-danger fw-bold">
+                                    <span class="fas fa-triangle-exclamation me-1"></span> Failed Records Breakdown
+                                </h5>
+                                <span class="fs-10 text-body-tertiary">Review records that could not be imported due to invalid formatting</span>
+                            </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm" id="btnExportFailedCsv">
+                                <span class="fas fa-file-export me-1"></span> Export Failed Records (CSV)
+                            </button>
+                        </div>
+
+                        <div class="table-responsive border rounded-3 bg-body">
+                            <table class="table table-sm table-striped table-hover mb-0 fs-9 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 90px;">Row #</th>
+                                        <th style="width: 160px;">Phone / Mobile</th>
+                                        <th>Reason / Error Detail</th>
+                                        <th style="width: 110px;" class="text-end">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="failedTableBody">
+                                    {% if result.failed_records %}
+                                        {% for rec in result.failed_records %}
+                                            <tr>
+                                                <td class="fw-bold text-body-tertiary font-monospace">Row {{ rec.row }}</td>
+                                                <td><span class="badge bg-secondary-subtle text-body-secondary font-monospace">{{ rec.phone }}</span></td>
+                                                <td class="text-danger">{{ rec.reason }}</td>
+                                                <td class="text-end"><span class="badge bg-danger-subtle text-danger">Invalid</span></td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Rules & Format Guide -->
+        <div class="col-xl-4 col-lg-5">
+            <!-- Guidelines Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-body-tertiary py-3 px-4 border-bottom">
+                    <h5 class="mb-0 text-body-highlight">
+                        <span class="fas fa-lightbulb text-warning me-2"></span> Smart Field Guidelines
+                    </h5>
+                </div>
+                <div class="card-body p-4 fs-9">
+                    <!-- Mandatory -->
+                    <div class="mb-3 p-3 rounded-3 bg-primary-subtle border border-primary-subtle">
+                        <span class="badge bg-primary text-white mb-2">Required Field</span>
+                        <h6 class="fw-bold mb-1 text-primary-emphasis">Mobile / Phone Number</h6>
+                        <p class="mb-0 text-body-secondary fs-10">
+                            The only strictly required field. Accepts 10-digit Indian numbers, with or without +91, 0, dashes, spaces, or Excel float formatting (.0).
+                        </p>
+                    </div>
+
+                    <!-- Key Location Fields -->
+                    <div class="mb-3 p-3 rounded-3 bg-body-tertiary border">
+                        <span class="badge bg-secondary text-white mb-2">Location Fields (Optional)</span>
+                        <h6 class="fw-bold mb-1 text-body-highlight">City, State & Pincode</h6>
+                        <p class="mb-0 text-body-secondary fs-10">
+                            Auto-detected from column headers like <em>City, Town, District, State, Province, Pincode, PIN, Zip</em>.
+                        </p>
+                    </div>
+
+                    <!-- Completely Optional Fields -->
+                    <div class="p-3 rounded-3 bg-body-tertiary border mb-3">
+                        <span class="badge bg-secondary text-white mb-2">Non-Mandatory Fields</span>
+                        <h6 class="fw-bold mb-1 text-body-highlight">Name, Email & Address</h6>
+                        <p class="mb-0 text-body-secondary fs-10">
+                            Blank names, missing addresses, and placeholder emails (such as <code>-</code>, <code>N/A</code>, <code>None</code>) are accepted gracefully.
+                        </p>
+                    </div>
+
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="fw-bold mb-2">Auto De-duplication Rule:</h6>
+                        <p class="text-body-tertiary fs-10 mb-0">
+                            If a mobile number already exists in your CRM database or appears multiple times within the file, the first instance is preserved and extra duplicates are cleanly skipped.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Download Template Box -->
+            <div class="card shadow-sm border-0 bg-primary-subtle text-primary-emphasis">
+                <div class="card-body p-4 text-center">
+                    <span class="fas fa-file-csv fs-1 text-primary mb-3"></span>
+                    <h5 class="fw-bold text-primary-emphasis mb-1">Download Sample Template</h5>
+                    <p class="fs-10 text-body-secondary mb-3">Use our clean template containing all supported column headers and sample data.</p>
+                    <a href="{% url 'download_sample_file' %}" class="btn btn-primary btn-sm px-4">
+                        <span class="fas fa-download me-2"></span> Download CSV
+                    </a>
+                </div>
+            </div>
         </div>
     </div>
+</div>
+
+<!-- CONFIRMATION MODAL -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-labelledby="confirmationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-body-tertiary border-bottom py-3">
+                <h5 class="modal-title fw-bold" id="confirmationModalLabel">
+                    <span class="fas fa-shield-check text-success me-2"></span> Confirm Customer Import
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <p class="text-body-secondary mb-3">Please review the upload details before beginning the batch import process:</p>
+                
+                <div class="p-3 bg-body-tertiary rounded-3 border mb-3">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-9">Selected File:</span>
+                        <strong class="text-body-highlight fs-9 font-monospace" id="modalFileName">—</strong>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-body-tertiary fs-9">File Size:</span>
+                        <span class="badge bg-secondary-subtle text-body-secondary" id="modalFileSize">—</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-body-tertiary fs-9">Estimated Ingestion Time:</span>
+                        <span class="text-primary fw-bold fs-9" id="modalEstTime">—</span>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-start gap-2 text-body-secondary fs-10">
+                    <span class="fas fa-check-circle text-success mt-1"></span>
+                    <span>All records will be de-duplicated against active CRM customers. Safe transactional rollback is enabled.</span>
+                </div>
+            </div>
+            <div class="modal-footer bg-body-tertiary border-top py-2">
+                <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary btn-sm px-4" id="btnConfirmStart">
+                    <span class="fas fa-play me-1"></span> Start Ingestion
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Dropzone custom styling */
+.dropzone-area {
+    border: 2px dashed var(--phoenix-border-color, #cbd5e1);
+    background-color: var(--phoenix-body-bg, #ffffff);
+    transition: all 0.25s ease-in-out;
+}
+.dropzone-area.dragover, .dropzone-area:hover {
+    border-color: var(--phoenix-primary, #3874ff);
+    background-color: var(--phoenix-primary-subtle, rgba(56, 116, 255, 0.04));
+}
+.cursor-pointer {
+    cursor: pointer;
+}
+.animate-pulse {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; transform: scale(0.95); }
+    50% { opacity: 1; transform: scale(1.08); }
+}
+.letter-spacing-1 {
+    letter-spacing: 0.05rem;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elements
+    const dropzoneArea = document.getElementById('dropzoneArea');
+    const fileInput = document.getElementById('fileInput');
+    const dropzonePrompt = document.getElementById('dropzonePrompt');
+    const filePreview = document.getElementById('filePreview');
+    const fileNameEl = document.getElementById('fileName');
+    const fileSizeEl = document.getElementById('fileSize');
+    const fileIconEl = document.getElementById('fileIcon');
+    const estTimeBadge = document.getElementById('estTimeBadge');
+    const estTimeText = document.getElementById('estTimeText');
+    const btnRemoveFile = document.getElementById('btnRemoveFile');
+    const btnTriggerReview = document.getElementById('btnTriggerReview');
+    const btnResetForm = document.getElementById('btnResetForm');
+
+    // Cards
+    const uploadCard = document.getElementById('uploadCard');
+    const loadingCard = document.getElementById('loadingCard');
+    const resultsCard = document.getElementById('resultsCard');
+
+    // Modal elements
+    const confirmationModalEl = document.getElementById('confirmationModal');
+    let confirmationModal = null;
+    if (window.bootstrap && window.bootstrap.Modal) {
+        confirmationModal = new bootstrap.Modal(confirmationModalEl);
+    }
+    const modalFileName = document.getElementById('modalFileName');
+    const modalFileSize = document.getElementById('modalFileSize');
+    const modalEstTime = document.getElementById('modalEstTime');
+    const btnConfirmStart = document.getElementById('btnConfirmStart');
+
+    // Timer & Progress
+    const elapsedTimerEl = document.getElementById('elapsedTimer');
+    const estimatedDurationEl = document.getElementById('estimatedDuration');
+    let timerInterval = null;
+    let startTime = null;
+
+    // Results Store
+    let currentFailedRecords = [];
+
+    // Helper: format bytes
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Helper: estimate duration based on file size
+    function estimateDuration(bytes) {
+        const mb = bytes / (1024 * 1024);
+        if (mb < 0.5) return { badge: '~1-2s', modal: '~1 to 2 seconds' };
+        if (mb < 2) return { badge: '~3-5s', modal: '~3 to 5 seconds' };
+        if (mb < 10) return { badge: '~5-10s', modal: '~5 to 10 seconds (~50,000-85,000 rows)' };
+        return { badge: '~10-25s', modal: '~10 to 25 seconds (large batch)' };
+    }
+
+    // Handle File Selection
+    function handleFileSelected(file) {
+        if (!file) return;
+
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext !== 'csv' && ext !== 'xlsx') {
+            alert('Please select a valid .csv or .xlsx file.');
+            resetFile();
+            return;
+        }
+
+        fileNameEl.textContent = file.name;
+        fileSizeEl.textContent = formatBytes(file.size);
+
+        if (ext === 'xlsx') {
+            fileIconEl.className = 'fas fa-file-excel fs-3 text-success';
+        } else {
+            fileIconEl.className = 'fas fa-file-csv fs-3 text-primary';
+        }
+
+        const est = estimateDuration(file.size);
+        estTimeText.textContent = est.badge;
+
+        dropzonePrompt.classList.add('d-none');
+        filePreview.classList.remove('d-none');
+        btnTriggerReview.removeAttribute('disabled');
+    }
+
+    function resetFile() {
+        fileInput.value = '';
+        dropzonePrompt.classList.remove('d-none');
+        filePreview.classList.add('d-none');
+        btnTriggerReview.setAttribute('disabled', 'true');
+    }
+
+    // Drag and Drop Events
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropzoneArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzoneArea.classList.add('dragover');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropzoneArea.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzoneArea.classList.remove('dragover');
+        });
+    });
+
+    dropzoneArea.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        if (dt.files && dt.files.length > 0) {
+            fileInput.files = dt.files;
+            handleFileSelected(dt.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', function() {
+        if (this.files && this.files.length > 0) {
+            handleFileSelected(this.files[0]);
+        }
+    });
+
+    btnRemoveFile.addEventListener('click', function(e) {
+        e.stopPropagation();
+        resetFile();
+    });
+
+    btnResetForm.addEventListener('click', function() {
+        resetFile();
+    });
+
+    // Open Confirmation Modal
+    btnTriggerReview.addEventListener('click', function() {
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        const file = fileInput.files[0];
+        const est = estimateDuration(file.size);
+
+        modalFileName.textContent = file.name;
+        modalFileSize.textContent = formatBytes(file.size);
+        modalEstTime.textContent = est.modal;
+
+        if (confirmationModal) {
+            confirmationModal.show();
+        } else {
+            if (confirm(`Upload and process ${file.name}?`)) {
+                startImportExecution();
+            }
+        }
+    });
+
+    // Start Ingestion from Modal
+    btnConfirmStart.addEventListener('click', function() {
+        if (confirmationModal) {
+            confirmationModal.hide();
+        }
+        startImportExecution();
+    });
+
+    function startImportExecution() {
+        if (!fileInput.files || fileInput.files.length === 0) return;
+        const file = fileInput.files[0];
+
+        // Transition to Loading State
+        uploadCard.classList.add('d-none');
+        resultsCard.classList.add('d-none');
+        loadingCard.classList.remove('d-none');
+
+        // Start Stopwatch
+        startTime = Date.now();
+        elapsedTimerEl.textContent = '00:00';
+        const est = estimateDuration(file.size);
+        estimatedDurationEl.textContent = est.badge;
+
+        timerInterval = setInterval(() => {
+            const elapsedMs = Date.now() - startTime;
+            const totalSec = Math.floor(elapsedMs / 1000);
+            const mins = String(Math.floor(totalSec / 60)).padStart(2, '0');
+            const secs = String(totalSec % 60).padStart(2, '0');
+            elapsedTimerEl.textContent = `${mins}:${secs}`;
+        }, 1000);
+
+        // Prepare Form Data
+        const formData = new FormData(document.getElementById('bulkUploadForm'));
+
+        // Perform AJAX Upload
+        fetch(window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errData => {
+                    throw new Error(errData.message || 'Server encountered an error processing the file.');
+                }).catch(() => {
+                    throw new Error(`HTTP Error ${response.status}: Failed to process file.`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            clearInterval(timerInterval);
+            renderResultsDashboard(data);
+        })
+        .catch(error => {
+            clearInterval(timerInterval);
+            loadingCard.classList.add('d-none');
+            uploadCard.classList.remove('d-none');
+            alert('Import Error: ' + error.message);
+        });
+    }
+
+    // Render In-Page Results
+    function renderResultsDashboard(data) {
+        loadingCard.classList.add('d-none');
+        resultsCard.classList.remove('d-none');
+
+        // Populate Numbers
+        document.getElementById('resultFilename').textContent = data.filename || 'Uploaded File';
+        document.getElementById('resTotalRows').textContent = (data.total_rows || 0).toLocaleString();
+        document.getElementById('resImported').textContent = (data.imported_count || 0).toLocaleString();
+        document.getElementById('resDuplicates').textContent = (data.duplicates_count || 0).toLocaleString();
+        document.getElementById('resFailed').textContent = (data.failed_count || 0).toLocaleString();
+        document.getElementById('resElapsed').textContent = (data.elapsed_seconds || 0) + 's';
+
+        // Failed Records
+        currentFailedRecords = data.failed_records || [];
+        const failedSection = document.getElementById('failedSection');
+        const failedTableBody = document.getElementById('failedTableBody');
+        failedTableBody.innerHTML = '';
+
+        if (currentFailedRecords.length > 0) {
+            failedSection.classList.remove('d-none');
+            currentFailedRecords.forEach(rec => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="fw-bold text-body-tertiary font-monospace">Row ${rec.row}</td>
+                    <td><span class="badge bg-secondary-subtle text-body-secondary font-monospace">${escapeHtml(rec.phone)}</span></td>
+                    <td class="text-danger">${escapeHtml(rec.reason)}</td>
+                    <td class="text-end"><span class="badge bg-danger-subtle text-danger">Invalid</span></td>
+                `;
+                failedTableBody.appendChild(tr);
+            });
+        } else {
+            failedSection.classList.add('d-none');
+        }
+
+        // Scroll to top of results card
+        resultsCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Export Failed Rows CSV directly in client browser
+    document.getElementById('btnExportFailedCsv').addEventListener('click', function() {
+        if (!currentFailedRecords || currentFailedRecords.length === 0) {
+            alert('No failed records to export.');
+            return;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,Row,Mobile,Reason\n";
+        currentFailedRecords.forEach(rec => {
+            const row = `"${rec.row}","${rec.phone}","${rec.reason.replace(/"/g, '""')}"`;
+            csvContent += row + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `import_failed_records_${Date.now()}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
+
+    // Upload Another File Button
+    document.getElementById('btnUploadAnother').addEventListener('click', function() {
+        resultsCard.classList.add('d-none');
+        uploadCard.classList.remove('d-none');
+        resetFile();
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#032;");
+    }
+});
+</script>
 {% endblock %}
