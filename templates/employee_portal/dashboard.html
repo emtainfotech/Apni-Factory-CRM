@@ -112,7 +112,22 @@
                 {% endif %}
             </div>
         </div>
+    {% if unassigned_leads_count > 0 %}
+    <div class="alert alert-subtle-warning border border-warning-subtle d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4 p-3 rounded-3 shadow-sm">
+        <div class="d-flex align-items-center gap-3">
+            <div class="avatar avatar-m bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center">
+                <i class="fas fa-bullhorn fs-9"></i>
+            </div>
+            <div>
+                <h6 class="mb-0 text-warning-emphasis fw-bold">Unassigned Leads Pool Available!</h6>
+                <p class="mb-0 fs-10 text-body-tertiary">There are <strong>{{ unassigned_leads_count }}</strong> unassigned buyer & seller leads available for assignment.</p>
+            </div>
+        </div>
+        <a href="{% url 'employee_portal:customer_list' %}?assigned_to=unassigned" class="btn btn-warning btn-sm fw-semibold shadow-sm">
+            <i class="fas fa-hand-holding-usd me-1"></i> Claim Leads Now &rarr;
+        </a>
     </div>
+    {% endif %}
 
     <!-- Live Performance KPIs Stats Grid -->
     <div class="row g-4 mb-5">

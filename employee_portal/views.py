@@ -165,6 +165,7 @@ def dashboard(request):
     assigned_leads = Customer.objects.filter(assigned_to=request.user, status='lead').count()
     active_customers = Customer.objects.filter(assigned_to=request.user, status='customer').count()
     today_calls = CallLog.objects.filter(employee=request.user, created_at__date=today).count()
+    unassigned_leads_count = Customer.objects.filter(assigned_to__isnull=True).count()
     
     # Live E-commerce mapping statistics
     remote_orders = get_employee_remote_orders(request.user)
@@ -182,6 +183,7 @@ def dashboard(request):
         'assigned_leads': assigned_leads,
         'active_customers': active_customers,
         'today_calls': today_calls,
+        'unassigned_leads_count': unassigned_leads_count,
         'total_business': total_business,
         'recent_calls': CallLog.objects.filter(employee=request.user).order_by('-created_at')[:5],
         'recent_orders': remote_orders[:5] if remote_orders.exists() else [],
@@ -347,17 +349,65 @@ def update_location(request):
 @employee_required
 @attendance_required
 def customer_list(request):
-    """Lists only customers assigned to the logged-in employee."""
-    query = request.GET.get('q', '')
-    status_filter = request.GET.get('status', '')
-    source_filter = request.GET.get('lead_source', '')
-    customer_type_filter = request.GET.get('customer_type', '')
-    
-    qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).order_by('-created_at')
-    
+    """
+    Lists customers for employee with full location filtering (state, city, pincode),
+    dynamic page sizing, and easy assignment/claiming of unassigned leads.
+    """
+    # 1. Handle Claiming / Assignment actions
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'claim_single':
+            customer_id = request.POST.get('customer_id')
+            customer = Customer.objects.filter(id=customer_id, assigned_to__isnull=True).first()
+            if customer:
+                customer.assigned_to = request.user
+                customer.save()
+                messages.success(request, f"Lead #{customer.id} ({customer.first_name or customer.phone}) successfully claimed and assigned to you!")
+            else:
+                messages.error(request, "This lead is already assigned or could not be found.")
+            referer = request.META.get('HTTP_REFERER')
+            return redirect(referer or 'employee_portal:customer_list')
+
+        elif action in ('bulk_claim', 'bulk_assign'):
+            customer_ids = request.POST.getlist('selected_customers')
+            if customer_ids:
+                target_user = request.user
+                assign_to_id = request.POST.get('assign_to_user')
+                if assign_to_id and (request.user.role in ['manager', 'admin'] or request.user.is_superuser):
+                    try:
+                        target_user = User.objects.get(id=assign_to_id)
+                    except User.DoesNotExist:
+                        target_user = request.user
+
+                updated_count = Customer.objects.filter(id__in=customer_ids).update(assigned_to=target_user)
+                messages.success(request, f"Successfully assigned {updated_count} contact(s) to {target_user.username}!")
+            else:
+                messages.warning(request, "No contacts selected.")
+            referer = request.META.get('HTTP_REFERER')
+            return redirect(referer or 'employee_portal:customer_list')
+
+    # 2. Assignment Scope Filter
+    assigned_filter = request.GET.get('assigned_to', 'my').strip()
+    if assigned_filter == 'unassigned':
+        qs = Customer.objects.filter(assigned_to__isnull=True).order_by('-created_at')
+    elif assigned_filter == 'all' and (request.user.role in ['manager', 'admin'] or request.user.is_superuser):
+        qs = Customer.objects.all().order_by('-created_at')
+    else:
+        assigned_filter = 'my'
+        qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).order_by('-created_at')
+
+    # 3. Filters
+    customer_type_filter = request.GET.get('customer_type', '').strip()
+    query = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    source_filter = request.GET.get('lead_source', '').strip()
+    state_filter = request.GET.get('state', '').strip()
+    city_filter = request.GET.get('city', '').strip()
+    pincode_filter = request.GET.get('pincode', '').strip()
+
     if customer_type_filter in ('buyer', 'seller'):
         qs = qs.filter(customer_type=customer_type_filter)
-    
+
     if query:
         qs = qs.filter(
             Q(first_name__icontains=query) | 
@@ -366,26 +416,74 @@ def customer_list(request):
             Q(phone__icontains=query) |
             Q(company_name__icontains=query)
         )
-        
+
     if status_filter:
         qs = qs.filter(status=status_filter)
     if source_filter:
         qs = qs.filter(lead_source=source_filter)
-        
-    paginator = Paginator(qs, 15)
+    if state_filter:
+        qs = qs.filter(state__icontains=state_filter)
+    if city_filter:
+        qs = qs.filter(city__icontains=city_filter)
+    if pincode_filter:
+        qs = qs.filter(pincode__icontains=pincode_filter)
+
+    # 4. Filtered Count
+    total_filtered_count = qs.count()
+
+    # Quick Summary Counts
+    my_total_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).count()
+    unassigned_total_count = Customer.objects.filter(assigned_to__isnull=True).count()
+    my_buyers_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user), customer_type='buyer').count()
+    my_sellers_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user), customer_type='seller').count()
+    unassigned_buyers_count = Customer.objects.filter(assigned_to__isnull=True, customer_type='buyer').count()
+    unassigned_sellers_count = Customer.objects.filter(assigned_to__isnull=True, customer_type='seller').count()
+
+    # 5. Dynamic Page Size
+    per_page_str = request.GET.get('per_page', '25')
+    try:
+        per_page = int(per_page_str)
+        if per_page not in [10, 15, 25, 50, 100, 250]:
+            per_page = 25
+    except (ValueError, TypeError):
+        per_page = 25
+
+    paginator = Paginator(qs, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+
     existing_sources = list(Customer.objects.exclude(lead_source__isnull=True).exclude(lead_source='').values_list('lead_source', flat=True).distinct().order_by('lead_source'))
     source_choices = [(src, src.replace('_', ' ').title()) for src in existing_sources if src]
+
+    existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+    state_choices = [s for s in existing_states if s and s.strip()]
+
+    employees = None
+    if request.user.role in ['manager', 'admin'] or request.user.is_superuser:
+        employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
 
     context = {
         'page_obj': page_obj,
         'query': query,
         'status_filter': status_filter,
         'source_filter': source_filter,
+        'state_filter': state_filter,
+        'city_filter': city_filter,
+        'pincode_filter': pincode_filter,
+        'current_customer_type': customer_type_filter,
+        'assigned_filter': assigned_filter,
+        'per_page': per_page,
+        'total_filtered_count': total_filtered_count,
+        'my_total_count': my_total_count,
+        'unassigned_total_count': unassigned_total_count,
+        'my_buyers_count': my_buyers_count,
+        'my_sellers_count': my_sellers_count,
+        'unassigned_buyers_count': unassigned_buyers_count,
+        'unassigned_sellers_count': unassigned_sellers_count,
         'status_choices': Customer.STATUS_CHOICES,
         'source_choices': source_choices,
+        'state_choices': state_choices,
+        'employees': employees,
     }
     return render(request, 'employee_portal/customer_list.html', context)
 

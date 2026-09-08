@@ -995,56 +995,113 @@ def customer_list(request):
         if customer_ids and assignee_id:
             try:
                 user_to_assign = User.objects.get(id=assignee_id)
-                Customer.objects.filter(id__in=customer_ids).update(assigned_to=user_to_assign)
-                messages.success(request, f"Assigned customers to {user_to_assign.username}.")
+                updated_count = Customer.objects.filter(id__in=customer_ids).update(assigned_to=user_to_assign)
+                messages.success(request, f"Successfully assigned {updated_count} customer(s) to {user_to_assign.username}.")
             except User.DoesNotExist:
-                messages.error(request, "User not found.")
+                messages.error(request, "Selected employee not found.")
+        else:
+            messages.warning(request, "Please select both customers and an employee to assign.")
+            
+        referer = request.META.get('HTTP_REFERER')
+        if referer:
+            return redirect(referer)
         return redirect('customer_list')
 
     # --- STANDARD LIST LOGIC (Search/Pagination) ---
     qs = Customer.objects.select_related('assigned_to').all().order_by('-created_at')
     
-    # ... (Search logic remains same) ...
-    query = request.GET.get('q', '')
+    # 1. Search Query
+    query = request.GET.get('q', '').strip()
     if query:
         qs = qs.filter(
             Q(first_name__icontains=query) | 
             Q(last_name__icontains=query) |
             Q(email__icontains=query) |
-            Q(phone__icontains=query)
+            Q(phone__icontains=query) |
+            Q(company_name__icontains=query)
         )
 
     # 2. Filters
-    status_filter = request.GET.get('status', '')
-    source_filter = request.GET.get('lead_source', '')
-    assignee_filter = request.GET.get('assigned_to', '')
+    status_filter = request.GET.get('status', '').strip()
+    source_filter = request.GET.get('lead_source', '').strip()
+    assignee_filter = request.GET.get('assigned_to', '').strip()
+    customer_type_filter = request.GET.get('customer_type', '').strip()
+    state_filter = request.GET.get('state', '').strip()
+    city_filter = request.GET.get('city', '').strip()
+    pincode_filter = request.GET.get('pincode', '').strip()
 
     if status_filter:
         qs = qs.filter(status=status_filter)
     if source_filter:
         qs = qs.filter(lead_source=source_filter)
-    if assignee_filter:
+    if customer_type_filter in ('buyer', 'seller'):
+        qs = qs.filter(customer_type=customer_type_filter)
+        
+    if assignee_filter == 'unassigned':
+        qs = qs.filter(assigned_to__isnull=True)
+    elif assignee_filter == 'assigned':
+        qs = qs.filter(assigned_to__isnull=False)
+    elif assignee_filter and assignee_filter.isdigit():
         qs = qs.filter(assigned_to_id=assignee_filter)
 
-    # ... (Pagination logic remains same) ...
-    paginator = Paginator(qs, 10)
-    page_obj = paginator.get_page(request.GET.get('page'))
+    if state_filter:
+        qs = qs.filter(state__icontains=state_filter)
+    if city_filter:
+        qs = qs.filter(city__icontains=city_filter)
+    if pincode_filter:
+        qs = qs.filter(pincode__icontains=pincode_filter)
+
+    # 3. Dynamic Filtered Count
+    total_filtered_count = qs.count()
+
+    # 4. Quick Summary Metrics for Header/Badges
+    total_unassigned_count = Customer.objects.filter(assigned_to__isnull=True).count()
+    total_assigned_count = Customer.objects.filter(assigned_to__isnull=False).count()
+    total_buyers_count = Customer.objects.filter(customer_type='buyer').count()
+    total_sellers_count = Customer.objects.filter(customer_type='seller').count()
+
+    # 5. Dynamic Page Size
+    per_page_str = request.GET.get('per_page', '25')
+    try:
+        per_page = int(per_page_str)
+        if per_page not in [10, 25, 50, 100, 250, 500]:
+            per_page = 25
+    except (ValueError, TypeError):
+        per_page = 25
+
+    paginator = Paginator(qs, per_page)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
 
     existing_sources = list(Customer.objects.exclude(lead_source__isnull=True).exclude(lead_source='').values_list('lead_source', flat=True).distinct().order_by('lead_source'))
     source_choices = [(src, src.replace('_', ' ').title()) for src in existing_sources if src]
 
+    existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+    state_choices = [s for s in existing_states if s and s.strip()]
+
     context = {
         'customers': page_obj, 
-        'modal_form': modal_form, # This now contains errors if POST failed
+        'modal_form': modal_form,
         'employees': employees,
         'query': query,
         'status_choices': Customer.STATUS_CHOICES,
         'source_choices': source_choices,
+        'state_choices': state_choices,
         'selected_status': status_filter,
         'selected_source': source_filter,
         'selected_assignee': assignee_filter,
+        'selected_customer_type': customer_type_filter,
+        'selected_state': state_filter,
+        'selected_city': city_filter,
+        'selected_pincode': pincode_filter,
+        'selected_per_page': per_page,
+        'total_filtered_count': total_filtered_count,
+        'total_unassigned_count': total_unassigned_count,
+        'total_assigned_count': total_assigned_count,
+        'total_buyers_count': total_buyers_count,
+        'total_sellers_count': total_sellers_count,
     }
 
     if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'customer-table-content':

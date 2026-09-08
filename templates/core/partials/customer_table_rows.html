@@ -1,20 +1,48 @@
+<div class="px-4 py-2 border-bottom bg-body-subtle d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div class="d-flex align-items-center flex-wrap gap-2">
+        <span class="badge badge-phoenix badge-phoenix-primary fs-9 px-3 py-1">
+            <i class="fas fa-filter me-1"></i> Showing <strong>{{ customers.start_index|default:0 }} - {{ customers.end_index|default:0 }}</strong> of <strong>{{ total_filtered_count }}</strong> matching records
+        </span>
+        {% if selected_state %}
+        <span class="badge bg-secondary-subtle text-body fs-10 border"><i class="fas fa-map-marker-alt me-1 text-danger"></i>State: <strong>{{ selected_state }}</strong></span>
+        {% endif %}
+        {% if selected_city %}
+        <span class="badge bg-secondary-subtle text-body fs-10 border"><i class="fas fa-city me-1 text-primary"></i>City: <strong>{{ selected_city }}</strong></span>
+        {% endif %}
+        {% if selected_pincode %}
+        <span class="badge bg-secondary-subtle text-body fs-10 border"><i class="fas fa-mail-bulk me-1 text-info"></i>Pin: <strong>{{ selected_pincode }}</strong></span>
+        {% endif %}
+        {% if selected_customer_type %}
+        <span class="badge bg-info-subtle text-info fs-10 border">Type: <strong>{{ selected_customer_type|title }}</strong></span>
+        {% endif %}
+        {% if selected_assignee == 'unassigned' %}
+        <span class="badge bg-warning-subtle text-warning fs-10 border"><i class="fas fa-exclamation-triangle me-1"></i>Unassigned Only</span>
+        {% elif selected_assignee == 'assigned' %}
+        <span class="badge bg-success-subtle text-success fs-10 border"><i class="fas fa-check-circle me-1"></i>Assigned Only</span>
+        {% endif %}
+    </div>
+    <div class="text-body-tertiary fs-10">
+        Page <strong>{{ customers.number|default:1 }}</strong> of <strong>{{ customers.paginator.num_pages|default:1 }}</strong> &bull; ({{ selected_per_page }} per page)
+    </div>
+</div>
+
 <div class="table-responsive">
     <table class="table table-hover fs-9 mb-0">
         <thead class="bg-body-tertiary">
             <tr>
                 <th class="py-3 ps-4" style="width: 40px;">
                     <div class="form-check mb-0">
-                        <input class="form-check-input" type="checkbox" id="select-all-customers">
+                        <input class="form-check-input" type="checkbox" id="select-all-customers" title="Select all on this page">
                     </div>
                 </th>
-                <th class="ps-2 py-3" style="min-width: 180px;">Buyer Name</th>
+                <th class="ps-2 py-3" style="min-width: 200px;">Account / Name</th>
                 <th class="py-3" style="min-width: 150px;">Contact Info</th>
-                <th class="py-3" style="min-width: 150px;">Location Details</th>
+                <th class="py-3" style="min-width: 160px;">Location Details</th>
                 <th class="py-3" style="min-width: 120px;">Lead Source</th>
                 <th class="py-3" style="min-width: 120px;">Joined Date</th>
-                <th class="py-3" style="min-width: 120px;">Assigned To</th>
+                <th class="py-3" style="min-width: 130px;">Assigned To</th>
                 <th class="py-3 text-center" style="min-width: 100px;">Status</th>
-                <th class="text-end pe-4 py-3" style="min-width: 80px;">Actions</th>
+                <th class="text-end pe-4 py-3" style="min-width: 90px;">Actions</th>
             </tr>
         </thead>
         <tbody class="list">
@@ -28,19 +56,24 @@
 
                 <td class="ps-2">
                     <div class="d-flex align-items-center">
-                        <div class="avatar avatar-s me-2 rounded-circle bg-primary-subtle text-primary fw-bold text-center pt-1" style="width:30px; height:30px;">
-                            {{ customer.first_name|slice:":1"|upper }}
+                        <div class="avatar avatar-s me-2 rounded-circle {% if customer.customer_type == 'seller' %}bg-success-subtle text-success{% else %}bg-primary-subtle text-primary{% endif %} fw-bold text-center pt-1" style="width:32px; height:32px;">
+                            {{ customer.first_name|slice:":1"|upper|default:"C" }}
                         </div>
                         <div>
                             <a class="fw-bold text-body-emphasis text-decoration-none d-block" href="{% url 'customer_detail' customer.id %}">
-                                {{ customer.first_name }} {{ customer.last_name }}
+                                {{ customer.first_name|default:"Unnamed" }} {{ customer.last_name }}
                                 {% if customer.is_gst_verified %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 ms-1" style="font-size: 8px;">
-                                    <i class="fas fa-check-circle me-1"></i>GST Verified
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5 ms-1" style="font-size: 8px;">
+                                    <i class="fas fa-check-circle me-1"></i>GST
                                 </span>
                                 {% endif %}
                             </a>
-                            <small class="text-body-quaternary fs-10">ID: #{{ customer.id }}</small>
+                            <div class="d-flex align-items-center gap-1 mt-0.5">
+                                <span class="badge badge-phoenix {% if customer.customer_type == 'seller' %}badge-phoenix-success{% else %}badge-phoenix-info{% endif %}" style="font-size: 8px;">
+                                    {% if customer.customer_type == 'seller' %}🏭 Seller{% else %}🛍️ Buyer{% endif %}
+                                </span>
+                                <small class="text-body-quaternary fs-10">ID: #{{ customer.id }}</small>
+                            </div>
                         </div>
                     </div>
                 </td>
@@ -61,12 +94,14 @@
                 <td>
                     <div class="d-flex flex-column">
                         {% if customer.city or customer.state %}
-                        <span class="text-body-highlight fw-medium fs-10">
+                        <span class="text-body-highlight fw-semibold fs-10">
                             {{ customer.city|default:"" }}{% if customer.city and customer.state %}, {% endif %}{{ customer.state|default:"" }}
                         </span>
+                        {% else %}
+                        <span class="text-body-quaternary fs-10">-</span>
                         {% endif %}
                         <small class="text-body-tertiary fs-10">
-                            <span class="fas fa-map-marker-alt me-1 text-body-tertiary"></span>Pin: {{ customer.pincode|default:"Universal" }}
+                            <span class="fas fa-map-marker-alt me-1 text-danger"></span>Pin: {{ customer.pincode|default:"Universal" }}
                         </small>
                     </div>
                 </td>
@@ -90,15 +125,20 @@
                                     {{ customer.assigned_to.username|slice:":1"|upper }}
                                 </div>
                             </div>
-                            <span class="text-body fw-bold fs-10">{{ customer.assigned_to.username }}</span>
+                            <div>
+                                <span class="text-body fw-bold fs-10 d-block">{{ customer.assigned_to.username }}</span>
+                                <small class="text-success fs-11"><i class="fas fa-check-circle me-1"></i>Assigned</small>
+                            </div>
                         </div>
                     {% else %}
-                        <span class="text-body-tertiary fs-10 italic">Unassigned</span>
+                        <span class="badge badge-phoenix badge-phoenix-warning fs-10">
+                            <i class="fas fa-user-clock me-1"></i>Unassigned
+                        </span>
                     {% endif %}
                 </td>
 
                 <td class="text-center">
-                    <span class="badge badge-phoenix fs-10 badge-phoenix-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}info{% elif customer.status == 'prospect' %}warning{% elif customer.status == 'inactive' %}secondary{% else %}danger{% endif %}">
+                    <span class="badge badge-phoenix fs-10 badge-phoenix-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}primary{% elif customer.status == 'prospect' %}warning{% elif customer.status == 'inactive' %}secondary{% else %}danger{% endif %}">
                         {{ customer.get_status_display }}
                     </span>
                 </td>
@@ -115,22 +155,64 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="9" class="text-center py-5 text-body-tertiary">No buyers found matching criteria.</td></tr>
+            <tr>
+                <td colspan="9" class="text-center py-5 text-body-tertiary">
+                    <div class="avatar avatar-xl bg-body-tertiary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                        <span class="fas fa-search-minus text-secondary fs-4"></span>
+                    </div>
+                    <h6 class="text-body-emphasis mb-1">No customers or leads found</h6>
+                    <p class="text-body-tertiary fs-10 mb-0">Try clearing or adjusting your state, city, pin code, or status filters.</p>
+                </td>
+            </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-{% if customers.has_other_pages %}
-<div class="d-flex justify-content-center py-3 bg-body-emphasis border-top">
-     <div class="btn-group btn-group-sm">
-        {% if customers.has_previous %}
-            <button class="btn btn-outline-secondary" hx-get="{% url 'customer_list' %}?page={{ customers.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&lead_source={{ selected_source }}{% endif %}{% if selected_assignee %}&assigned_to={{ selected_assignee }}{% endif %}" hx-target="#customer-table-content" hx-indicator="#search-spinner">Prev</button>
-        {% endif %}
-        <button class="btn btn-outline-secondary disabled">Page {{ customers.number }} of {{ customers.paginator.num_pages }}</button>
-        {% if customers.has_next %}
-            <button class="btn btn-outline-secondary" hx-get="{% url 'customer_list' %}?page={{ customers.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_status %}&status={{ selected_status }}{% endif %}{% if selected_source %}&lead_source={{ selected_source }}{% endif %}{% if selected_assignee %}&assigned_to={{ selected_assignee }}{% endif %}" hx-target="#customer-table-content" hx-indicator="#search-spinner">Next</button>
-        {% endif %}
-     </div>
+{% if customers.paginator.num_pages > 1 %}
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 bg-body-emphasis border-top">
+    <span class="text-body-secondary fs-9">
+        Showing <strong>{{ customers.start_index }}</strong> to <strong>{{ customers.end_index }}</strong> of <strong>{{ total_filtered_count }}</strong> records
+    </span>
+
+    <div class="d-flex align-items-center gap-2">
+        <ul class="pagination pagination-sm mb-0">
+            {% if customers.has_previous %}
+            <li class="page-item">
+                <button class="page-link" hx-get="{% url 'customer_list' %}?page=1" hx-include="#customer-filter-form" hx-target="#customer-table-content" hx-indicator="#search-spinner" title="First Page">
+                    <i class="fas fa-angle-double-left"></i>
+                </button>
+            </li>
+            <li class="page-item">
+                <button class="page-link" hx-get="{% url 'customer_list' %}?page={{ customers.previous_page_number }}" hx-include="#customer-filter-form" hx-target="#customer-table-content" hx-indicator="#search-spinner">
+                    Prev
+                </button>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-double-left"></i></span></li>
+            <li class="page-item disabled"><span class="page-link">Prev</span></li>
+            {% endif %}
+
+            <li class="page-item active">
+                <span class="page-link px-3 fw-bold">{{ customers.number }} / {{ customers.paginator.num_pages }}</span>
+            </li>
+
+            {% if customers.has_next %}
+            <li class="page-item">
+                <button class="page-link" hx-get="{% url 'customer_list' %}?page={{ customers.next_page_number }}" hx-include="#customer-filter-form" hx-target="#customer-table-content" hx-indicator="#search-spinner">
+                    Next
+                </button>
+            </li>
+            <li class="page-item">
+                <button class="page-link" hx-get="{% url 'customer_list' %}?page={{ customers.paginator.num_pages }}" hx-include="#customer-filter-form" hx-target="#customer-table-content" hx-indicator="#search-spinner" title="Last Page">
+                    <i class="fas fa-angle-double-right"></i>
+                </button>
+            </li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Next</span></li>
+            <li class="page-item disabled"><span class="page-link"><i class="fas fa-angle-double-right"></i></span></li>
+            {% endif %}
+        </ul>
+    </div>
 </div>
 {% endif %}

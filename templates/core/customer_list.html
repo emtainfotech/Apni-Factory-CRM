@@ -2,95 +2,196 @@
 
 {% block content %}
 <div class="mb-9">
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-3 align-items-center justify-content-between">
         <div class="col-auto">
-            <h2 class="mb-0">Buyers</h2>
+            <h2 class="mb-0 text-body-emphasis">Buyers & Contacts Directory</h2>
+            <p class="text-body-tertiary mb-0 fs-9">Filter buyers and sellers by location, assignment status, and assign leads seamlessly in bulk.</p>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            <button class="btn btn-primary btn-sm white-space-nowrap" type="button" data-bs-toggle="modal" data-bs-target="#addBuyerModal">
+                <span class="fas fa-plus me-2"></span>Add Buyer
+            </button>
+            <a href="{% url 'bulk_upload_customers' %}" class="btn btn-phoenix-secondary btn-sm white-space-nowrap">
+                <span class="fas fa-file-export me-2"></span>Import Buyers / Excel
+            </a>
         </div>
     </div>
 
-    <div class="card mb-3 d-none" id="bulk-actions-card">
-        <div class="card-body p-3">
-            <form method="POST" class="d-flex align-items-center gap-3">
+    <!-- Quick Metrics / Filter Action Bar -->
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+        <span class="badge badge-phoenix badge-phoenix-primary fs-9 px-3 py-2">
+            <i class="fas fa-database me-1"></i> Total Filtered: <strong id="header-total-count">{{ total_filtered_count }}</strong>
+        </span>
+        <button type="button" class="btn btn-sm btn-subtle-warning fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterAssignee('unassigned')" title="View All Unassigned Leads">
+            <i class="fas fa-user-clock me-1 text-warning"></i> Unassigned Pool: <strong>{{ total_unassigned_count }}</strong>
+        </button>
+        <button type="button" class="btn btn-sm btn-subtle-success fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterAssignee('assigned')" title="View Assigned Leads">
+            <i class="fas fa-user-check me-1 text-success"></i> Assigned: <strong>{{ total_assigned_count }}</strong>
+        </button>
+        <button type="button" class="btn btn-sm btn-subtle-info fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterType('buyer')" title="View Only Buyers">
+            <i class="fas fa-shopping-bag me-1 text-info"></i> Buyers: <strong>{{ total_buyers_count }}</strong>
+        </button>
+        <button type="button" class="btn btn-sm btn-subtle-secondary fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterType('seller')" title="View Only Sellers">
+            <i class="fas fa-industry me-1 text-secondary"></i> Sellers: <strong>{{ total_sellers_count }}</strong>
+        </button>
+    </div>
+
+    <!-- Bulk Actions Sticky/Floating Card -->
+    <div class="card mb-3 d-none border border-primary shadow-sm" id="bulk-actions-card">
+        <div class="card-body p-3 bg-primary-subtle rounded">
+            <form method="POST" class="d-flex align-items-center flex-wrap gap-3">
                 {% csrf_token %}
                 <input type="hidden" name="bulk_assign" value="true">
-                <span class="fw-bold text-body-highlight">With Selected:</span>
                 
-                <select class="form-select w-auto" name="assign_to_user" required>
-                    <option value="">Assign to Employee...</option>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary fs-9 rounded-pill px-2.5 py-1" id="selected-count-badge">0</span>
+                    <span class="fw-bold text-body-highlight">Selected Customers</span>
+                </div>
+                
+                <select class="form-select form-select-sm w-auto" name="assign_to_user" required style="min-width: 220px;">
+                    <option value="">Assign To Employee...</option>
                     {% for emp in employees %}
-                        <option value="{{ emp.id }}">{{ emp.username }}</option>
+                        <option value="{{ emp.id }}">{{ emp.username }} ({{ emp.get_role_display }})</option>
                     {% endfor %}
                 </select>
                 
-                <button type="submit" class="btn btn-primary btn-sm">Assign</button>
+                <button type="submit" class="btn btn-primary btn-sm px-4">
+                    <i class="fas fa-user-check me-1"></i> Assign Selected
+                </button>
+                
+                <button type="button" class="btn btn-phoenix-secondary btn-sm" onclick="clearAllSelections()">
+                    Clear Selection
+                </button>
                 
                 <div id="selected-ids-container"></div>
             </form>
         </div>
     </div>
 
+    <!-- Main Card with Filter Form & Table -->
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div id="customersTable">
                 
-                <div class="p-4 row align-items-center justify-content-between g-3">
-                    <div class="col-12 col-xl-9">
-                        <form class="row g-2 align-items-center" id="customer-filter-form">
-                            <!-- Search Input -->
-                            <div class="col-12 col-md-3">
-                                <div class="search-box position-relative">
-                                    <input class="form-control search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search buyers..." 
-                                           hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
-                                    <span class="fas fa-search search-box-icon"></span>
-                                </div>
+                <!-- Filter Form -->
+                <div class="p-3 border-bottom bg-body-tertiary">
+                    <form class="row g-2 align-items-center" id="customer-filter-form">
+                        <!-- Row 1: Search & Primary Selectors -->
+                        <div class="col-12 col-md-3">
+                            <div class="search-box position-relative">
+                                <input class="form-control form-control-sm search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search name, phone, email, company..." 
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
+                                <span class="fas fa-search search-box-icon"></span>
                             </div>
-                            
-                            <!-- Status Filter -->
-                            <div class="col-6 col-md-3">
-                                <select class="form-select form-select-sm" name="status"
-                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
-                                    <option value="">All Statuses</option>
-                                    {% for code, label in status_choices %}
-                                        <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                        </div>
 
-                            <!-- Lead Source Filter -->
-                            <div class="col-6 col-md-3">
-                                <select class="form-select form-select-sm" name="lead_source"
-                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
-                                    <option value="">All Sources</option>
-                                    {% for code, label in source_choices %}
-                                        <option value="{{ code }}" {% if selected_source == code %}selected{% endif %}>{{ label }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                        <!-- Customer Type -->
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" name="customer_type" id="filter-customer-type"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="">All Types (Buyer/Seller)</option>
+                                <option value="buyer" {% if selected_customer_type == 'buyer' %}selected{% endif %}>🛍️ Buyers Only</option>
+                                <option value="seller" {% if selected_customer_type == 'seller' %}selected{% endif %}>🏭 Sellers Only</option>
+                            </select>
+                        </div>
 
-                            <!-- Assigned To Filter -->
-                            <div class="col-12 col-md-3">
-                                <select class="form-select form-select-sm" name="assigned_to"
-                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
-                                    <option value="">All Assignees</option>
+                        <!-- Assigned To Filter (Unassigned vs Assigned vs Employee) -->
+                        <div class="col-6 col-md-3">
+                            <select class="form-select form-select-sm" name="assigned_to" id="filter-assigned-to"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="">All Assignees</option>
+                                <option value="unassigned" {% if selected_assignee == 'unassigned' %}selected{% endif %}>⚠️ Unassigned Only ({{ total_unassigned_count }})</option>
+                                <option value="assigned" {% if selected_assignee == 'assigned' %}selected{% endif %}>✅ Assigned Only ({{ total_assigned_count }})</option>
+                                <optgroup label="Specific Employee">
                                     {% for emp in employees %}
                                         <option value="{{ emp.id }}" {% if selected_assignee == emp.id|stringformat:"i" %}selected{% endif %}>{{ emp.username }}</option>
                                     {% endfor %}
+                                </optgroup>
+                            </select>
+                        </div>
+                        
+                        <!-- Status Filter -->
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" name="status"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="">All Statuses</option>
+                                {% for code, label in status_choices %}
+                                    <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Lead Source Filter -->
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" name="lead_source"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="">All Sources</option>
+                                {% for code, label in source_choices %}
+                                    <option value="{{ code }}" {% if selected_source == code %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Row 2: Location Filters (State, City, Pincode), Per Page, and Reset -->
+                        <!-- State Filter with Datalist -->
+                        <div class="col-12 col-md-3">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary"><i class="fas fa-map-marker-alt text-danger"></i></span>
+                                <input class="form-control form-control-sm" list="state-options-list" name="state" id="filter-state" value="{{ selected_state|default:'' }}" placeholder="Filter by State..." 
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
+                                <datalist id="state-options-list">
+                                    {% for st in state_choices %}
+                                    <option value="{{ st }}"></option>
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                        </div>
+
+                        <!-- City Filter -->
+                        <div class="col-6 col-md-3">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary"><i class="fas fa-city text-primary"></i></span>
+                                <input class="form-control form-control-sm" type="text" name="city" id="filter-city" value="{{ selected_city|default:'' }}" placeholder="Filter by City..." 
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
+                            </div>
+                        </div>
+
+                        <!-- Pincode Filter -->
+                        <div class="col-6 col-md-2">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary"><i class="fas fa-mail-bulk text-info"></i></span>
+                                <input class="form-control form-control-sm" type="text" name="pincode" id="filter-pincode" value="{{ selected_pincode|default:'' }}" placeholder="Pin Code..." 
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
+                            </div>
+                        </div>
+
+                        <!-- Per Page Selector (10, 25, 50, 100, 250, 500) -->
+                        <div class="col-6 col-md-2">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary fs-10 fw-semibold">Show</span>
+                                <select class="form-select form-select-sm" name="per_page" id="filter-per-page"
+                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                    <option value="10" {% if selected_per_page == 10 %}selected{% endif %}>10 / page</option>
+                                    <option value="25" {% if selected_per_page == 25 %}selected{% endif %}>25 / page</option>
+                                    <option value="50" {% if selected_per_page == 50 %}selected{% endif %}>50 / page</option>
+                                    <option value="100" {% if selected_per_page == 100 %}selected{% endif %}>100 / page</option>
+                                    <option value="250" {% if selected_per_page == 250 %}selected{% endif %}>250 / page</option>
+                                    <option value="500" {% if selected_per_page == 500 %}selected{% endif %}>500 / page</option>
                                 </select>
                             </div>
-                        </form>
-                    </div>
+                        </div>
 
-                    <div class="col-12 col-xl-3 d-flex gap-2 justify-content-xl-end justify-content-start align-items-center">
-                        <div class="spinner-border spinner-border-sm text-primary htmx-indicator me-2" role="status" id="search-spinner" style="width: 1rem; height: 1rem;"></div>
-                        <button class="btn btn-primary btn-sm white-space-nowrap" type="button" data-bs-toggle="modal" data-bs-target="#addBuyerModal">
-                            <span class="fas fa-plus me-2"></span>Add Buyer
-                        </button>
-                        <a href="{% url 'bulk_upload_customers' %}" class="btn btn-phoenix-secondary btn-sm white-space-nowrap">
-                            <span class="fas fa-file-export me-2"></span>Import Buyers
-                        </a>
-                    </div>
+                        <!-- Clear Filters & Spinner -->
+                        <div class="col-6 col-md-2 d-flex align-items-center gap-2">
+                            <a href="{% url 'customer_list' %}" class="btn btn-phoenix-secondary btn-sm w-100" title="Reset All Filters">
+                                <i class="fas fa-undo me-1"></i>Reset
+                            </a>
+                            <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status" id="search-spinner" style="width: 1.2rem; height: 1.2rem;"></div>
+                        </div>
+                    </form>
                 </div>
 
+                <!-- Live HTMX Table Partial Container -->
                 <div id="customer-table-content">
                     {% include 'core/partials/customer_table_rows.html' %}
                 </div>
@@ -100,12 +201,13 @@
     </div>
 </div>
 
+<!-- Add Buyer Modal -->
 <div class="modal fade" id="addBuyerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addBuyerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content bg-body-highlight">
             
             <div class="modal-header justify-content-between border-0 px-6 pt-6 mb-2">
-                <h3 class="mb-0" id="addBuyerModalLabel">Add New Buyer</h3>
+                <h3 class="mb-0" id="addBuyerModalLabel">Add New Buyer / Lead</h3>
                 <button class="btn btn-sm btn-phoenix-secondary" data-bs-dismiss="modal" aria-label="Close">
                     <span class="fas fa-times text-danger"></span>
                 </button>
@@ -126,7 +228,7 @@
                     <div class="row g-4 mb-4">
                         <div class="col-lg-6">
                             <div class="mb-3">
-                                <label class="text-body-highlight fw-bold mb-2">First Name <span class="text-danger">*</span></label>
+                                <label class="text-body-highlight fw-bold mb-2">First Name</label>
                                 {{ modal_form.first_name }}
                                 <div class="text-danger small">{{ modal_form.first_name.errors }}</div>
                             </div>
@@ -208,7 +310,9 @@
         </div>
     </div>
 </div>
+
 <script>
+    // Event delegation for table checkboxes
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('customer-checkbox')) {
             updateBulkActions();
@@ -224,12 +328,14 @@
         const checkboxes = document.querySelectorAll('.customer-checkbox:checked');
         const bulkCard = document.getElementById('bulk-actions-card');
         const container = document.getElementById('selected-ids-container');
+        const countBadge = document.getElementById('selected-count-badge');
         
         container.innerHTML = ''; // Clear previous
 
         if (checkboxes.length > 0) {
             bulkCard.classList.remove('d-none');
-            // Create hidden inputs for form submission
+            if (countBadge) countBadge.innerText = checkboxes.length;
+            
             checkboxes.forEach(cb => {
                 const input = document.createElement('input');
                 input.type = 'hidden';
@@ -239,6 +345,32 @@
             });
         } else {
             bulkCard.classList.add('d-none');
+            if (countBadge) countBadge.innerText = '0';
+        }
+    }
+
+    function clearAllSelections() {
+        const checkboxes = document.querySelectorAll('.customer-checkbox');
+        checkboxes.forEach(cb => cb.checked = false);
+        const selectAll = document.getElementById('select-all-customers');
+        if (selectAll) selectAll.checked = false;
+        updateBulkActions();
+    }
+
+    // Quick filter shortcuts
+    function quickFilterAssignee(val) {
+        const select = document.getElementById('filter-assigned-to');
+        if (select) {
+            select.value = val;
+            htmx.trigger(select, 'change');
+        }
+    }
+
+    function quickFilterType(val) {
+        const select = document.getElementById('filter-customer-type');
+        if (select) {
+            select.value = val;
+            htmx.trigger(select, 'change');
         }
     }
 </script>
