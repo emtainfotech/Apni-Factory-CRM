@@ -259,6 +259,16 @@
                                             </a>
                                         </li>
 
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'territory_analytics' %}active{% endif %}"
+                                                href="{% url 'territory_analytics' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="map-pin"></span></span>
+                                                    <span class="nav-link-text">Territory Analytics</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
                                         {% if request.user.role == 'admin' or request.user.role == 'manager' or request.user.is_superuser %}
                                         <li class="nav-item">
                                             <a class="nav-link {% if url_name == 'lead_kanban' %}active{% endif %}"

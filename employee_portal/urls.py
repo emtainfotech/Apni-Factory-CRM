@@ -17,6 +17,7 @@ urlpatterns = [
     
     # Customers
     path('customers/', views.customer_list, name='customer_list'),
+    path('territory-directory/', views.territory_directory, name='territory_directory'),
     path('leads/kanban/', views.lead_kanban, name='lead_kanban'),
     path('customers/<int:customer_id>/', views.customer_detail, name='customer_detail'),
     path('customers/<int:customer_id>/log-call/', views.log_call, name='log_call'),

@@ -7,7 +7,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.core.mail import EmailMessage
-from django.db.models import Q, Sum
+from django.db.models import Q, Sum, Count, Max, Min, Avg
 from django.core.paginator import Paginator
 from django.http import HttpResponse
 from django.utils import timezone
@@ -1108,6 +1108,161 @@ def customer_list(request):
         return render(request, 'core/partials/customer_table_rows.html', context)
 
     return render(request, 'core/customer_list.html', context)
+
+
+@login_required
+@attendance_required
+def territory_analytics(request):
+    """
+    Displays Buyer and Seller figures together broken down by State, City, and Pincode.
+    Allows drill-down, searching, visual ratio bars, and bulk assigning in territories.
+    """
+    # Handle bulk assignment within territory
+    if request.method == 'POST' and 'bulk_assign' in request.POST:
+        customer_ids = request.POST.getlist('selected_customers')
+        assignee_id = request.POST.get('assign_to_user')
+        if customer_ids and assignee_id:
+            try:
+                user_to_assign = User.objects.get(id=assignee_id)
+                updated_count = Customer.objects.filter(id__in=customer_ids).update(assigned_to=user_to_assign)
+                messages.success(request, f"Successfully assigned {updated_count} contact(s) to {user_to_assign.username}.")
+            except User.DoesNotExist:
+                messages.error(request, "Selected employee not found.")
+        else:
+            messages.warning(request, "Please select both contacts and an employee.")
+        return redirect(request.META.get('HTTP_REFERER') or 'territory_analytics')
+
+    # Query params
+    search_query = request.GET.get('q', '').strip()
+    selected_state = request.GET.get('state', '').strip()
+    selected_city = request.GET.get('city', '').strip()
+    selected_pincode = request.GET.get('pincode', '').strip()
+    active_tab = request.GET.get('tab', 'states').strip()
+    selected_type = request.GET.get('customer_type', '').strip()
+
+    # Base queryset for contacts
+    contacts_qs = Customer.objects.select_related('assigned_to').all().order_by('-created_at')
+
+    # Filter contacts_qs by search or drill-down
+    if search_query:
+        contacts_qs = contacts_qs.filter(
+            Q(state__icontains=search_query) |
+            Q(city__icontains=search_query) |
+            Q(pincode__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(company_name__icontains=search_query) |
+            Q(phone__icontains=search_query)
+        )
+    if selected_state:
+        contacts_qs = contacts_qs.filter(state__icontains=selected_state)
+    if selected_city:
+        contacts_qs = contacts_qs.filter(city__icontains=selected_city)
+    if selected_pincode:
+        contacts_qs = contacts_qs.filter(pincode__icontains=selected_pincode)
+    if selected_type in ('buyer', 'seller'):
+        contacts_qs = contacts_qs.filter(customer_type=selected_type)
+
+    # 1. State-level Aggregations
+    state_qs = Customer.objects.exclude(state__isnull=True).exclude(state='')
+    if search_query:
+        state_qs = state_qs.filter(Q(state__icontains=search_query) | Q(city__icontains=search_query) | Q(pincode__icontains=search_query))
+    
+    state_figures = list(state_qs.values('state').annotate(
+        total=Count('id'),
+        buyers=Count('id', filter=Q(customer_type='buyer')),
+        sellers=Count('id', filter=Q(customer_type='seller')),
+        unassigned=Count('id', filter=Q(assigned_to__isnull=True)),
+        assigned=Count('id', filter=Q(assigned_to__isnull=False))
+    ).order_by('-total')[:100])
+
+    for item in state_figures:
+        tot = item['total'] or 1
+        item['buyer_pct'] = round((item['buyers'] / tot) * 100, 1)
+        item['seller_pct'] = round((item['sellers'] / tot) * 100, 1)
+
+    # 2. City-level Aggregations
+    city_qs = Customer.objects.exclude(city__isnull=True).exclude(city='')
+    if search_query:
+        city_qs = city_qs.filter(Q(city__icontains=search_query) | Q(state__icontains=search_query) | Q(pincode__icontains=search_query))
+    if selected_state:
+        city_qs = city_qs.filter(state__icontains=selected_state)
+
+    city_figures = list(city_qs.values('city', 'state').annotate(
+        total=Count('id'),
+        buyers=Count('id', filter=Q(customer_type='buyer')),
+        sellers=Count('id', filter=Q(customer_type='seller')),
+        unassigned=Count('id', filter=Q(assigned_to__isnull=True)),
+        assigned=Count('id', filter=Q(assigned_to__isnull=False))
+    ).order_by('-total')[:150])
+
+    for item in city_figures:
+        tot = item['total'] or 1
+        item['buyer_pct'] = round((item['buyers'] / tot) * 100, 1)
+        item['seller_pct'] = round((item['sellers'] / tot) * 100, 1)
+
+    # 3. Pincode-level Aggregations
+    pin_qs = Customer.objects.exclude(pincode__isnull=True).exclude(pincode='')
+    if search_query:
+        pin_qs = pin_qs.filter(Q(pincode__icontains=search_query) | Q(city__icontains=search_query) | Q(state__icontains=search_query))
+    if selected_state:
+        pin_qs = pin_qs.filter(state__icontains=selected_state)
+    if selected_city:
+        pin_qs = pin_qs.filter(city__icontains=selected_city)
+
+    pincode_figures = list(pin_qs.values('pincode', 'city', 'state').annotate(
+        total=Count('id'),
+        buyers=Count('id', filter=Q(customer_type='buyer')),
+        sellers=Count('id', filter=Q(customer_type='seller')),
+        unassigned=Count('id', filter=Q(assigned_to__isnull=True)),
+        assigned=Count('id', filter=Q(assigned_to__isnull=False))
+    ).order_by('-total')[:150])
+
+    for item in pincode_figures:
+        tot = item['total'] or 1
+        item['buyer_pct'] = round((item['buyers'] / tot) * 100, 1)
+        item['seller_pct'] = round((item['sellers'] / tot) * 100, 1)
+
+    # 4. Overall KPIs
+    total_states_count = Customer.objects.exclude(state__isnull=True).exclude(state='').values('state').distinct().count()
+    total_cities_count = Customer.objects.exclude(city__isnull=True).exclude(city='').values('city').distinct().count()
+    total_pincodes_count = Customer.objects.exclude(pincode__isnull=True).exclude(pincode='').values('pincode').distinct().count()
+    total_buyers_count = Customer.objects.filter(customer_type='buyer').count()
+    total_sellers_count = Customer.objects.filter(customer_type='seller').count()
+    total_unassigned_count = Customer.objects.filter(assigned_to__isnull=True).count()
+    total_contacts_count = Customer.objects.count()
+
+    # Pagination for contacts table
+    paginator = Paginator(contacts_qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
+    existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+
+    context = {
+        'state_figures': state_figures,
+        'city_figures': city_figures,
+        'pincode_figures': pincode_figures,
+        'contacts': page_obj,
+        'total_filtered_contacts': contacts_qs.count(),
+        'total_states_count': total_states_count,
+        'total_cities_count': total_cities_count,
+        'total_pincodes_count': total_pincodes_count,
+        'total_buyers_count': total_buyers_count,
+        'total_sellers_count': total_sellers_count,
+        'total_unassigned_count': total_unassigned_count,
+        'total_contacts_count': total_contacts_count,
+        'search_query': search_query,
+        'selected_state': selected_state,
+        'selected_city': selected_city,
+        'selected_pincode': selected_pincode,
+        'selected_type': selected_type,
+        'active_tab': active_tab,
+        'employees': employees,
+        'existing_states': existing_states,
+    }
+    return render(request, 'core/territory_analytics.html', context)
 
 import csv
 import openpyxl

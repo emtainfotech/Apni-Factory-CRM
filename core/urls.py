@@ -23,6 +23,7 @@ urlpatterns = [
     path('notifications/check-new/', views.check_new_notifications, name='check_new_notifications'),
     path('notifications/history/', views.notification_history, name='notification_history'),
     path('customers/', views.customer_list, name='customer_list'),
+    path('territory-analytics/', views.territory_analytics, name='territory_analytics'),
     path('customers/upload/', views.bulk_upload_customers, name='bulk_upload_customers'),
     path('customers/download-sample/', views.download_sample_file, name='download_sample_file'),
     path('customers/<int:customer_id>/', views.customer_detail, name='customer_detail'),

@@ -491,6 +491,182 @@ def customer_list(request):
 @login_required
 @employee_required
 @attendance_required
+def territory_directory(request):
+    """
+    Regional Market Directory for Employees:
+    Displays combined Buyer and Seller figures by State, City, and Pin Code across the market.
+    Enables employees to check market figures for any territory they are contacting,
+    view registered contacts, and claim unassigned buyer/seller leads to their pipeline.
+    """
+    # 1. Handle Claiming / Assignment actions
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'claim_single':
+            customer_id = request.POST.get('customer_id')
+            customer = Customer.objects.filter(id=customer_id, assigned_to__isnull=True).first()
+            if customer:
+                customer.assigned_to = request.user
+                customer.save()
+                messages.success(request, f"Lead #{customer.id} ({customer.first_name or customer.phone}) successfully claimed and assigned to your pipeline!")
+            else:
+                messages.error(request, "This lead is already assigned or not found.")
+            return redirect(request.META.get('HTTP_REFERER') or 'employee_portal:territory_directory')
+
+        elif action in ('bulk_claim', 'bulk_assign'):
+            customer_ids = request.POST.getlist('selected_customers')
+            if customer_ids:
+                target_user = request.user
+                assign_to_id = request.POST.get('assign_to_user')
+                if assign_to_id and (request.user.role in ['manager', 'admin'] or request.user.is_superuser):
+                    try:
+                        target_user = User.objects.get(id=assign_to_id)
+                    except User.DoesNotExist:
+                        target_user = request.user
+
+                updated_count = Customer.objects.filter(id__in=customer_ids).update(assigned_to=target_user)
+                messages.success(request, f"Successfully assigned {updated_count} contact(s) to {target_user.username}!")
+            else:
+                messages.warning(request, "No contacts selected.")
+            return redirect(request.META.get('HTTP_REFERER') or 'employee_portal:territory_directory')
+
+    # Query Params
+    search_query = request.GET.get('q', '').strip()
+    selected_state = request.GET.get('state', '').strip()
+    selected_city = request.GET.get('city', '').strip()
+    selected_pincode = request.GET.get('pincode', '').strip()
+    active_tab = request.GET.get('tab', 'states').strip()
+    selected_type = request.GET.get('customer_type', '').strip()
+
+    # Base contacts queryset
+    contacts_qs = Customer.objects.select_related('assigned_to').all().order_by('-created_at')
+
+    if search_query:
+        contacts_qs = contacts_qs.filter(
+            Q(state__icontains=search_query) |
+            Q(city__icontains=search_query) |
+            Q(pincode__icontains=search_query) |
+            Q(first_name__icontains=search_query) |
+            Q(last_name__icontains=search_query) |
+            Q(company_name__icontains=search_query) |
+            Q(phone__icontains=search_query)
+        )
+    if selected_state:
+        contacts_qs = contacts_qs.filter(state__icontains=selected_state)
+    if selected_city:
+        contacts_qs = contacts_qs.filter(city__icontains=selected_city)
+    if selected_pincode:
+        contacts_qs = contacts_qs.filter(pincode__icontains=selected_pincode)
+    if selected_type in ('buyer', 'seller'):
+        contacts_qs = contacts_qs.filter(customer_type=selected_type)
+
+    # 1. State-level Figures
+    state_qs = Customer.objects.exclude(state__isnull=True).exclude(state='')
+    if search_query:
+        state_qs = state_qs.filter(Q(state__icontains=search_query) | Q(city__icontains=search_query) | Q(pincode__icontains=search_query))
+
+    state_figures = list(state_qs.values('state').annotate(
+        total=Count('id'),
+        buyers=Count('id', filter=Q(customer_type='buyer')),
+        sellers=Count('id', filter=Q(customer_type='seller')),
+        my_assigned=Count('id', filter=Q(assigned_to=request.user)),
+        unassigned=Count('id', filter=Q(assigned_to__isnull=True))
+    ).order_by('-total')[:100])
+
+    for item in state_figures:
+        tot = item['total'] or 1
+        item['buyer_pct'] = round((item['buyers'] / tot) * 100, 1)
+        item['seller_pct'] = round((item['sellers'] / tot) * 100, 1)
+
+    # 2. City-level Figures
+    city_qs = Customer.objects.exclude(city__isnull=True).exclude(city='')
+    if search_query:
+        city_qs = city_qs.filter(Q(city__icontains=search_query) | Q(state__icontains=search_query) | Q(pincode__icontains=search_query))
+    if selected_state:
+        city_qs = city_qs.filter(state__icontains=selected_state)
+
+    city_figures = list(city_qs.values('city', 'state').annotate(
+        total=Count('id'),
+        buyers=Count('id', filter=Q(customer_type='buyer')),
+        sellers=Count('id', filter=Q(customer_type='seller')),
+        my_assigned=Count('id', filter=Q(assigned_to=request.user)),
+        unassigned=Count('id', filter=Q(assigned_to__isnull=True))
+    ).order_by('-total')[:150])
+
+    for item in city_figures:
+        tot = item['total'] or 1
+        item['buyer_pct'] = round((item['buyers'] / tot) * 100, 1)
+        item['seller_pct'] = round((item['sellers'] / tot) * 100, 1)
+
+    # 3. Pincode-level Figures
+    pin_qs = Customer.objects.exclude(pincode__isnull=True).exclude(pincode='')
+    if search_query:
+        pin_qs = pin_qs.filter(Q(pincode__icontains=search_query) | Q(city__icontains=search_query) | Q(state__icontains=search_query))
+    if selected_state:
+        pin_qs = pin_qs.filter(state__icontains=selected_state)
+    if selected_city:
+        pin_qs = pin_qs.filter(city__icontains=selected_city)
+
+    pincode_figures = list(pin_qs.values('pincode', 'city', 'state').annotate(
+        total=Count('id'),
+        buyers=Count('id', filter=Q(customer_type='buyer')),
+        sellers=Count('id', filter=Q(customer_type='seller')),
+        my_assigned=Count('id', filter=Q(assigned_to=request.user)),
+        unassigned=Count('id', filter=Q(assigned_to__isnull=True))
+    ).order_by('-total')[:150])
+
+    for item in pincode_figures:
+        tot = item['total'] or 1
+        item['buyer_pct'] = round((item['buyers'] / tot) * 100, 1)
+        item['seller_pct'] = round((item['sellers'] / tot) * 100, 1)
+
+    # 4. Overall KPIs
+    total_states_count = Customer.objects.exclude(state__isnull=True).exclude(state='').values('state').distinct().count()
+    total_cities_count = Customer.objects.exclude(city__isnull=True).exclude(city='').values('city').distinct().count()
+    total_pincodes_count = Customer.objects.exclude(pincode__isnull=True).exclude(pincode='').values('pincode').distinct().count()
+    total_buyers_count = Customer.objects.filter(customer_type='buyer').count()
+    total_sellers_count = Customer.objects.filter(customer_type='seller').count()
+    total_unassigned_count = Customer.objects.filter(assigned_to__isnull=True).count()
+    my_assigned_total = Customer.objects.filter(assigned_to=request.user).count()
+
+    # Pagination for contacts table
+    paginator = Paginator(contacts_qs, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    employees = None
+    if request.user.role in ['manager', 'admin'] or request.user.is_superuser:
+        employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
+
+    existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+
+    context = {
+        'state_figures': state_figures,
+        'city_figures': city_figures,
+        'pincode_figures': pincode_figures,
+        'contacts': page_obj,
+        'total_filtered_contacts': contacts_qs.count(),
+        'total_states_count': total_states_count,
+        'total_cities_count': total_cities_count,
+        'total_pincodes_count': total_pincodes_count,
+        'total_buyers_count': total_buyers_count,
+        'total_sellers_count': total_sellers_count,
+        'total_unassigned_count': total_unassigned_count,
+        'my_assigned_total': my_assigned_total,
+        'search_query': search_query,
+        'selected_state': selected_state,
+        'selected_city': selected_city,
+        'selected_pincode': selected_pincode,
+        'selected_type': selected_type,
+        'active_tab': active_tab,
+        'employees': employees,
+        'existing_states': existing_states,
+    }
+    return render(request, 'employee_portal/territory_directory.html', context)
+
+
+@login_required
+@employee_required
+@attendance_required
 def customer_detail(request, customer_id):
     """Comprehensive 360 view of a customer assigned to the employee."""
     customer = get_object_or_404(Customer, id=customer_id, assigned_to=request.user)

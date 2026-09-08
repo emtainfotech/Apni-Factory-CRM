@@ -1,0 +1,629 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="mb-9">
+    <!-- Header Section -->
+    <div class="row g-3 mb-4 align-items-center justify-content-between">
+        <div class="col-auto">
+            <h2 class="mb-0 text-body-emphasis">🗺️ Regional Market & Territory Analytics</h2>
+            <p class="text-body-tertiary mb-0 fs-9">Explore combined Buyer and Seller figures, market density, and regional distribution across States, Cities, and Pin Codes.</p>
+        </div>
+        <div class="col-auto d-flex gap-2">
+            <a href="{% url 'customer_list' %}" class="btn btn-phoenix-primary btn-sm">
+                <i class="fas fa-users me-1"></i> Customer Directory
+            </a>
+            <a href="{% url 'bulk_upload_customers' %}" class="btn btn-phoenix-secondary btn-sm">
+                <i class="fas fa-file-import me-1"></i> Import Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- KPI Figures Grid -->
+    <div class="row g-3 mb-4">
+        <!-- States Active -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card shadow-sm border-0 h-100 bg-primary-subtle">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">States Active</p>
+                            <h3 class="mb-0 text-primary fw-bolder">{{ total_states_count }}</h3>
+                        </div>
+                        <div class="avatar avatar-m bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="fas fa-map-marked-alt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cities Mapped -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card shadow-sm border-0 h-100 bg-info-subtle">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">Cities Covered</p>
+                            <h3 class="mb-0 text-info fw-bolder">{{ total_cities_count }}</h3>
+                        </div>
+                        <div class="avatar avatar-m bg-info text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="fas fa-city"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pincodes -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card shadow-sm border-0 h-100 bg-secondary-subtle">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">Pin Codes</p>
+                            <h3 class="mb-0 text-secondary fw-bolder">{{ total_pincodes_count }}</h3>
+                        </div>
+                        <div class="avatar avatar-m bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="fas fa-mail-bulk"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Buyers -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card shadow-sm border-0 h-100 bg-success-subtle">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">Total Buyers</p>
+                            <h3 class="mb-0 text-success fw-bolder">{{ total_buyers_count }}</h3>
+                        </div>
+                        <div class="avatar avatar-m bg-success text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="fas fa-shopping-bag"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Sellers -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card shadow-sm border-0 h-100 bg-warning-subtle">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">Total Sellers</p>
+                            <h3 class="mb-0 text-warning-emphasis fw-bolder">{{ total_sellers_count }}</h3>
+                        </div>
+                        <div class="avatar avatar-m bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="fas fa-industry"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Unassigned Leads -->
+        <div class="col-6 col-md-4 col-xl-2">
+            <div class="card shadow-sm border-0 h-100 bg-danger-subtle">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">Unassigned Leads</p>
+                            <h3 class="mb-0 text-danger fw-bolder">{{ total_unassigned_count }}</h3>
+                        </div>
+                        <div class="avatar avatar-m bg-danger text-white rounded-circle d-flex align-items-center justify-content-center">
+                            <i class="fas fa-user-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Location Filters Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3">
+            <form method="GET" action="{% url 'territory_analytics' %}" class="row g-2 align-items-center">
+                <input type="hidden" name="tab" value="{{ active_tab }}">
+                
+                <!-- Search Box -->
+                <div class="col-12 col-md-4">
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-body-tertiary"><i class="fas fa-search"></i></span>
+                        <input type="search" class="form-control fs-9" name="q" value="{{ search_query }}" placeholder="Search state, city, pincode, company or phone..." />
+                    </div>
+                </div>
+
+                <!-- State Dropdown -->
+                <div class="col-6 col-md-3">
+                    <select class="form-select form-select-sm fs-9" name="state" onchange="this.form.submit()">
+                        <option value="">All States & Territories</option>
+                        {% for st in existing_states %}
+                            <option value="{{ st }}" {% if selected_state == st %}selected{% endif %}>{{ st }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Customer Type Filter -->
+                <div class="col-6 col-md-3">
+                    <select class="form-select form-select-sm fs-9" name="customer_type" onchange="this.form.submit()">
+                        <option value="">All Types (Buyers & Sellers)</option>
+                        <option value="buyer" {% if selected_type == 'buyer' %}selected{% endif %}>🛍️ Buyers Only</option>
+                        <option value="seller" {% if selected_type == 'seller' %}selected{% endif %}>🏭 Sellers Only</option>
+                    </select>
+                </div>
+
+                <!-- Submit & Clear -->
+                <div class="col-12 col-md-2 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm flex-grow-1 fs-9 fw-semibold">
+                        <i class="fas fa-filter me-1"></i> Search
+                    </button>
+                    {% if search_query or selected_state or selected_city or selected_pincode or selected_type %}
+                    <a href="{% url 'territory_analytics' %}?tab={{ active_tab }}" class="btn btn-phoenix-secondary btn-sm" title="Clear Filters">
+                        ✕
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+
+            <!-- Active Filter Breadcrumbs -->
+            {% if selected_state or selected_city or selected_pincode or search_query %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2 pt-2 border-top">
+                <span class="text-body-tertiary fs-10 fw-bold">Active Drilldown:</span>
+                {% if selected_state %}
+                <span class="badge badge-phoenix badge-phoenix-primary fs-10">
+                    <i class="fas fa-map-marker-alt me-1"></i> State: {{ selected_state }}
+                    <a href="{% url 'territory_analytics' %}?tab={{ active_tab }}{% if search_query %}&q={{ search_query }}{% endif %}" class="text-primary ms-1">✕</a>
+                </span>
+                {% endif %}
+                {% if selected_city %}
+                <span class="badge badge-phoenix badge-phoenix-info fs-10">
+                    <i class="fas fa-city me-1"></i> City: {{ selected_city }}
+                    <a href="{% url 'territory_analytics' %}?tab={{ active_tab }}&state={{ selected_state }}{% if search_query %}&q={{ search_query }}{% endif %}" class="text-info ms-1">✕</a>
+                </span>
+                {% endif %}
+                {% if selected_pincode %}
+                <span class="badge badge-phoenix badge-phoenix-secondary fs-10">
+                    <i class="fas fa-mail-bulk me-1"></i> Pin: {{ selected_pincode }}
+                    <a href="{% url 'territory_analytics' %}?tab={{ active_tab }}&state={{ selected_state }}&city={{ selected_city }}{% if search_query %}&q={{ search_query }}{% endif %}" class="text-secondary ms-1">✕</a>
+                </span>
+                {% endif %}
+                {% if search_query %}
+                <span class="badge bg-secondary-subtle text-body fs-10 border">
+                    Keyword: "{{ search_query }}"
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Territory Breakdown View Tabs -->
+    <ul class="nav nav-tabs border-bottom mb-3" id="territoryTabs">
+        <li class="nav-item">
+            <a class="nav-link {% if active_tab == 'states' %}active fw-bold text-primary border-bottom-0{% endif %}" 
+               href="{% url 'territory_analytics' %}?tab=states{% if selected_state %}&state={{ selected_state }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}">
+                <i class="fas fa-map me-1"></i> State-Wise Figures ({{ state_figures|length }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if active_tab == 'cities' %}active fw-bold text-primary border-bottom-0{% endif %}" 
+               href="{% url 'territory_analytics' %}?tab=cities{% if selected_state %}&state={{ selected_state }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}">
+                <i class="fas fa-city me-1"></i> City-Wise Figures ({{ city_figures|length }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if active_tab == 'pincodes' %}active fw-bold text-primary border-bottom-0{% endif %}" 
+               href="{% url 'territory_analytics' %}?tab=pincodes{% if selected_state %}&state={{ selected_state }}{% endif %}{% if selected_city %}&city={{ selected_city }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}">
+                <i class="fas fa-mail-bulk me-1"></i> Pin Code Figures ({{ pincode_figures|length }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if active_tab == 'contacts' %}active fw-bold text-primary border-bottom-0{% endif %}" 
+               href="{% url 'territory_analytics' %}?tab=contacts{% if selected_state %}&state={{ selected_state }}{% endif %}{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_pincode %}&pincode={{ selected_pincode }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}">
+                <i class="fas fa-address-book me-1"></i> Contacts in Territory ({{ total_filtered_contacts }})
+            </a>
+        </li>
+    </ul>
+
+    <!-- Bulk Actions Card (Active on Contacts Tab) -->
+    <div class="card mb-3 d-none border border-primary shadow-sm" id="territory-bulk-card">
+        <div class="card-body p-3 bg-primary-subtle rounded">
+            <form method="POST" class="d-flex align-items-center flex-wrap gap-3">
+                {% csrf_token %}
+                <input type="hidden" name="bulk_assign" value="true">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary fs-9 rounded-pill px-2.5 py-1" id="bulk-selected-count">0</span>
+                    <span class="fw-bold text-body-highlight">Selected Territory Contacts</span>
+                </div>
+                <select class="form-select form-select-sm w-auto" name="assign_to_user" required style="min-width: 220px;">
+                    <option value="">Assign to Employee...</option>
+                    {% for emp in employees %}
+                        <option value="{{ emp.id }}">{{ emp.username }} ({{ emp.get_role_display }})</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm px-4">Assign Contacts</button>
+                <button type="button" class="btn btn-phoenix-secondary btn-sm" onclick="clearTerritorySelections()">Cancel</button>
+                <div id="territory-selected-ids"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+
+            {% if active_tab == 'states' %}
+            <!-- ================= STATE-WISE FIGURES TABLE ================= -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle fs-9 mb-0">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th class="ps-4 py-3" style="min-width: 180px;">State / Territory</th>
+                            <th class="py-3 text-center" style="width: 120px;">Total Contacts</th>
+                            <th class="py-3 text-center" style="width: 120px;">🛍️ Buyers</th>
+                            <th class="py-3 text-center" style="width: 120px;">🏭 Sellers</th>
+                            <th class="py-3" style="min-width: 200px;">Buyer vs Seller Ratio</th>
+                            <th class="py-3 text-center" style="width: 120px;">⚠️ Unassigned</th>
+                            <th class="py-3 text-center" style="width: 120px;">✅ Assigned</th>
+                            <th class="text-end pe-4 py-3" style="min-width: 180px;">Drill Down</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for st in state_figures %}
+                        <tr>
+                            <td class="ps-4 py-3">
+                                <span class="fw-bold text-body-emphasis fs-9">
+                                    <i class="fas fa-map-marker-alt text-danger me-1"></i>{{ st.state }}
+                                </span>
+                            </td>
+                            <td class="text-center fw-bolder fs-9">{{ st.total }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-phoenix badge-phoenix-info fs-10 px-2 py-1">{{ st.buyers }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge badge-phoenix badge-phoenix-success fs-10 px-2 py-1">{{ st.sellers }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ st.buyer_pct }}%" title="Buyers: {{ st.buyer_pct }}%"></div>
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ st.seller_pct }}%" title="Sellers: {{ st.seller_pct }}%"></div>
+                                    </div>
+                                    <span class="fs-11 text-body-tertiary" style="min-width: 65px;">{{ st.buyer_pct }}% B</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                {% if st.unassigned > 0 %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">{{ st.unassigned }}</span>
+                                {% else %}
+                                    <span class="text-body-quaternary fs-11">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-success-subtle text-success fs-10">{{ st.assigned }}</span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'territory_analytics' %}?tab=cities&state={{ st.state }}" class="btn btn-phoenix-primary btn-xs py-1" title="View Cities in {{ st.state }}">
+                                        <i class="fas fa-city me-1"></i>Cities
+                                    </a>
+                                    <a href="{% url 'territory_analytics' %}?tab=contacts&state={{ st.state }}" class="btn btn-phoenix-secondary btn-xs py-1" title="View Contacts in {{ st.state }}">
+                                        <i class="fas fa-users me-1"></i>Contacts
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-map-marked d-block fs-3 mb-2"></i>No state figures found matching your search.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% elif active_tab == 'cities' %}
+            <!-- ================= CITY-WISE FIGURES TABLE ================= -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle fs-9 mb-0">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th class="ps-4 py-3" style="min-width: 180px;">City Name</th>
+                            <th class="py-3" style="min-width: 150px;">State</th>
+                            <th class="py-3 text-center" style="width: 110px;">Total Contacts</th>
+                            <th class="py-3 text-center" style="width: 110px;">🛍️ Buyers</th>
+                            <th class="py-3 text-center" style="width: 110px;">🏭 Sellers</th>
+                            <th class="py-3" style="min-width: 180px;">Buyer / Seller Ratio</th>
+                            <th class="py-3 text-center" style="width: 110px;">⚠️ Unassigned</th>
+                            <th class="text-end pe-4 py-3" style="min-width: 160px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ct in city_figures %}
+                        <tr>
+                            <td class="ps-4 py-3">
+                                <span class="fw-bold text-body-emphasis fs-9">
+                                    <i class="fas fa-city text-primary me-1"></i>{{ ct.city }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-body-tertiary text-body border">{{ ct.state|default:"Unspecified" }}</span>
+                            </td>
+                            <td class="text-center fw-bolder fs-9">{{ ct.total }}</td>
+                            <td class="text-center">
+                                <span class="badge badge-phoenix badge-phoenix-info fs-10">{{ ct.buyers }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge badge-phoenix badge-phoenix-success fs-10">{{ ct.sellers }}</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="progress flex-grow-1" style="height: 8px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ ct.buyer_pct }}%"></div>
+                                        <div class="progress-bar bg-success" role="progressbar" style="width: {{ ct.seller_pct }}%"></div>
+                                    </div>
+                                    <span class="fs-11 text-body-tertiary" style="min-width: 60px;">{{ ct.buyer_pct }}% B</span>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                {% if ct.unassigned > 0 %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">{{ ct.unassigned }}</span>
+                                {% else %}
+                                    <span class="text-body-quaternary fs-11">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'territory_analytics' %}?tab=pincodes&state={{ ct.state }}&city={{ ct.city }}" class="btn btn-phoenix-primary btn-xs py-1">
+                                        <i class="fas fa-mail-bulk me-1"></i>Pincodes
+                                    </a>
+                                    <a href="{% url 'territory_analytics' %}?tab=contacts&state={{ ct.state }}&city={{ ct.city }}" class="btn btn-phoenix-secondary btn-xs py-1">
+                                        <i class="fas fa-users me-1"></i>Contacts
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-city d-block fs-3 mb-2"></i>No city figures found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% elif active_tab == 'pincodes' %}
+            <!-- ================= PINCODE-WISE FIGURES TABLE ================= -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle fs-9 mb-0">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th class="ps-4 py-3" style="min-width: 140px;">Postal Pin Code</th>
+                            <th class="py-3" style="min-width: 150px;">City</th>
+                            <th class="py-3" style="min-width: 150px;">State</th>
+                            <th class="py-3 text-center" style="width: 110px;">Total Contacts</th>
+                            <th class="py-3 text-center" style="width: 110px;">🛍️ Buyers</th>
+                            <th class="py-3 text-center" style="width: 110px;">🏭 Sellers</th>
+                            <th class="py-3 text-center" style="width: 110px;">⚠️ Unassigned</th>
+                            <th class="text-end pe-4 py-3" style="min-width: 140px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pin in pincode_figures %}
+                        <tr>
+                            <td class="ps-4 py-3">
+                                <span class="badge bg-secondary-subtle text-body fw-bold fs-9 border">
+                                    <i class="fas fa-mail-bulk text-info me-1"></i>{{ pin.pincode }}
+                                </span>
+                            </td>
+                            <td>{{ pin.city|default:"-" }}</td>
+                            <td>{{ pin.state|default:"-" }}</td>
+                            <td class="text-center fw-bolder fs-9">{{ pin.total }}</td>
+                            <td class="text-center"><span class="badge badge-phoenix badge-phoenix-info fs-10">{{ pin.buyers }}</span></td>
+                            <td class="text-center"><span class="badge badge-phoenix badge-phoenix-success fs-10">{{ pin.sellers }}</span></td>
+                            <td class="text-center">
+                                {% if pin.unassigned > 0 %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">{{ pin.unassigned }}</span>
+                                {% else %}
+                                    <span class="text-body-quaternary fs-11">0</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <a href="{% url 'territory_analytics' %}?tab=contacts&pincode={{ pin.pincode }}" class="btn btn-phoenix-primary btn-xs py-1">
+                                    <i class="fas fa-users me-1"></i>View Contacts
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-mail-bulk d-block fs-3 mb-2"></i>No pin code figures found.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% elif active_tab == 'contacts' %}
+            <!-- ================= CONTACTS IN TERRITORY TABLE ================= -->
+            <div class="table-responsive">
+                <table class="table table-hover align-middle fs-9 mb-0">
+                    <thead class="bg-body-secondary">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 40px;">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input" type="checkbox" id="territory-select-all">
+                                </div>
+                            </th>
+                            <th class="ps-2 py-3" style="min-width: 180px;">Account / Name</th>
+                            <th class="py-3" style="width: 120px;">Classification</th>
+                            <th class="py-3" style="min-width: 160px;">Location Details</th>
+                            <th class="py-3" style="min-width: 140px;">Contact Info</th>
+                            <th class="py-3" style="min-width: 130px;">Assigned To</th>
+                            <th class="py-3 text-center" style="width: 100px;">Status</th>
+                            <th class="text-end pe-4 py-3" style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in contacts %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="form-check mb-0">
+                                    <input class="form-check-input territory-checkbox" type="checkbox" value="{{ c.id }}">
+                                </div>
+                            </td>
+                            <td class="ps-2 py-3">
+                                <a href="{% url 'customer_detail' c.id %}" class="fw-bold text-primary text-decoration-none">
+                                    {{ c.first_name|default:"Unnamed" }} {{ c.last_name }}
+                                </a>
+                                {% if c.company_name %}
+                                <div class="text-body-highlight fw-semibold fs-10">{{ c.company_name }}</div>
+                                {% endif %}
+                                <div class="text-body-quaternary fs-11">ID: #{{ c.id }}</div>
+                            </td>
+                            <td>
+                                {% if c.customer_type == 'seller' %}
+                                <span class="badge badge-phoenix badge-phoenix-success fs-10">🏭 Seller</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-info fs-10">🛍️ Buyer</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.city or c.state %}
+                                <div class="text-body fw-semibold fs-10">
+                                    {{ c.city }}{% if c.city and c.state %}, {% endif %}{{ c.state }}
+                                </div>
+                                {% endif %}
+                                <div class="text-body-tertiary fs-11">Pin: {{ c.pincode|default:"Universal" }}</div>
+                            </td>
+                            <td>
+                                <a href="tel:{{ c.phone }}" class="text-decoration-none fw-semibold text-body">
+                                    <i class="fas fa-phone-alt me-1 text-body-tertiary"></i>{{ c.phone }}
+                                </a>
+                                {% if c.email %}
+                                <div class="text-body-tertiary fs-11 text-truncate" style="max-width: 140px;">{{ c.email }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.assigned_to %}
+                                    <span class="badge bg-success-subtle text-success fs-11 border">
+                                        <i class="fas fa-user-check me-1"></i>{{ c.assigned_to.username }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning fs-11">
+                                        <i class="fas fa-user-clock me-1"></i>Unassigned
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge badge-phoenix badge-phoenix-{% if c.status == 'customer' %}success{% elif c.status == 'lead' %}primary{% elif c.status == 'prospect' %}warning{% else %}secondary{% endif %} fs-10">
+                                    {{ c.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'customer_detail' c.id %}" class="btn btn-phoenix-secondary btn-xs py-1" title="View Profile">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="tel:{{ c.phone }}" class="btn btn-phoenix-primary btn-xs py-1" title="Call">
+                                        <i class="fas fa-phone"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-users-slash d-block fs-3 mb-2"></i>No contacts found in this territory.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Contacts Pagination -->
+            {% if contacts.paginator.num_pages > 1 %}
+            <div class="d-flex align-items-center justify-content-between p-3 border-top bg-body-emphasis">
+                <span class="text-body-secondary fs-9">
+                    Showing <strong>{{ contacts.start_index }}</strong> to <strong>{{ contacts.end_index }}</strong> of <strong>{{ total_filtered_contacts }}</strong> contacts
+                </span>
+                <ul class="pagination pagination-sm mb-0">
+                    {% if contacts.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?tab=contacts&page={{ contacts.previous_page_number }}{% if selected_state %}&state={{ selected_state }}{% endif %}{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_pincode %}&pincode={{ selected_pincode }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}">Prev</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ contacts.number }} / {{ contacts.paginator.num_pages }}</span>
+                    </li>
+                    {% if contacts.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?tab=contacts&page={{ contacts.next_page_number }}{% if selected_state %}&state={{ selected_state }}{% endif %}{% if selected_city %}&city={{ selected_city }}{% endif %}{% if selected_pincode %}&pincode={{ selected_pincode }}{% endif %}{% if search_query %}&q={{ search_query }}{% endif %}{% if selected_type %}&customer_type={{ selected_type }}{% endif %}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('territory-checkbox')) {
+            updateTerritoryBulk();
+        }
+        if (e.target.id === 'territory-select-all') {
+            const boxes = document.querySelectorAll('.territory-checkbox');
+            boxes.forEach(cb => cb.checked = e.target.checked);
+            updateTerritoryBulk();
+        }
+    });
+
+    function updateTerritoryBulk() {
+        const checked = document.querySelectorAll('.territory-checkbox:checked');
+        const card = document.getElementById('territory-bulk-card');
+        const container = document.getElementById('territory-selected-ids');
+        const count = document.getElementById('bulk-selected-count');
+        if (!card) return;
+
+        container.innerHTML = '';
+        if (checked.length > 0) {
+            card.classList.remove('d-none');
+            if (count) count.innerText = checked.length;
+            checked.forEach(cb => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'selected_customers';
+                input.value = cb.value;
+                container.appendChild(input);
+            });
+        } else {
+            card.classList.add('d-none');
+            if (count) count.innerText = '0';
+        }
+    }
+
+    function clearTerritorySelections() {
+        const boxes = document.querySelectorAll('.territory-checkbox');
+        boxes.forEach(cb => cb.checked = false);
+        const all = document.getElementById('territory-select-all');
+        if (all) all.checked = false;
+        updateTerritoryBulk();
+    }
+</script>
+{% endblock %}
