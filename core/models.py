@@ -32,21 +32,21 @@ class Customer(models.Model):
 
     # Basic Details
     first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100, blank=True)
+    last_name = models.CharField(max_length=100, blank=True, null=True, default="")
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20, unique=True)
     whatsapp_number = models.CharField(max_length=20, blank=True, null=True)
 
     # Business Details (Added for GST Sync)
-    company_name = models.CharField(max_length=200, blank=True)
+    company_name = models.CharField(max_length=200, blank=True, null=True, default="")
     gst_number = models.CharField(max_length=20, blank=True, null=True)
     is_gst_verified = models.BooleanField(default=False, help_text="True if verified via WhatsApp or Manually by Employee")
-    # Address
-    address = models.TextField(blank=True)
-    city = models.CharField(max_length=100, blank=True)
-    state = models.CharField(max_length=100, blank=True)
-    pincode = models.CharField(max_length=10, blank=True)
-    country = models.CharField(max_length=100, default="India")
+    # Address (Optional / Non-mandatory)
+    address = models.TextField(blank=True, null=True, default="")
+    city = models.CharField(max_length=100, blank=True, null=True, default="")
+    state = models.CharField(max_length=100, blank=True, null=True, default="")
+    pincode = models.CharField(max_length=10, blank=True, null=True, default="")
+    country = models.CharField(max_length=100, blank=True, null=True, default="India")
 
     CUSTOMER_TYPE_CHOICES = (
         ('buyer', 'Buyer / Contractor'),
@@ -60,7 +60,7 @@ class Customer(models.Model):
     assigned_to = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name="assigned_customers"
     )
-    notes = models.TextField(blank=True)
+    notes = models.TextField(blank=True, null=True, default="")
 
     # Metadata
     created_by = models.ForeignKey(

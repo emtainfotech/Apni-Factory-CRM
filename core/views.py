@@ -1077,7 +1077,7 @@ def download_sample_file(request):
     ]
     writer.writerow(headers)
     
-    # 2. Add Dummy Data
+    # 2. Add Dummy Data (Address is optional)
     writer.writerow([
         'Rahul', 'Sharma', '9876543210', 'rahul@example.com', 
         'Sharma Traders', 'Indore', 'MP', '452001', '123 Main St',
@@ -1085,13 +1085,15 @@ def download_sample_file(request):
     ])
     writer.writerow([
         'Asian Paints', 'Store', '9123456789', '', 
-        'Asian Paints', 'Delhi', 'Delhi', '110001', 'Connaught Place',
-        'Manual Entry', 'Customer', '', 'Follow up next week'
+        'Asian Paints', 'Delhi', 'Delhi', '110001', '',
+        'Manual Entry', 'Customer', '', 'Address is optional'
     ])
     
     return response
 
 # --- 2. BULK UPLOAD VIEW ---
+from django.db import transaction
+
 @login_required
 def bulk_upload_customers(request):
     if request.method == 'POST':
@@ -1104,7 +1106,7 @@ def bulk_upload_customers(request):
         # Determine file type
         if file.name.endswith('.csv'):
             try:
-                decoded_file = file.read().decode('utf-8').splitlines()
+                decoded_file = file.read().decode('utf-8', errors='ignore').splitlines()
                 reader = csv.DictReader(decoded_file)
                 process_import(reader, request)
             except Exception as e:
@@ -1112,12 +1114,16 @@ def bulk_upload_customers(request):
                 
         elif file.name.endswith('.xlsx'):
             try:
-                wb = openpyxl.load_workbook(file)
+                wb = openpyxl.load_workbook(file, read_only=True, data_only=True)
                 sheet = wb.active
-                rows = list(sheet.iter_rows(values_only=True))
-                headers = rows[0]
-                data = [dict(zip(headers, row)) for row in rows[1:]]
-                process_import(data, request)
+                rows = sheet.iter_rows(values_only=True)
+                headers = next(rows, None)
+                if headers:
+                    headers = [str(h).strip() if h is not None else f'col_{i}' for i, h in enumerate(headers)]
+                    data = (dict(zip(headers, row)) for row in rows)
+                    process_import(data, request)
+                else:
+                    messages.error(request, "Excel file is empty.")
             except Exception as e:
                 messages.error(request, f"Error processing Excel: {str(e)}")
         else:
@@ -1127,108 +1133,143 @@ def bulk_upload_customers(request):
 
     return render(request, 'core/bulk_upload.html')
 
-# --- 3. IMPORT LOGIC (Updated Mapping) ---
+# --- 3. IMPORT LOGIC (Address Not Mandatory & Optimized for 80k+ Rows) ---
 def process_import(data, request):
     success_count = 0
     errors = []
     
-    # Helper to map text to model choices (e.g., "Website" -> "website")
-    def get_choice_key(value, choices):
-        if not value: return None
-        value = str(value).lower().strip()
-        for key, label in choices:
-            if label.lower() == value or key == value:
-                return key
-        return None # Default fallback
+    def clean_val(val, default=""):
+        if val is None:
+            return default
+        s = str(val).strip()
+        if s.lower() in ('none', 'nan', 'null', ''):
+            return default
+        return s
 
-    for index, row in enumerate(data):
+    # Pre-cache existing phones and emails to optimize 80,000+ row bulk imports
+    existing_phones = set(Customer.objects.values_list('phone', flat=True))
+    existing_emails = set(Customer.objects.exclude(email__isnull=True).exclude(email='').values_list('email', flat=True))
+    
+    # Pre-cache users by username for assigned_to
+    users_by_username = {u.username.lower(): u for u in User.objects.filter(is_active=True)}
+
+    # Helper maps for choices
+    lead_source_map = {label.lower(): key for key, label in Customer.LEAD_SOURCE_CHOICES}
+    lead_source_map.update({key.lower(): key for key, _ in Customer.LEAD_SOURCE_CHOICES})
+    
+    status_map = {label.lower(): key for key, label in Customer.STATUS_CHOICES}
+    status_map.update({key.lower(): key for key, _ in Customer.STATUS_CHOICES})
+
+    customers_to_create = []
+
+    for index, raw_row in enumerate(data):
+        if not raw_row:
+            continue
+
         # 1. Normalize Keys (Lowercase, strip spaces)
-        row = {str(k).strip().lower(): v for k, v in row.items() if k}
+        row = {str(k).strip().lower(): v for k, v in raw_row.items() if k is not None}
         
         # 2. Extract Mandatory Fields
-        first_name = row.get('first name') or row.get('name')
-        phone = row.get('phone number') or row.get('phone') or row.get('mobile')
+        first_name = clean_val(row.get('first name') or row.get('name'))
+        raw_phone = clean_val(row.get('phone number') or row.get('phone') or row.get('mobile'))
         
-        if not first_name or not phone:
+        # Skip completely blank rows without generating an error
+        if not first_name and not raw_phone:
+            continue
+            
+        if not first_name or not raw_phone:
             errors.append(f"Row {index + 2}: Missing Name or Phone")
             continue
             
-        # Clean Phone
-        phone = str(phone).replace('tel:', '').replace('+', '').replace(' ', '').replace('-', '')[-10:]
+        # Clean Phone (remove tel:, +, spaces, dashes, and float .0 from Excel)
+        phone = raw_phone.replace('tel:', '').replace('+', '').replace(' ', '').replace('-', '')
+        if phone.endswith('.0'):
+            phone = phone[:-2]
+        phone = phone[-10:]
         
-        # Check Duplicates
-        if Customer.objects.filter(phone=phone).exists():
+        if len(phone) < 10 or not phone.isdigit():
+            errors.append(f"Row {index + 2}: Invalid phone number '{raw_phone}'")
+            continue
+
+        # Check Duplicates (both DB and current file batch)
+        if phone in existing_phones:
             errors.append(f"Row {index + 2}: Phone {phone} already exists")
             continue
+        existing_phones.add(phone)
 
         # Handle Email Unique
-        raw_email = row.get('email', '')
-        email = str(raw_email).strip() if raw_email else None
-        if email and Customer.objects.filter(email=email).exists():
-            errors.append(f"Row {index + 2}: Email {email} is already taken")
-            continue
+        email = clean_val(row.get('email'))
+        if email:
+            if email in existing_emails:
+                errors.append(f"Row {index + 2}: Email {email} is already taken")
+                continue
+            existing_emails.add(email)
+        else:
+            email = None
 
-        # --- NEW FIELD MAPPING ---
-        
-        # A. Lead Source & Status
-        source_raw = row.get('lead source') or row.get('source')
-        status_raw = row.get('status')
-        
-        lead_source = get_choice_key(source_raw, Customer.LEAD_SOURCE_CHOICES) or 'manual'
-        status = get_choice_key(status_raw, Customer.STATUS_CHOICES) or 'lead'
+        # Lead Source & Status
+        source_raw = clean_val(row.get('lead source') or row.get('source')).lower()
+        status_raw = clean_val(row.get('status')).lower()
+        lead_source = lead_source_map.get(source_raw, 'manual')
+        status = status_map.get(status_raw, 'lead')
 
-        # B. Assigned User (Lookup by Username)
-        assigned_username = row.get('assigned to (username)') or row.get('assigned to')
-        assigned_user = None
-        if assigned_username:
-            try:
-                assigned_user = User.objects.get(username__iexact=str(assigned_username).strip())
-            except User.DoesNotExist:
-                # Optional: Log warning but still create customer
-                # errors.append(f"Row {index + 2}: User '{assigned_username}' not found. Customer set to Unassigned.")
-                pass 
+        # Assigned User
+        assigned_username = clean_val(row.get('assigned to (username)') or row.get('assigned to')).lower()
+        assigned_user = users_by_username.get(assigned_username) if assigned_username else None
 
+        # Pincode
+        pincode = clean_val(row.get('pincode') or row.get('pin') or row.get('zip'))
+        if pincode.endswith('.0'):
+            pincode = pincode[:-2]
+
+        # Address & Location Details (Address is NOT mandatory)
+        address = clean_val(row.get('address'), '')
+        city = clean_val(row.get('city'), '')
+        state = clean_val(row.get('state'), '')
+        country = clean_val(row.get('country'), 'India')
+        company_name = clean_val(row.get('company name') or row.get('company'), '')
+        last_name = clean_val(row.get('last name'), '')
+        notes = clean_val(row.get('notes'), '')
+
+        customer = Customer(
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            email=email,
+            company_name=company_name,
+            address=address,
+            city=city,
+            state=state,
+            pincode=pincode,
+            country=country,
+            lead_source=lead_source,
+            status=status,
+            assigned_to=assigned_user,
+            notes=notes,
+            created_by=request.user
+        )
+        customers_to_create.append(customer)
+
+    # Bulk insert in batches of 1000 with transaction
+    if customers_to_create:
         try:
-            customer = Customer.objects.create(
-                # Basic
-                first_name=first_name,
-                last_name=row.get('last name', ''),
-                phone=phone,
-                email=email,
-                
-                # Business/Location
-                # Note: 'company_name' removed from your model snippet, add back if exists
-                # company_name=row.get('company name', ''), 
-                address=row.get('address', ''),
-                city=row.get('city', ''),
-                state=row.get('state', ''),
-                pincode=row.get('pincode', ''),
-                country=row.get('country', 'India'),
-                
-                # CRM Fields
-                lead_source=lead_source,
-                status=status,
-                assigned_to=assigned_user,
-                notes=row.get('notes', ''),
-                
-                # Metadata
-                created_by=request.user
-            )
-            
-            # Create Preferences (Optional if model exists)
-            # CustomerPreference.objects.create(customer=customer)
-            
-            success_count += 1
-            
+            with transaction.atomic():
+                Customer.objects.bulk_create(customers_to_create, batch_size=1000)
+            success_count = len(customers_to_create)
         except Exception as e:
-            errors.append(f"Row {index + 2}: {str(e)}")
+            # Fallback to individual creates if bulk fails
+            for c in customers_to_create:
+                try:
+                    c.save()
+                    success_count += 1
+                except Exception as row_err:
+                    errors.append(f"Save error for {c.first_name} ({c.phone}): {str(row_err)}")
 
     # Feedback
     if success_count > 0:
         messages.success(request, f"Successfully imported {success_count} customers.")
     
     if errors:
-        # Show top 5 errors
         error_msg = "Import Errors:<br>" + "<br>".join(errors[:5])
         if len(errors) > 5:
             error_msg += f"<br>...and {len(errors)-5} more."

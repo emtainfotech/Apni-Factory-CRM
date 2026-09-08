@@ -30,7 +30,7 @@ class CustomerModalForm(forms.ModelForm):
             'lead_source': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'assigned_to': forms.Select(attrs={'class': 'form-select'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Address'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Address (Optional)'}),
             'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'City'}),
             'state': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'State'}),
             'pincode': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Pincode'}),
@@ -42,6 +42,7 @@ class CustomerModalForm(forms.ModelForm):
         # Filter assigned_to to only show employees/agents, not admins if needed
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_to'].empty_label = "Unassigned"
+        self.fields['address'].required = False
 
 from hostinger_data.models import Advertisements, Sliders, Categories
 
@@ -144,7 +145,7 @@ class CustomerEditForm(forms.ModelForm):
             'company_name': forms.TextInput(attrs={'class': 'form-control'}),
             'gst_number': forms.TextInput(attrs={'class': 'form-control'}),
             'is_gst_verified': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Address (Optional)'}),
             'city': forms.TextInput(attrs={'class': 'form-control'}),
             'state': forms.TextInput(attrs={'class': 'form-control'}),
             'pincode': forms.TextInput(attrs={'class': 'form-control'}),
@@ -158,4 +159,5 @@ class CustomerEditForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
-        self.fields['assigned_to'].empty_label = "Unassigned"
+        self.fields['assigned_to'].empty_label = "Unassigned"
+        self.fields['address'].required = False
