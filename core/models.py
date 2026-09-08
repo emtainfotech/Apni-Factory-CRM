@@ -31,7 +31,7 @@ class Customer(models.Model):
     )
 
     # Basic Details
-    first_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100, blank=True, null=True, default="")
     last_name = models.CharField(max_length=100, blank=True, null=True, default="")
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=20, unique=True)
@@ -70,7 +70,8 @@ class Customer(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.first_name} - {self.phone}"
+        name = self.first_name or self.company_name or "Customer"
+        return f"{name} - {self.phone}"
 
 # --- 2. WHATSAPP BOT STATE ---
 class WhatsAppLead(models.Model):

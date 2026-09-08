@@ -1061,7 +1061,7 @@ from django.contrib.auth.decorators import login_required
 from authentication.models import User  # Import your User model
 from .models import Customer, CustomerPreference
 
-# --- 1. DOWNLOAD SAMPLE CSV (Updated with all fields) ---
+# --- 1. DOWNLOAD SAMPLE CSV (Only Mobile Number is Mandatory) ---
 @login_required
 def download_sample_file(request):
     """Generates a sample CSV file for bulk upload."""
@@ -1071,22 +1071,22 @@ def download_sample_file(request):
     writer = csv.writer(response)
     # 1. Define Headers
     headers = [
-        'First Name', 'Last Name', 'Phone Number', 'Email', 
-        'Company Name', 'City', 'State', 'Pincode', 'Address',
-        'Lead Source', 'Status', 'Assigned To (Username)', 'Notes'
+        'Phone Number', 'City', 'State', 'Pincode', 
+        'First Name', 'Last Name', 'Email', 'Company Name', 
+        'Address', 'Lead Source', 'Status', 'Assigned To (Username)', 'Notes'
     ]
     writer.writerow(headers)
     
-    # 2. Add Dummy Data (Address is optional)
+    # 2. Add Dummy Data (First Name, Email, Address are all optional)
     writer.writerow([
-        'Rahul', 'Sharma', '9876543210', 'rahul@example.com', 
-        'Sharma Traders', 'Indore', 'MP', '452001', '123 Main St',
-        'Website', 'Lead', 'admin', 'Interested in premium plan'
+        '9876543210', 'Indore', 'MP', '452001', 
+        'Rahul', 'Sharma', 'rahul@example.com', 'Sharma Traders', 
+        '123 Main St', 'Website', 'Lead', 'admin', 'Interested in premium plan'
     ])
     writer.writerow([
-        'Asian Paints', 'Store', '9123456789', '', 
-        'Asian Paints', 'Delhi', 'Delhi', '110001', '',
-        'Manual Entry', 'Customer', '', 'Address is optional'
+        '9123456789', 'Delhi', 'Delhi', '110001', 
+        '', '', '', 'Asian Paints Store', 
+        '', 'Manual Entry', 'Customer', '', 'Only mobile number, city, state & pin provided'
     ])
     
     return response
@@ -1133,9 +1133,10 @@ def bulk_upload_customers(request):
 
     return render(request, 'core/bulk_upload.html')
 
-# --- 3. IMPORT LOGIC (Address & Email Not Mandatory & Optimized for 80k+ Rows) ---
+# --- 3. IMPORT LOGIC (Mobile is Mandatory; Name, Email, Address are Optional) ---
 def process_import(data, request):
     success_count = 0
+    skipped_duplicates = 0
     errors = []
     
     def clean_val(val, default=""):
@@ -1151,20 +1152,53 @@ def process_import(data, request):
             return None
         val_str = str(val).strip()
         val_lower = val_str.lower()
-        # Common empty/placeholder markers in spreadsheets
         if not val_str or val_lower in (
             '-', '--', '---', 'n/a', 'na', 'n.a.', 'n.a', 'nil', 'null', 
             'none', 'nan', 'no', 'not available', 'not provided', 'no email', 
             'x', '.', '0', 'undefined'
         ):
             return None
-        # Basic email validation: must contain '@' and '.' after '@', no spaces
         if '@' not in val_str or ' ' in val_str:
             return None
         parts = val_str.split('@')
         if len(parts) != 2 or not parts[0] or '.' not in parts[1]:
             return None
         return val_str
+
+    def find_col_val(row_dict, candidate_keys):
+        # 1. Exact match in keys
+        for key in candidate_keys:
+            if key in row_dict and row_dict[key] is not None:
+                val = str(row_dict[key]).strip()
+                if val and val.lower() not in ('none', 'nan', 'null'):
+                    return row_dict[key]
+        # 2. Substring match in keys
+        for k, v in row_dict.items():
+            if v is not None and str(v).strip() and str(v).strip().lower() not in ('none', 'nan', 'null'):
+                k_lower = str(k).lower()
+                for c in candidate_keys:
+                    if c in k_lower:
+                        return v
+        return None
+
+    # Column key definitions for flexible matching
+    PHONE_KEYS = [
+        'phone number', 'mobile number', 'phone no', 'mobile no', 'phone no.', 
+        'mobile no.', 'phone', 'mobile', 'contact', 'contact no', 'contact no.', 
+        'contact number', 'whatsapp', 'whatsapp number', 'cell', 'cell no', 
+        'cell number', 'number', 'mob'
+    ]
+    CITY_KEYS = ['city', 'town', 'district', 'city/town', 'location']
+    STATE_KEYS = ['state', 'province', 'state/province', 'region']
+    PIN_KEYS = ['pincode', 'pin code', 'pin', 'postal code', 'postal', 'zip', 'zipcode', 'zip code']
+    NAME_KEYS = [
+        'first name', 'name', 'customer name', 'client name', 'party name', 
+        'contact person', 'contact name', 'customer', 'lead name', 'full name', 'person'
+    ]
+    COMPANY_KEYS = ['company name', 'company', 'firm name', 'firm', 'organization', 'org', 'business name', 'shop name', 'business', 'party']
+    ADDRESS_KEYS = ['address', 'street', 'street address', 'billing address', 'shipping address', 'customer address', 'addr']
+    EMAIL_KEYS = ['email', 'email id', 'email address', 'mail', 'e-mail']
+    NOTE_KEYS = ['notes', 'note', 'remark', 'remarks', 'comment', 'comments', 'description']
 
     # Pre-cache existing phones to optimize 80,000+ row bulk imports
     existing_phones = set(Customer.objects.values_list('phone', flat=True))
@@ -1188,71 +1222,60 @@ def process_import(data, request):
         # 1. Normalize Keys (Lowercase, strip spaces)
         row = {str(k).strip().lower(): v for k, v in raw_row.items() if k is not None}
         
-        # 2. Extract Mandatory Fields (Support common variations)
-        first_name = clean_val(
-            row.get('first name') or row.get('name') or row.get('customer name') 
-            or row.get('client name') or row.get('party name') or row.get('contact person') 
-            or row.get('contact name') or row.get('customer')
-        )
-        raw_phone = clean_val(
-            row.get('phone number') or row.get('phone') or row.get('mobile') 
-            or row.get('mobile number') or row.get('mobile no') or row.get('mobile no.') 
-            or row.get('phone no') or row.get('phone no.') or row.get('contact') 
-            or row.get('contact no') or row.get('contact no.') or row.get('whatsapp') 
-            or row.get('whatsapp number')
-        )
+        # 2. Extract Phone / Mobile (The ONLY mandatory field!)
+        raw_phone = clean_val(find_col_val(row, PHONE_KEYS))
         
         # Skip completely blank rows without generating an error
-        if not first_name and not raw_phone:
-            continue
-            
-        if not first_name or not raw_phone:
-            errors.append(f"Row {index + 2}: Missing Name or Phone")
+        if not raw_phone:
             continue
             
         # Clean Phone (remove tel:, +, spaces, dashes, dots, and float .0 from Excel)
-        cleaned_digits = str(raw_phone).replace('tel:', '').replace('+', '').replace(' ', '').replace('-', '')
-        if cleaned_digits.endswith('.0'):
-            cleaned_digits = cleaned_digits[:-2]
-        phone = ''.join(c for c in cleaned_digits if c.isdigit())[-10:]
+        phone_str = str(raw_phone).strip()
+        if phone_str.endswith('.0'):
+            phone_str = phone_str[:-2]
+        digits_only = ''.join(c for c in phone_str if c.isdigit())
+        phone = digits_only[-10:] if len(digits_only) >= 10 else digits_only
         
         if len(phone) < 10:
             errors.append(f"Row {index + 2}: Invalid phone number '{raw_phone}'")
             continue
 
-        # Check Duplicates (both DB and current file batch)
+        # 3. Check Duplicates (both DB and current file batch)
+        # Skip duplicates cleanly without flooding the error log
         if phone in existing_phones:
-            errors.append(f"Row {index + 2}: Phone {phone} already exists")
+            skipped_duplicates += 1
             continue
         existing_phones.add(phone)
 
-        # Email is completely OPTIONAL (NOT mandatory) - placeholder/invalid emails become None
-        raw_email = row.get('email') or row.get('email id') or row.get('email address') or row.get('mail') or row.get('e-mail')
+        # 4. Extract Location Fields: City, State, Pincode
+        city = clean_val(find_col_val(row, CITY_KEYS), '')
+        state = clean_val(find_col_val(row, STATE_KEYS), '')
+        
+        raw_pincode = clean_val(find_col_val(row, PIN_KEYS), '')
+        if '.' in str(raw_pincode):
+            raw_pincode = str(raw_pincode).split('.')[0]
+        pincode = clean_val(raw_pincode, '')
+
+        # 5. Extract Optional Fields: First Name, Last Name, Company, Address, Email, Notes
+        first_name = clean_val(find_col_val(row, NAME_KEYS), '')
+        last_name = clean_val(find_col_val(row, ['last name', 'surname']), '')
+        company_name = clean_val(find_col_val(row, COMPANY_KEYS), '')
+        address = clean_val(find_col_val(row, ADDRESS_KEYS), '')
+        
+        raw_email = find_col_val(row, EMAIL_KEYS)
         email = clean_email(raw_email)
+        
+        notes = clean_val(find_col_val(row, NOTE_KEYS), '')
 
         # Lead Source & Status
-        source_raw = clean_val(row.get('lead source') or row.get('source')).lower()
-        status_raw = clean_val(row.get('status')).lower()
+        source_raw = clean_val(find_col_val(row, ['lead source', 'source'])).lower()
+        status_raw = clean_val(find_col_val(row, ['status'])).lower()
         lead_source = lead_source_map.get(source_raw, 'manual')
         status = status_map.get(status_raw, 'lead')
 
         # Assigned User
-        assigned_username = clean_val(row.get('assigned to (username)') or row.get('assigned to')).lower()
+        assigned_username = clean_val(find_col_val(row, ['assigned to (username)', 'assigned to', 'assigned_to'])).lower()
         assigned_user = users_by_username.get(assigned_username) if assigned_username else None
-
-        # Pincode
-        pincode = clean_val(row.get('pincode') or row.get('pin') or row.get('zip'))
-        if pincode.endswith('.0'):
-            pincode = pincode[:-2]
-
-        # Address & Location Details (Address & Location are NOT mandatory)
-        address = clean_val(row.get('address') or row.get('street address') or row.get('street'), '')
-        city = clean_val(row.get('city') or row.get('town'), '')
-        state = clean_val(row.get('state'), '')
-        country = clean_val(row.get('country'), 'India')
-        company_name = clean_val(row.get('company name') or row.get('company') or row.get('firm name'), '')
-        last_name = clean_val(row.get('last name'), '')
-        notes = clean_val(row.get('notes') or row.get('note') or row.get('remarks'), '')
 
         customer = Customer(
             first_name=first_name,
@@ -1264,7 +1287,7 @@ def process_import(data, request):
             city=city,
             state=state,
             pincode=pincode,
-            country=country,
+            country='India',
             lead_source=lead_source,
             status=status,
             assigned_to=assigned_user,
@@ -1286,14 +1309,19 @@ def process_import(data, request):
                     c.save()
                     success_count += 1
                 except Exception as row_err:
-                    errors.append(f"Save error for {c.first_name} ({c.phone}): {str(row_err)}")
+                    errors.append(f"Save error for {c.phone}: {str(row_err)}")
 
-    # Feedback
+    # Feedback message
     if success_count > 0:
-        messages.success(request, f"Successfully imported {success_count} customers.")
+        msg = f"Successfully imported {success_count} customers."
+        if skipped_duplicates > 0:
+            msg += f" ({skipped_duplicates} duplicate / already existing numbers were skipped)."
+        messages.success(request, msg)
+    elif skipped_duplicates > 0 and success_count == 0:
+        messages.info(request, f"No new records imported: all {skipped_duplicates} mobile numbers already exist in the system.")
     
     if errors:
-        error_msg = "Import Errors:<br>" + "<br>".join(errors[:5])
+        error_msg = "Import Notices:<br>" + "<br>".join(errors[:5])
         if len(errors) > 5:
             error_msg += f"<br>...and {len(errors)-5} more."
         messages.warning(request, error_msg)

@@ -23,12 +23,12 @@
                             <div>
                                 <h5 class="alert-heading fw-bold mb-1">Instructions</h5>
                                 <ul class="mb-0 ps-3 fs-9">
-                                    <li><strong>Mandatory Fields:</strong> First Name, Phone Number.</li>
-                                    <li><strong>Optional Fields (NOT mandatory):</strong> Email (not mandatory), Address (not mandatory), City, State, Pincode, Company Name, Notes.</li>
+                                    <li><strong>Mandatory Field:</strong> Mobile / Phone Number (Only mobile number is required!).</li>
+                                    <li><strong>Optional Fields (NOT mandatory):</strong> City, State, Pincode, First Name, Last Name, Email, Address, Company Name, Notes.</li>
                                     <li>Supported formats: <strong>.csv, .xlsx</strong></li>
-                                    <li>Phone numbers will be cleaned automatically (e.g., +91, spaces, dashes removed).</li>
-                                    <li>Duplicate phone numbers will be skipped automatically.</li>
-                                    <li>Blank, dash (<code>-</code>), or placeholder emails (<code>N/A</code>) are safely handled and ignored.</li>
+                                    <li>Phone numbers are automatically cleaned (country codes +91, 0, spaces, dashes removed).</li>
+                                    <li>Duplicate mobile numbers are automatically de-duplicated (kept 1 unique copy, duplicates skipped smoothly).</li>
+                                    <li>Missing names, addresses, or placeholder emails (e.g., <code>-</code>, <code>N/A</code>) are safely accepted.</li>
                                 </ul>
                             </div>
                         </div>

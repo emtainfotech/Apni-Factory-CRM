@@ -23,8 +23,8 @@ class CustomerModalForm(forms.ModelForm):
         fields = ['first_name', 'last_name', 'phone', 'email', 'lead_source', 'assigned_to', 'status', 'address', 'city', 'state', 'pincode', 'notes']
         
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name (Optional)'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name (Optional)'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (Optional)'}),
             'lead_source': forms.Select(attrs={'class': 'form-select'}),
@@ -42,6 +42,7 @@ class CustomerModalForm(forms.ModelForm):
         # Filter assigned_to to only show employees/agents, not admins if needed
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_to'].empty_label = "Unassigned"
+        self.fields['first_name'].required = False
         self.fields['address'].required = False
         self.fields['email'].required = False
 
@@ -138,8 +139,8 @@ class CustomerEditForm(forms.ModelForm):
             'lead_source', 'status', 'assigned_to', 'notes'
         ]
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name (Optional)'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name (Optional)'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'whatsapp_number': forms.TextInput(attrs={'class': 'form-control'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (Optional)'}),
@@ -161,5 +162,6 @@ class CustomerEditForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_to'].empty_label = "Unassigned"
+        self.fields['first_name'].required = False
         self.fields['address'].required = False
         self.fields['email'].required = False
