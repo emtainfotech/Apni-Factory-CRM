@@ -1133,7 +1133,7 @@ def bulk_upload_customers(request):
 
     return render(request, 'core/bulk_upload.html')
 
-# --- 3. IMPORT LOGIC (Address Not Mandatory & Optimized for 80k+ Rows) ---
+# --- 3. IMPORT LOGIC (Address & Email Not Mandatory & Optimized for 80k+ Rows) ---
 def process_import(data, request):
     success_count = 0
     errors = []
@@ -1142,13 +1142,32 @@ def process_import(data, request):
         if val is None:
             return default
         s = str(val).strip()
-        if s.lower() in ('none', 'nan', 'null', ''):
+        if s.lower() in ('none', 'nan', 'null', '', '-', '--', '---', 'n/a', 'na', 'n.a.', 'nil'):
             return default
         return s
 
-    # Pre-cache existing phones and emails to optimize 80,000+ row bulk imports
+    def clean_email(val):
+        if val is None:
+            return None
+        val_str = str(val).strip()
+        val_lower = val_str.lower()
+        # Common empty/placeholder markers in spreadsheets
+        if not val_str or val_lower in (
+            '-', '--', '---', 'n/a', 'na', 'n.a.', 'n.a', 'nil', 'null', 
+            'none', 'nan', 'no', 'not available', 'not provided', 'no email', 
+            'x', '.', '0', 'undefined'
+        ):
+            return None
+        # Basic email validation: must contain '@' and '.' after '@', no spaces
+        if '@' not in val_str or ' ' in val_str:
+            return None
+        parts = val_str.split('@')
+        if len(parts) != 2 or not parts[0] or '.' not in parts[1]:
+            return None
+        return val_str
+
+    # Pre-cache existing phones to optimize 80,000+ row bulk imports
     existing_phones = set(Customer.objects.values_list('phone', flat=True))
-    existing_emails = set(Customer.objects.exclude(email__isnull=True).exclude(email='').values_list('email', flat=True))
     
     # Pre-cache users by username for assigned_to
     users_by_username = {u.username.lower(): u for u in User.objects.filter(is_active=True)}
@@ -1169,9 +1188,19 @@ def process_import(data, request):
         # 1. Normalize Keys (Lowercase, strip spaces)
         row = {str(k).strip().lower(): v for k, v in raw_row.items() if k is not None}
         
-        # 2. Extract Mandatory Fields
-        first_name = clean_val(row.get('first name') or row.get('name'))
-        raw_phone = clean_val(row.get('phone number') or row.get('phone') or row.get('mobile'))
+        # 2. Extract Mandatory Fields (Support common variations)
+        first_name = clean_val(
+            row.get('first name') or row.get('name') or row.get('customer name') 
+            or row.get('client name') or row.get('party name') or row.get('contact person') 
+            or row.get('contact name') or row.get('customer')
+        )
+        raw_phone = clean_val(
+            row.get('phone number') or row.get('phone') or row.get('mobile') 
+            or row.get('mobile number') or row.get('mobile no') or row.get('mobile no.') 
+            or row.get('phone no') or row.get('phone no.') or row.get('contact') 
+            or row.get('contact no') or row.get('contact no.') or row.get('whatsapp') 
+            or row.get('whatsapp number')
+        )
         
         # Skip completely blank rows without generating an error
         if not first_name and not raw_phone:
@@ -1181,13 +1210,13 @@ def process_import(data, request):
             errors.append(f"Row {index + 2}: Missing Name or Phone")
             continue
             
-        # Clean Phone (remove tel:, +, spaces, dashes, and float .0 from Excel)
-        phone = raw_phone.replace('tel:', '').replace('+', '').replace(' ', '').replace('-', '')
-        if phone.endswith('.0'):
-            phone = phone[:-2]
-        phone = phone[-10:]
+        # Clean Phone (remove tel:, +, spaces, dashes, dots, and float .0 from Excel)
+        cleaned_digits = str(raw_phone).replace('tel:', '').replace('+', '').replace(' ', '').replace('-', '')
+        if cleaned_digits.endswith('.0'):
+            cleaned_digits = cleaned_digits[:-2]
+        phone = ''.join(c for c in cleaned_digits if c.isdigit())[-10:]
         
-        if len(phone) < 10 or not phone.isdigit():
+        if len(phone) < 10:
             errors.append(f"Row {index + 2}: Invalid phone number '{raw_phone}'")
             continue
 
@@ -1197,15 +1226,9 @@ def process_import(data, request):
             continue
         existing_phones.add(phone)
 
-        # Handle Email Unique
-        email = clean_val(row.get('email'))
-        if email:
-            if email in existing_emails:
-                errors.append(f"Row {index + 2}: Email {email} is already taken")
-                continue
-            existing_emails.add(email)
-        else:
-            email = None
+        # Email is completely OPTIONAL (NOT mandatory) - placeholder/invalid emails become None
+        raw_email = row.get('email') or row.get('email id') or row.get('email address') or row.get('mail') or row.get('e-mail')
+        email = clean_email(raw_email)
 
         # Lead Source & Status
         source_raw = clean_val(row.get('lead source') or row.get('source')).lower()
@@ -1222,14 +1245,14 @@ def process_import(data, request):
         if pincode.endswith('.0'):
             pincode = pincode[:-2]
 
-        # Address & Location Details (Address is NOT mandatory)
-        address = clean_val(row.get('address'), '')
-        city = clean_val(row.get('city'), '')
+        # Address & Location Details (Address & Location are NOT mandatory)
+        address = clean_val(row.get('address') or row.get('street address') or row.get('street'), '')
+        city = clean_val(row.get('city') or row.get('town'), '')
         state = clean_val(row.get('state'), '')
         country = clean_val(row.get('country'), 'India')
-        company_name = clean_val(row.get('company name') or row.get('company'), '')
+        company_name = clean_val(row.get('company name') or row.get('company') or row.get('firm name'), '')
         last_name = clean_val(row.get('last name'), '')
-        notes = clean_val(row.get('notes'), '')
+        notes = clean_val(row.get('notes') or row.get('note') or row.get('remarks'), '')
 
         customer = Customer(
             first_name=first_name,

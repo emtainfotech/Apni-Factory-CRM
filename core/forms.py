@@ -26,7 +26,7 @@ class CustomerModalForm(forms.ModelForm):
             'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (Optional)'}),
             'lead_source': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'assigned_to': forms.Select(attrs={'class': 'form-select'}),
@@ -43,6 +43,7 @@ class CustomerModalForm(forms.ModelForm):
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_to'].empty_label = "Unassigned"
         self.fields['address'].required = False
+        self.fields['email'].required = False
 
 from hostinger_data.models import Advertisements, Sliders, Categories
 
@@ -141,7 +142,7 @@ class CustomerEditForm(forms.ModelForm):
             'last_name': forms.TextInput(attrs={'class': 'form-control'}),
             'phone': forms.TextInput(attrs={'class': 'form-control'}),
             'whatsapp_number': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (Optional)'}),
             'company_name': forms.TextInput(attrs={'class': 'form-control'}),
             'gst_number': forms.TextInput(attrs={'class': 'form-control'}),
             'is_gst_verified': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -160,4 +161,5 @@ class CustomerEditForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_to'].empty_label = "Unassigned"
-        self.fields['address'].required = False
+        self.fields['address'].required = False
+        self.fields['email'].required = False
