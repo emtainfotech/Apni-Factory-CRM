@@ -1,0 +1,278 @@
+<!-- Add New Buyer / Seller Modal for Employee Portal -->
+<div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <form action="{% url 'employee_portal:add_customer' %}" method="post" id="addCustomerModalForm" class="needs-validation" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <input type="hidden" name="from_modal" value="1">
+
+                <!-- Modal Header -->
+                <div class="modal-header bg-body-highlight border-bottom py-3 px-4 align-items-center">
+                    <div>
+                        <h5 class="modal-title fw-bold text-body-emphasis mb-1" id="addCustomerModalLabel">
+                            <span class="badge bg-primary-subtle text-primary p-2 me-2 rounded-circle">
+                                <i class="fas fa-user-plus"></i>
+                            </span>
+                            Add New Buyer / Seller
+                        </h5>
+                        <p class="text-body-tertiary mb-0 fs-10">
+                            <i class="fas fa-lock me-1 text-success"></i>This lead will be auto-attributed & assigned to your pipeline: 
+                            <strong class="text-body-highlight">{{ request.user.username }}</strong>
+                        </p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <!-- Modal Body -->
+                <div class="modal-body p-4">
+                    <!-- 1. Party / Entity Type Toggle -->
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-body-secondary fs-9 text-uppercase mb-2">
+                            Select Party Category <span class="text-danger">*</span>
+                        </label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="radio" class="btn-check party-type-radio" name="customer_type" id="modalPartyBuyer" value="buyer" checked>
+                                <label class="btn btn-outline-primary w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="modalPartyBuyer">
+                                    <span class="fs-4">🛍️</span>
+                                    <div>
+                                        <div class="fw-bold fs-9">Buyer / Contractor</div>
+                                        <div class="fs-10 text-body-tertiary">Purchaser, Project Contractor, Retail Client</div>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="col-6">
+                                <input type="radio" class="btn-check party-type-radio" name="customer_type" id="modalPartySeller" value="seller">
+                                <label class="btn btn-outline-info w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="modalPartySeller">
+                                    <span class="fs-4">🏭</span>
+                                    <div>
+                                        <div class="fw-bold fs-9">Customer / Seller / Vendor</div>
+                                        <div class="fs-10 text-body-tertiary">Supplier, Manufacturer, Wholesaler</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. Contact Person Information -->
+                    <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3">
+                        <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
+                            <i class="fas fa-address-book me-1 text-primary"></i> 1. Contact Information
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalFirstName">First Name</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control" id="modalFirstName" name="first_name" placeholder="e.g. Rajesh">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalLastName">Last Name</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control" id="modalLastName" name="last_name" placeholder="e.g. Kumar">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-9 fw-bold text-body-highlight mb-1" for="modalPhone">
+                                    Primary Mobile / Phone <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-primary-subtle text-primary fw-bold">+91</span>
+                                    <input type="tel" class="form-control" id="modalPhone" name="phone" placeholder="10-digit mobile number" required pattern="[0-9]{10,15}">
+                                </div>
+                                <div class="invalid-feedback fs-10">Valid phone number is required.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-0" for="modalWhatsApp">WhatsApp Number</label>
+                                    <button type="button" class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-success" id="btnCopyPhoneToWA">
+                                        <i class="fab fa-whatsapp me-1"></i>Same as Phone
+                                    </button>
+                                </div>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text text-success"><i class="fab fa-whatsapp"></i></span>
+                                    <input type="tel" class="form-control" id="modalWhatsApp" name="whatsapp_number" placeholder="WhatsApp number (optional)">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalEmail">Email Address</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" id="modalEmail" name="email" placeholder="e.g. contact@business.com (Optional)">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Business & CRM Details -->
+                    <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3">
+                        <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
+                            <i class="fas fa-briefcase me-1 text-info"></i> 2. Business & Tax Details
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalCompanyName">Company / Firm / Shop Name</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                    <input type="text" class="form-control" id="modalCompanyName" name="company_name" placeholder="e.g. Rajesh Sanitary & Hardware Mart">
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalGSTIN">GSTIN Number</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text text-uppercase fw-bold fs-11">GST</span>
+                                    <input type="text" class="form-control text-uppercase font-monospace" id="modalGSTIN" name="gst_number" placeholder="15-digit GSTIN" maxlength="15">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalLeadSource">Lead Source</label>
+                                <select class="form-select form-select-sm" id="modalLeadSource" name="lead_source">
+                                    <option value="manual" selected>Manual Entry / Personal Visit</option>
+                                    <option value="call">Direct Phone Call</option>
+                                    <option value="whatsapp">WhatsApp Enquiry</option>
+                                    <option value="website">Website / Online Catalog</option>
+                                    <option value="facebook">Facebook Campaign</option>
+                                    <option value="instagram">Instagram Campaign</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalLeadStatus">Pipeline Status</label>
+                                <select class="form-select form-select-sm" id="modalLeadStatus" name="status">
+                                    <option value="lead" selected>Lead (New Inflow)</option>
+                                    <option value="prospect">Prospect (Interested)</option>
+                                    <option value="customer">Active Customer</option>
+                                    <option value="inactive">Inactive</option>
+                                    <option value="lost">Lost</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Location & Address Details -->
+                    <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3">
+                        <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
+                            <i class="fas fa-map-marker-alt me-1 text-danger"></i> 3. Territory & Location
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalAddress">Street Address / Landmark</label>
+                                <textarea class="form-control form-control-sm" id="modalAddress" name="address" rows="2" placeholder="Premises, Market, Street Name or Nearby Landmark"></textarea>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalCity">City / District</label>
+                                <input type="text" class="form-control form-control-sm" id="modalCity" name="city" placeholder="e.g. Surat, Jaipur">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalState">State / Region</label>
+                                <input type="text" class="form-control form-control-sm" id="modalState" name="state" placeholder="e.g. Gujarat, Delhi" list="modalStateList">
+                                <datalist id="modalStateList">
+                                    {% for st in state_choices %}
+                                    <option value="{{ st }}"></option>
+                                    {% endfor %}
+                                    <option value="Andhra Pradesh"></option>
+                                    <option value="Assam"></option>
+                                    <option value="Bihar"></option>
+                                    <option value="Chhattisgarh"></option>
+                                    <option value="Delhi"></option>
+                                    <option value="Goa"></option>
+                                    <option value="Gujarat"></option>
+                                    <option value="Haryana"></option>
+                                    <option value="Himachal Pradesh"></option>
+                                    <option value="Jharkhand"></option>
+                                    <option value="Karnataka"></option>
+                                    <option value="Kerala"></option>
+                                    <option value="Madhya Pradesh"></option>
+                                    <option value="Maharashtra"></option>
+                                    <option value="Odisha"></option>
+                                    <option value="Punjab"></option>
+                                    <option value="Rajasthan"></option>
+                                    <option value="Tamil Nadu"></option>
+                                    <option value="Telangana"></option>
+                                    <option value="Uttar Pradesh"></option>
+                                    <option value="Uttarakhand"></option>
+                                    <option value="West Bengal"></option>
+                                </datalist>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalPincode">Pin Code</label>
+                                <input type="text" class="form-control form-control-sm font-monospace" id="modalPincode" name="pincode" placeholder="e.g. 395003" maxlength="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. CRM Discussion Notes -->
+                    <div class="mb-2">
+                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="modalNotes">
+                            <i class="fas fa-sticky-note me-1 text-warning"></i> Discussion Notes & Requirements
+                        </label>
+                        <textarea class="form-control form-control-sm" id="modalNotes" name="notes" rows="3" placeholder="Enter order capacity, interested product categories, payment terms, or client requirements..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="modal-footer bg-body-highlight border-top py-2 px-4 justify-content-between">
+                    <div class="fs-11 text-body-tertiary">
+                        <i class="fas fa-shield-alt me-1 text-primary"></i>Protected & auto-tagged with your credentials
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-subtle-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold shadow-sm" id="btnAddCustomerSubmit">
+                            <i class="fas fa-check me-1"></i> Save & Assign to Me
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Copy Mobile to WhatsApp
+    const copyBtn = document.getElementById('btnCopyPhoneToWA');
+    const phoneInput = document.getElementById('modalPhone');
+    const waInput = document.getElementById('modalWhatsApp');
+
+    if (copyBtn && phoneInput && waInput) {
+        copyBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const phoneVal = phoneInput.value.trim();
+            if (phoneVal) {
+                waInput.value = phoneVal;
+                copyBtn.innerHTML = '<i class="fas fa-check me-1"></i>Copied!';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<i class="fab fa-whatsapp me-1"></i>Same as Phone';
+                }, 1500);
+            } else {
+                phoneInput.focus();
+            }
+        });
+    }
+
+    // 2. Client-side Form Validation
+    const form = document.getElementById('addCustomerModalForm');
+    if (form) {
+        form.addEventListener('submit', function(event) {
+            const phone = phoneInput ? phoneInput.value.trim() : '';
+            if (!phone || phone.length < 10) {
+                event.preventDefault();
+                event.stopPropagation();
+                phoneInput.classList.add('is-invalid');
+                phoneInput.focus();
+                return false;
+            } else {
+                phoneInput.classList.remove('is-invalid');
+            }
+
+            const submitBtn = document.getElementById('btnAddCustomerSubmit');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Saving...';
+            }
+        });
+    }
+});
+</script>

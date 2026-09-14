@@ -15,7 +15,7 @@ from core.models import (
     Customer, Attendance, Break, CallLog, CustomerActivityLog,
     Invoice, InvoiceItem, Transaction, LeaveRequest
 )
-from core.forms import CustomerModalForm
+from core.forms import CustomerModalForm, EmployeeCustomerCreateForm
 
 # Hostinger Data Models
 from hostinger_data.models import (
@@ -175,6 +175,10 @@ def dashboard(request):
     if remote_orders.exists():
         total_business = remote_orders.aggregate(total=Sum('grandtotal'))['total'] or 0
     
+    existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+    state_choices = [s for s in existing_states if s and s.strip()]
+    create_customer_form = EmployeeCustomerCreateForm(initial={'country': 'India', 'lead_source': 'manual', 'status': 'lead', 'customer_type': 'buyer'})
+
     context = {
         'attendance': attendance,
         'work_seconds': int(work_seconds),
@@ -187,6 +191,8 @@ def dashboard(request):
         'total_business': total_business,
         'recent_calls': CallLog.objects.filter(employee=request.user).order_by('-created_at')[:5],
         'recent_orders': remote_orders[:5] if remote_orders.exists() else [],
+        'create_customer_form': create_customer_form,
+        'state_choices': state_choices,
     }
     return render(request, 'employee_portal/dashboard.html', context)
 
@@ -348,6 +354,81 @@ def update_location(request):
 @login_required
 @employee_required
 @attendance_required
+def add_customer(request):
+    """
+    Allows logged-in employees to create new Buyer or Seller leads directly.
+    The lead is automatically attributed and assigned to the employee who added it
+    with their login (created_by=request.user, assigned_to=request.user).
+    """
+    redirect_url = request.POST.get('next') or request.GET.get('next') or reverse('employee_portal:customer_list')
+
+    if request.method == 'POST':
+        form = EmployeeCustomerCreateForm(request.POST)
+        if form.is_valid():
+            customer = form.save(commit=False)
+            customer.created_by = request.user
+            customer.assigned_to = request.user
+            customer.save()
+
+            # Audit activity
+            CustomerActivityLog.objects.create(
+                customer=customer,
+                employee=request.user,
+                action='Lead Created',
+                description=f"Created as {customer.get_customer_type_display()} by {request.user.username} via Employee Portal and assigned to their personal pipeline."
+            )
+
+            party_label = "Buyer / Contractor" if customer.customer_type == 'buyer' else "Customer / Seller / Vendor"
+            display_name = customer.first_name or customer.company_name or customer.phone
+            messages.success(
+                request,
+                f"🎉 Successfully added new {party_label} '{display_name}' ({customer.phone})! The lead has been automatically assigned to your pipeline."
+            )
+            return redirect(redirect_url)
+        else:
+            error_msgs = []
+            for field, errors in form.errors.items():
+                for err in errors:
+                    error_msgs.append(f"{field.replace('_', ' ').title()}: {err}")
+
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'errors': form.errors, 'message': "; ".join(error_msgs)}, status=400)
+
+            for msg in error_msgs:
+                messages.error(request, msg)
+
+            if request.POST.get('from_modal') == '1':
+                return redirect(redirect_url)
+
+            existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+            state_choices = [s for s in existing_states if s and s.strip()]
+            return render(request, 'employee_portal/add_customer.html', {
+                'form': form,
+                'state_choices': state_choices,
+                'next': redirect_url
+            })
+
+    # GET request - Full page add customer form
+    initial_type = request.GET.get('type', 'buyer')
+    form = EmployeeCustomerCreateForm(initial={
+        'customer_type': initial_type,
+        'country': 'India',
+        'status': 'lead',
+        'lead_source': 'manual',
+    })
+    existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
+    state_choices = [s for s in existing_states if s and s.strip()]
+    return render(request, 'employee_portal/add_customer.html', {
+        'form': form,
+        'state_choices': state_choices,
+        'next': redirect_url,
+        'initial_type': initial_type
+    })
+
+
+@login_required
+@employee_required
+@attendance_required
 def customer_list(request):
     """
     Lists customers for employee with full location filtering (state, city, pincode),
@@ -484,6 +565,7 @@ def customer_list(request):
         'source_choices': source_choices,
         'state_choices': state_choices,
         'employees': employees,
+        'create_customer_form': EmployeeCustomerCreateForm(initial={'country': 'India', 'lead_source': 'manual', 'status': 'lead', 'customer_type': 'buyer'}),
     }
     return render(request, 'employee_portal/customer_list.html', context)
 

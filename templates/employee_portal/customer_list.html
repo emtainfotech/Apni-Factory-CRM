@@ -24,7 +24,10 @@
             </p>
         </div>
         <div class="col-auto d-flex gap-2">
-            <a href="{% url 'employee_portal:vendor_search' %}" class="btn btn-primary btn-sm">
+            <button type="button" class="btn btn-primary btn-sm px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                <i class="fas fa-user-plus me-1"></i> + Add Buyer / Seller
+            </button>
+            <a href="{% url 'employee_portal:vendor_search' %}" class="btn btn-phoenix-primary btn-sm">
                 <span class="fas fa-search-plus me-1"></span> Search & Sync New Leads
             </a>
         </div>
@@ -483,4 +486,7 @@
         updateEmpBulkActions();
     }
 </script>
+
+<!-- Add Customer Modal Partial -->
+{% include 'employee_portal/partials/add_customer_modal.html' %}
 {% endblock %}

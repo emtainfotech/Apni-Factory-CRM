@@ -10,9 +10,12 @@
             <p class="text-body-tertiary mb-0">Welcome back, {{ request.user.username }}! Here is your daily B2B CRM sales performance.</p>
         </div>
         
-        <!-- Attendance Control Buttons -->
+        <!-- Actions & Attendance Control Buttons -->
         <div class="col-auto">
-            <div class="d-flex gap-2">
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <button type="button" class="btn btn-primary btn-lg shadow-sm px-4" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
+                    <i class="fas fa-user-plus me-2"></i>+ Add Buyer / Seller
+                </button>
                 {% if not attendance or not attendance.is_punched_in %}
                 <form action="{% url 'employee_portal:punch_in' %}" method="post">
                     {% csrf_token %}
@@ -454,4 +457,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endif %}
+
+<!-- Add Customer Modal Partial -->
+{% include 'employee_portal/partials/add_customer_modal.html' %}
 {% endblock %}

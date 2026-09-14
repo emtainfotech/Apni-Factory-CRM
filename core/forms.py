@@ -20,13 +20,21 @@ from authentication.models import User
 class CustomerModalForm(forms.ModelForm):
     class Meta:
         model = Customer
-        fields = ['first_name', 'last_name', 'phone', 'email', 'lead_source', 'assigned_to', 'status', 'address', 'city', 'state', 'pincode', 'notes']
+        fields = [
+            'customer_type', 'first_name', 'last_name', 'phone', 'whatsapp_number',
+            'email', 'company_name', 'gst_number', 'lead_source', 'assigned_to',
+            'status', 'address', 'city', 'state', 'pincode', 'notes'
+        ]
         
         widgets = {
+            'customer_type': forms.Select(attrs={'class': 'form-select'}),
             'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name (Optional)'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name (Optional)'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone'}),
+            'whatsapp_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'WhatsApp Number (Optional)'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (Optional)'}),
+            'company_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Company / Firm Name (Optional)'}),
+            'gst_number': forms.TextInput(attrs={'class': 'form-control text-uppercase', 'placeholder': 'GSTIN (Optional)', 'maxlength': '15'}),
             'lead_source': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'assigned_to': forms.Select(attrs={'class': 'form-select'}),
@@ -43,8 +51,105 @@ class CustomerModalForm(forms.ModelForm):
         self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
         self.fields['assigned_to'].empty_label = "Unassigned"
         self.fields['first_name'].required = False
+        self.fields['last_name'].required = False
         self.fields['address'].required = False
         self.fields['email'].required = False
+        self.fields['company_name'].required = False
+        self.fields['gst_number'].required = False
+        self.fields['whatsapp_number'].required = False
+
+
+class EmployeeCustomerCreateForm(forms.ModelForm):
+    CUSTOMER_TYPE_CHOICES = (
+        ('buyer', 'Buyer / Contractor'),
+        ('seller', 'Customer / Seller / Vendor'),
+    )
+
+    customer_type = forms.ChoiceField(
+        choices=CUSTOMER_TYPE_CHOICES,
+        widget=forms.RadioSelect(attrs={'class': 'btn-check'}),
+        initial='buyer',
+        label="Entity / Party Type"
+    )
+
+    class Meta:
+        model = Customer
+        fields = [
+            'customer_type',
+            'first_name',
+            'last_name',
+            'phone',
+            'whatsapp_number',
+            'email',
+            'company_name',
+            'gst_number',
+            'lead_source',
+            'status',
+            'address',
+            'city',
+            'state',
+            'pincode',
+            'country',
+            'notes',
+        ]
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Rahul'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Sharma'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 9876543210', 'required': 'true'}),
+            'whatsapp_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 9876543210 (or click Same as Phone)'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'e.g. contact@business.com'}),
+            'company_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Apex Hardware & Sanitary Store'}),
+            'gst_number': forms.TextInput(attrs={'class': 'form-control text-uppercase', 'placeholder': 'e.g. 07AAAAA0000A1Z5', 'maxlength': '15'}),
+            'lead_source': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Shop/Office Address, Street, Landmark'}),
+            'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. New Delhi'}),
+            'state': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Delhi', 'list': 'employeeStateList'}),
+            'pincode': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. 110001', 'maxlength': '10'}),
+            'country': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Country', 'value': 'India'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Order capacity, specific requirements, meeting notes, etc.'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['first_name'].required = False
+        self.fields['last_name'].required = False
+        self.fields['email'].required = False
+        self.fields['address'].required = False
+        self.fields['city'].required = False
+        self.fields['state'].required = False
+        self.fields['pincode'].required = False
+        self.fields['country'].required = False
+        self.fields['notes'].required = False
+        self.fields['company_name'].required = False
+        self.fields['gst_number'].required = False
+        self.fields['whatsapp_number'].required = False
+        self.fields['phone'].required = True
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        if not phone:
+            raise forms.ValidationError("Mobile number is required.")
+        existing = Customer.objects.filter(phone=phone)
+        if self.instance and self.instance.pk:
+            existing = existing.exclude(pk=self.instance.pk)
+        if existing.exists():
+            existing_cust = existing.first()
+            owner_info = f" (Already assigned to {existing_cust.assigned_to.username})" if existing_cust.assigned_to else " (Unassigned)"
+            raise forms.ValidationError(f"A contact with phone number '{phone}' already exists in CRM{owner_info}.")
+        return phone
+
+    def clean_gst_number(self):
+        gst = self.cleaned_data.get('gst_number', '')
+        if gst:
+            gst = gst.strip().upper()
+        return gst
+
+    def clean_whatsapp_number(self):
+        wa = self.cleaned_data.get('whatsapp_number', '')
+        if wa:
+            wa = wa.strip()
+        return wa
 
 from hostinger_data.models import Advertisements, Sliders, Categories
 
