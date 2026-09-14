@@ -519,41 +519,130 @@
     </div>
     {% endif %}
 
-    <!-- Employee Performance & Punch Security Logs -->
-    <div class="row mb-4">
+    <!-- Employee Performance & Punch Security Logs with Full Figure Analytics -->
+    <div class="row mb-5" id="employee-figures-section">
         <div class="col-12">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
-                    <h5 class="mb-0 fw-bold"><span class="fas fa-users-cog me-2"></span>CRM Employee Performance & Attendance Integrity Ledger</h5>
-                    <span class="badge badge-phoenix badge-phoenix-primary">Real-Time Sync</span>
+            <div class="card shadow-sm border-0 border-top border-4 border-primary">
+                <!-- Card Header with Period Filter Controls -->
+                <div class="card-header bg-body-tertiary py-3">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="avatar avatar-m bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="fas fa-users-cog fs-9"></i>
+                            </span>
+                            <div>
+                                <h5 class="mb-0 fw-bold">CRM Employee Performance & Activity Figures</h5>
+                                <span class="text-body-tertiary fs-10">Real-time figure breakdown for profiles created, profile changes/connected, calls, and follow-ups</span>
+                            </div>
+                        </div>
+
+                        <!-- Period Filter Switcher & Live Search -->
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                            <!-- Period Switcher Buttons -->
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Figures Time Period">
+                                <a href="?period=today#employee-figures-section" class="btn {% if current_period == 'today' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                                    Today
+                                </a>
+                                <a href="?period=week#employee-figures-section" class="btn {% if current_period == 'week' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                                    This Week
+                                </a>
+                                <a href="?period=month#employee-figures-section" class="btn {% if current_period == 'month' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                                    This Month
+                                </a>
+                                <a href="?period=all#employee-figures-section" class="btn {% if current_period == 'all' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                                    All Time
+                                </a>
+                            </div>
+
+                            <!-- Live Instant Search -->
+                            <div class="input-group input-group-sm" style="max-width: 220px;">
+                                <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted fs-11"></i></span>
+                                <input type="text" class="form-control border-start-0 fs-10" id="emp-search-input" placeholder="Search employee..." onkeyup="filterEmployeeRows()">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Team Summary Figures Strip (For Current Selected Period) -->
+                    <div class="row g-2 mt-3 pt-3 border-top border-200">
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="p-2 rounded bg-body border border-translucent text-center">
+                                <span class="text-muted fs-11 text-uppercase fw-semibold d-block">Connected ({{ period_label }})</span>
+                                <span class="fs-8 fw-bolder text-primary">{{ team_total_connected }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="p-2 rounded bg-body border border-translucent text-center">
+                                <span class="text-muted fs-11 text-uppercase fw-semibold d-block">Profiles Created</span>
+                                <span class="fs-8 fw-bolder text-success">+{{ team_profiles_created }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="p-2 rounded bg-body border border-translucent text-center">
+                                <span class="text-muted fs-11 text-uppercase fw-semibold d-block">Profile Changes</span>
+                                <span class="fs-8 fw-bolder text-info">+{{ team_profiles_updated }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="p-2 rounded bg-body border border-translucent text-center">
+                                <span class="text-muted fs-11 text-uppercase fw-semibold d-block">Calls Made</span>
+                                <span class="fs-8 fw-bolder text-warning">{{ team_calls_count }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="p-2 rounded bg-body border border-translucent text-center">
+                                <span class="text-muted fs-11 text-uppercase fw-semibold d-block">Follow-ups Today</span>
+                                <span class="fs-8 fw-bolder text-danger">{{ team_followups_today }}</span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-4 col-xl-2">
+                            <div class="p-2 rounded bg-body border border-translucent text-center">
+                                <span class="text-muted fs-11 text-uppercase fw-semibold d-block">Team Revenue</span>
+                                <span class="fs-8 fw-bolder text-success">₹{{ team_total_revenue|floatformat:0 }}</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-sm table-striped fs-9 mb-0 align-middle">
+                        <table class="table table-sm table-hover fs-9 mb-0 align-middle" id="employees-figures-table">
                             <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
                                 <tr>
                                     <th class="ps-3 py-2">Employee</th>
-                                    <th class="py-2">Punch-In Status</th>
-                                    <th class="py-2">Integrity Details (IP / User-Agent)</th>
-                                    <th class="py-2 text-center">Assigned Leads</th>
-                                    <th class="py-2 text-center">Calls Made Today</th>
-                                    <th class="py-2 text-end">Attributed Sales Revenue</th>
-                                    <th class="pe-3 py-2 text-end">Quick Profile</th>
+                                    <th class="py-2">Punch / Duty Status</th>
+                                    <th class="py-2 text-center" title="Unique customers connected via profile creation or profile updates">
+                                        <i class="fas fa-user-friends me-1 text-primary"></i>Connected ({{ period_label }})
+                                    </th>
+                                    <th class="py-2 text-center" title="Profiles created in selected period">
+                                        <i class="fas fa-user-plus me-1 text-success"></i>Created
+                                    </th>
+                                    <th class="py-2 text-center" title="Profile edits / updates / status changes in selected period">
+                                        <i class="fas fa-user-edit me-1 text-info"></i>Updated
+                                    </th>
+                                    <th class="py-2 text-center" title="Calls logged in selected period (and today)">
+                                        <i class="fas fa-phone-alt me-1 text-warning"></i>Calls Made
+                                    </th>
+                                    <th class="py-2 text-center" title="Follow-ups due today">
+                                        <i class="fas fa-calendar-check me-1 text-danger"></i>Follow-ups
+                                    </th>
+                                    <th class="py-2 text-center">Assigned Pipeline</th>
+                                    <th class="py-2 text-end">Sales Volume</th>
+                                    <th class="pe-3 py-2 text-end">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="emp-table-body">
                                 {% for emp in employees %}
-                                <tr>
-                                    <td class="ps-3">
+                                <tr class="emp-row" data-name="{{ emp.username|lower }} {{ emp.get_full_name|lower }}">
+                                    <td class="ps-3 py-2">
                                         <div class="d-flex align-items-center">
                                             <div class="avatar avatar-s me-2">
-                                                <div class="avatar-name rounded-circle bg-primary-subtle text-primary">
+                                                <div class="avatar-name rounded-circle bg-primary-subtle text-primary fw-bold">
                                                     <span>{{ emp.username|slice:":1"|upper }}</span>
                                                 </div>
                                             </div>
                                             <div>
                                                 <h6 class="mb-0 fw-bold text-body-highlight">{{ emp.username }}</h6>
-                                                <span class="text-muted fs-10">Joined {{ emp.date_joined|date:"d M Y" }}</span>
+                                                <span class="text-muted fs-11">{{ emp.email|default:"CRM Member" }}</span>
                                             </div>
                                         </div>
                                     </td>
@@ -565,7 +654,7 @@
                                                 {% else %}
                                                     <span class="badge badge-phoenix badge-phoenix-success d-inline-block">PUNCHED IN</span>
                                                 {% endif %}
-                                                <div class="fs-10 text-body-tertiary mt-1">
+                                                <div class="fs-11 text-body-tertiary mt-1">
                                                     {{ emp.today_attendance.punch_in|date:"H:i" }} IST
                                                     {% if emp.today_attendance.is_late %}
                                                         <span class="badge badge-phoenix badge-phoenix-danger ms-1 px-1">LATE</span>
@@ -575,43 +664,76 @@
                                                 </div>
                                             {% else %}
                                                 <span class="badge badge-phoenix badge-phoenix-secondary d-inline-block">PUNCHED OUT</span>
-                                                <div class="fs-10 text-body-tertiary mt-1">Out: {{ emp.today_attendance.punch_out|date:"H:i" }} IST</div>
+                                                <div class="fs-11 text-body-tertiary mt-1">Out: {{ emp.today_attendance.punch_out|date:"H:i" }} IST</div>
                                             {% endif %}
                                         {% else %}
                                             <span class="badge badge-phoenix badge-phoenix-danger d-inline-block">ABSENT</span>
-                                            <div class="fs-10 text-muted mt-1">No punch logged today</div>
+                                            <div class="fs-11 text-muted mt-1">No punch logged today</div>
                                         {% endif %}
                                     </td>
-                                    <td>
-                                        {% if emp.today_attendance %}
-                                            <div class="fw-semibold fs-10 text-body-highlight">
-                                                <span class="fas fa-network-wired me-1"></span>{{ emp.today_attendance.ip_address|default:"Unknown IP" }}
-                                            </div>
-                                            <div class="text-muted fs-10 text-truncate" style="max-width: 260px;" title="{{ emp.today_attendance.user_agent }}">
-                                                <span class="fas fa-mobile-alt me-1"></span>{{ emp.today_attendance.user_agent|default:"Unknown Browser" }}
-                                            </div>
-                                        {% else %}
-                                            <span class="text-muted fs-10 italic">N/A</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center font-monospace fw-bold">{{ emp.assigned_customers_count }}</td>
+                                    <!-- Connected Customers Figure -->
                                     <td class="text-center">
-                                        {% if emp.today_calls_count > 0 %}
-                                            <span class="badge badge-phoenix badge-phoenix-primary fs-10">{{ emp.today_calls_count }} Calls</span>
+                                        <div class="fw-bolder fs-9 {% if emp.connected_customers_count > 0 %}text-primary{% else %}text-muted{% endif %}">
+                                            {{ emp.connected_customers_count }}
+                                        </div>
+                                        <div class="fs-11 text-muted">unique accounts</div>
+                                    </td>
+                                    <!-- Created Profiles -->
+                                    <td class="text-center">
+                                        {% if emp.profiles_created_count > 0 %}
+                                            <span class="badge badge-phoenix badge-phoenix-success fs-10">+{{ emp.profiles_created_count }}</span>
                                         {% else %}
                                             <span class="text-muted fs-10">-</span>
                                         {% endif %}
                                     </td>
+                                    <!-- Updated Profiles -->
+                                    <td class="text-center">
+                                        {% if emp.profiles_updated_count > 0 %}
+                                            <span class="badge badge-phoenix badge-phoenix-info fs-10">+{{ emp.profiles_updated_count }}</span>
+                                        {% else %}
+                                            <span class="text-muted fs-10">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <!-- Calls Made -->
+                                    <td class="text-center">
+                                        {% if emp.calls_count > 0 %}
+                                            <span class="badge badge-phoenix badge-phoenix-warning fs-10 fw-bold">{{ emp.calls_count }} Calls</span>
+                                            <div class="fs-11 text-muted">{{ emp.today_calls_count }} today</div>
+                                        {% else %}
+                                            <span class="text-muted fs-10">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <!-- Follow-ups Today -->
+                                    <td class="text-center">
+                                        {% if emp.followups_today_count > 0 %}
+                                            <span class="badge badge-phoenix badge-phoenix-danger fs-10 fw-bold">{{ emp.followups_today_count }} Due</span>
+                                        {% else %}
+                                            <span class="badge badge-phoenix badge-phoenix-secondary fs-10">0</span>
+                                        {% endif %}
+                                    </td>
+                                    <!-- Assigned Pipeline -->
+                                    <td class="text-center font-monospace fw-bold">
+                                        {{ emp.assigned_customers_count }}
+                                    </td>
+                                    <!-- Revenue -->
                                     <td class="text-end font-monospace fw-bold text-success">
                                         ₹{{ emp.revenue_generated|floatformat:2 }}
                                     </td>
+                                    <!-- Actions -->
                                     <td class="pe-3 text-end">
-                                        <a href="{% url 'user_detail' emp.id %}" class="btn btn-phoenix-secondary btn-xs"><span class="fas fa-eye"></span></a>
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="{% url 'user_detail' emp.id %}" class="btn btn-phoenix-secondary btn-xs" title="View Full Employee Profile">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'customer_list' %}?assigned_to={{ emp.id }}" class="btn btn-phoenix-primary btn-xs" title="View Assigned Leads & Customers">
+                                                <i class="fas fa-users"></i>
+                                            </a>
+                                        </div>
                                     </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="7" class="text-center py-4 text-muted">No active employee members registered in CRM database.</td>
+                                    <td colspan="10" class="text-center py-4 text-muted">No registered team members found.</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -621,6 +743,22 @@
             </div>
         </div>
     </div>
+
+    <!-- Client-side Fast Filter Script for Employee Figures -->
+    <script>
+    function filterEmployeeRows() {
+        const query = document.getElementById('emp-search-input').value.toLowerCase().trim();
+        const rows = document.querySelectorAll('.emp-row');
+        rows.forEach(row => {
+            const name = row.getAttribute('data-name') || '';
+            if (!query || name.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    </script>
 
     <!-- Recent CRM Invoices & Recent Support Tickets -->
     <div class="row g-4 mb-4">

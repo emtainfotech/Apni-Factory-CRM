@@ -142,7 +142,7 @@ def get_single_customer_remote_orders(customer):
 @employee_required
 def dashboard(request):
     """Streamlined employee dashboard with attendance timeline and live e-commerce metrics."""
-    today = timezone.now().date()
+    today = timezone.localdate()
     attendance = Attendance.objects.filter(user=request.user, date=today).first()
     
     work_seconds = 0
@@ -168,6 +168,61 @@ def dashboard(request):
     active_customers = Customer.objects.filter(assigned_to=request.user, status='customer').count()
     today_calls = CallLog.objects.filter(employee=request.user, created_at__date=today).count()
     unassigned_leads_count = Customer.objects.filter(assigned_to__isnull=True).count()
+
+    # 1. Today's Scheduled Follow-ups
+    todays_followups = CallLog.objects.filter(
+        Q(employee=request.user) | Q(customer__assigned_to=request.user),
+        follow_up_date__date=today
+    ).select_related('customer').order_by('follow_up_date')
+    todays_followups_count = todays_followups.count()
+
+    overdue_followups_count = CallLog.objects.filter(
+        Q(employee=request.user) | Q(customer__assigned_to=request.user),
+        follow_up_date__date__lt=today,
+        follow_up_date__isnull=False
+    ).count()
+
+    # 2. Customers Connected by Employee (on basis of profile creation and profile changes/updates)
+    created_cust_ids_today = set(Customer.objects.filter(
+        created_by=request.user,
+        created_at__date=today
+    ).values_list('id', flat=True))
+
+    updated_cust_ids_today = set(CustomerActivityLog.objects.filter(
+        employee=request.user,
+        created_at__date=today
+    ).values_list('customer_id', flat=True))
+
+    connected_today_cust_ids = created_cust_ids_today.union(updated_cust_ids_today)
+    connected_today_count = len(connected_today_cust_ids)
+    connected_today_created = len(created_cust_ids_today)
+    connected_today_updated = len(updated_cust_ids_today)
+
+    # Month figures
+    created_cust_ids_month = set(Customer.objects.filter(
+        created_by=request.user,
+        created_at__year=today.year,
+        created_at__month=today.month
+    ).values_list('id', flat=True))
+
+    updated_cust_ids_month = set(CustomerActivityLog.objects.filter(
+        employee=request.user,
+        created_at__year=today.year,
+        created_at__month=today.month
+    ).values_list('customer_id', flat=True))
+
+    connected_month_count = len(created_cust_ids_month.union(updated_cust_ids_month))
+    connected_month_created = len(created_cust_ids_month)
+    connected_month_updated = len(updated_cust_ids_month)
+
+    created_cust_ids_all = set(Customer.objects.filter(created_by=request.user).values_list('id', flat=True))
+    updated_cust_ids_all = set(CustomerActivityLog.objects.filter(employee=request.user).values_list('customer_id', flat=True))
+    connected_all_count = len(created_cust_ids_all.union(updated_cust_ids_all))
+
+    # Recent customer connections / activity stream for this employee (last 6 items)
+    recent_connection_logs = CustomerActivityLog.objects.filter(
+        employee=request.user
+    ).select_related('customer').order_by('-created_at')[:6]
     
     # Live E-commerce mapping statistics
     remote_orders = get_employee_remote_orders(request.user)
@@ -190,6 +245,17 @@ def dashboard(request):
         'active_customers': active_customers,
         'today_calls': today_calls,
         'unassigned_leads_count': unassigned_leads_count,
+        'todays_followups': todays_followups,
+        'todays_followups_count': todays_followups_count,
+        'overdue_followups_count': overdue_followups_count,
+        'connected_today_count': connected_today_count,
+        'connected_today_created': connected_today_created,
+        'connected_today_updated': connected_today_updated,
+        'connected_month_count': connected_month_count,
+        'connected_month_created': connected_month_created,
+        'connected_month_updated': connected_month_updated,
+        'connected_all_count': connected_all_count,
+        'recent_connection_logs': recent_connection_logs,
         'total_business': total_business,
         'recent_calls': CallLog.objects.filter(employee=request.user).order_by('-created_at')[:5],
         'recent_orders': remote_orders[:5] if remote_orders.exists() else [],
@@ -828,8 +894,15 @@ def customer_detail(request, customer_id):
     if request.method == 'POST' and request.POST.get('action') == 'edit_customer':
         edit_form = CustomerEditForm(request.POST, instance=customer)
         if edit_form.is_valid():
-            edit_form.save()
-            messages.success(request, "Buyer profile updated successfully.")
+            updated_cust = edit_form.save()
+            party_lbl = updated_cust.get_customer_type_display()
+            CustomerActivityLog.objects.create(
+                customer=updated_cust,
+                employee=request.user,
+                action="Profile Updated",
+                description=f"{party_lbl} profile details updated by {request.user.username}."
+            )
+            messages.success(request, f"{party_lbl} profile updated successfully.")
             return redirect('employee_portal:customer_detail', customer_id=customer.id)
         else:
             messages.error(request, "Failed to update buyer profile. Please check the errors.")
@@ -1527,6 +1600,18 @@ def whatsapp_inbox(request):
             target_cust.save(update_fields=['assigned_to'])
 
     # Scope to this employee
+    from core.models import WhatsAppMessageStatus
+
+    failed_wamids = list(WhatsAppMessageStatus.objects.filter(status='failed').values_list('wamid', flat=True))
+    failed_phones = list(WhatsAppMessageStatus.objects.filter(status='failed').values_list('recipient_id', flat=True))
+    
+    failed_chat_filter = (
+        Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid__isnull=True) |
+        Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid='') |
+        (Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid__in=failed_wamids) if failed_wamids else Q(pk__in=[])) |
+        (Q(phone__in=failed_phones) | Q(whatsapp_number__in=failed_phones) if failed_phones else Q(pk__in=[]))
+    )
+
     qs = Customer.objects.filter(
         Q(assigned_to=request.user) | Q(created_by=request.user) | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
     ).annotate(
@@ -1535,6 +1620,8 @@ def whatsapp_inbox(request):
 
     if party_type in ('buyer', 'seller'):
         qs = qs.filter(customer_type=party_type)
+    elif party_type in ('failed', 'unsent'):
+        qs = qs.filter(failed_chat_filter)
 
     if query:
         qs = qs.filter(
@@ -1545,13 +1632,22 @@ def whatsapp_inbox(request):
         )
 
     # Counts
-    my_total_customers = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).count()
-    my_buyers_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user), customer_type='buyer').count()
-    my_sellers_count = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user), customer_type='seller').count()
+    my_base_qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user))
+    my_total_customers = my_base_qs.count()
+    my_buyers_count = my_base_qs.filter(customer_type='buyer').count()
+    my_sellers_count = my_base_qs.filter(customer_type='seller').count()
+    my_failed_count = my_base_qs.filter(failed_chat_filter).distinct().count()
 
     paginator = Paginator(qs, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    page_cust_ids = [c.id for c in page_obj]
+    failed_cust_ids_in_page = set(
+        Customer.objects.filter(id__in=page_cust_ids).filter(failed_chat_filter).values_list('id', flat=True)
+    )
+    for c in page_obj:
+        c.has_failed_message = c.id in failed_cust_ids_in_page
 
     return render(request, 'employee_portal/whatsapp_inbox.html', {
         'page_obj': page_obj,
@@ -1559,6 +1655,7 @@ def whatsapp_inbox(request):
         'total_count': my_total_customers,
         'buyers_count': my_buyers_count,
         'sellers_count': my_sellers_count,
+        'failed_count': my_failed_count,
         'current_party_type': party_type,
         'current_query': query,
         'active_customer_id': active_cust_id,

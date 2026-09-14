@@ -29,6 +29,22 @@
                         <button class="btn btn-outline-secondary border-start-0 d-none" type="button" id="clear-search-btn"><i class="fas fa-times"></i></button>
                     </div>
 
+                    <!-- Filter Pills -->
+                    <div class="d-flex gap-1 flex-wrap mt-2">
+                        <a href="{% url 'whatsapp_inbox' %}" class="btn btn-xs flex-grow-1 {% if not current_party_type %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                            All ({{ total_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_inbox' %}?party_type=buyer" class="btn btn-xs flex-grow-1 {% if current_party_type == 'buyer' %}btn-warning{% else %}btn-phoenix-secondary{% endif %}">
+                            Buyers ({{ buyers_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_inbox' %}?party_type=seller" class="btn btn-xs flex-grow-1 {% if current_party_type == 'seller' %}btn-success{% else %}btn-phoenix-secondary{% endif %}">
+                            Sellers ({{ sellers_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_inbox' %}?party_type=failed" class="btn btn-xs flex-grow-1 {% if current_party_type == 'failed' %}btn-danger text-white{% else %}btn-phoenix-danger{% endif %}" title="Filter chats with unsent or delivery failed messages">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Failed ({{ failed_count }})
+                        </a>
+                    </div>
+
                     <!-- Live Number Action Card (Dynamically displayed when typing a phone number) -->
                     <div id="search-phone-action-card" class="mt-2 d-none"></div>
                 </div>
@@ -42,9 +58,19 @@
                         <div class="flex-1 min-w-0">
                             <div class="d-flex align-items-center justify-content-between mb-1">
                                 <h6 class="mb-0 text-dark text-truncate">{{ customer.get_full_name|default:customer.first_name }}</h6>
-                                {% if customer.last_chat_time %}
-                                <span class="fs-11 text-muted text-nowrap ms-2">{{ customer.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
-                                {% endif %}
+                                <div class="d-flex align-items-center gap-1">
+                                    {% if customer.last_chat_time %}
+                                    <span class="fs-11 text-muted text-nowrap ms-2">{{ customer.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
+                                    {% endif %}
+                                    {% if customer.has_failed_message %}
+                                    <span class="badge badge-phoenix badge-phoenix-danger fs-10" title="Contains unsent or failed messages"><i class="fas fa-exclamation-circle me-1"></i>Failed</span>
+                                    {% endif %}
+                                    {% if customer.customer_type == 'seller' %}
+                                    <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
+                                    {% else %}
+                                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">Buyer</span>
+                                    {% endif %}
+                                </div>
                             </div>
                             <p class="fs-10 text-body-tertiary mb-0 text-truncate">{{ customer.whatsapp_number|default:customer.phone }}</p>
                         </div>

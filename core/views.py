@@ -178,17 +178,45 @@ def admin_dashboard(request):
     pending_leaves_count = LeaveRequest.objects.filter(status='pending').count()
     pending_login_requests = LoginApprovalRequest.objects.filter(status='pending').select_related('user').order_by('-created_at')
     
-    # Team Performance & Attendance reports
-    employees = User.objects.exclude(Q(role='admin') | Q(is_superuser=True)).order_by('username')
-    today = timezone.now().date()
+    # Team Performance & Attendance reports with Period Filter
+    from datetime import timedelta
+    today = timezone.localdate()
+    period = request.GET.get('period', 'today').lower()
+
+    if period == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        period_label = "This Week"
+    elif period == 'month':
+        start_date = today.replace(day=1)
+        period_label = "This Month"
+    elif period == 'all':
+        start_date = None
+        period_label = "All Time"
+    else:
+        period = 'today'
+        start_date = today
+        period_label = "Today"
+
+    date_filter = {'created_at__date__gte': start_date} if start_date else {}
+
+    employees = list(User.objects.exclude(Q(role='admin') | Q(is_superuser=True)).order_by('username'))
     
     for emp in employees:
         # Today's Punch status
         emp.today_attendance = Attendance.objects.filter(user=emp, date=today).first()
         
-        # Performance KPIs
-        emp.assigned_customers_count = Customer.objects.filter(assigned_to=emp).count()
+        # Performance KPIs in selected period
+        created_ids = set(Customer.objects.filter(created_by=emp, **date_filter).values_list('id', flat=True))
+        updated_ids = set(CustomerActivityLog.objects.filter(employee=emp, **date_filter).values_list('customer_id', flat=True))
+        connected_ids = created_ids.union(updated_ids)
+
+        emp.profiles_created_count = len(created_ids)
+        emp.profiles_updated_count = len(updated_ids)
+        emp.connected_customers_count = len(connected_ids)
+        emp.calls_count = CallLog.objects.filter(employee=emp, **date_filter).count()
         emp.today_calls_count = CallLog.objects.filter(employee=emp, created_at__date=today).count()
+        emp.followups_today_count = CallLog.objects.filter(Q(employee=emp) | Q(customer__assigned_to=emp), follow_up_date__date=today).count()
+        emp.assigned_customers_count = Customer.objects.filter(assigned_to=emp).count()
         
         # Calculate Employee Generated Revenue in INR
         assigned_custs = Customer.objects.filter(assigned_to=emp)
@@ -216,6 +244,14 @@ def admin_dashboard(request):
             emp.revenue_generated = Orders.objects.using('hostinger_db').filter(customer_id__in=remote_cust_ids).aggregate(total=Sum('grandtotal'))['total'] or 0
         else:
             emp.revenue_generated = 0
+
+    # Team Aggregate Figures
+    team_total_connected = sum(e.connected_customers_count for e in employees)
+    team_profiles_created = sum(e.profiles_created_count for e in employees)
+    team_profiles_updated = sum(e.profiles_updated_count for e in employees)
+    team_calls_count = sum(e.calls_count for e in employees)
+    team_followups_today = CallLog.objects.filter(follow_up_date__date=today).count()
+    team_total_revenue = sum(e.revenue_generated for e in employees)
             
     context = {
         'total_customers': total_customers,
@@ -235,6 +271,14 @@ def admin_dashboard(request):
         'total_whatsapp_leads': total_whatsapp_leads,
         'pending_leaves_count': pending_leaves_count,
         'employees': employees,
+        'current_period': period,
+        'period_label': period_label,
+        'team_total_connected': team_total_connected,
+        'team_profiles_created': team_profiles_created,
+        'team_profiles_updated': team_profiles_updated,
+        'team_calls_count': team_calls_count,
+        'team_followups_today': team_followups_today,
+        'team_total_revenue': team_total_revenue,
         'active_orders_count': active_orders_count,
         'pending_orders_count': pending_orders_count,
         'returned_orders_count': returned_orders_count,
@@ -3543,14 +3587,38 @@ from django.views.decorators.csrf import csrf_exempt
 @login_required
 def whatsapp_inbox(request):
     from django.db.models import Max
+    from core.models import WhatsAppMessageStatus
+
     query = request.GET.get('q', '').strip()
     active_cust_id = request.GET.get('customer_id', '').strip()
+    party_type = request.GET.get('party_type', '').lower()
+
+    failed_wamids = list(WhatsAppMessageStatus.objects.filter(status='failed').values_list('wamid', flat=True))
+    failed_phones = list(WhatsAppMessageStatus.objects.filter(status='failed').values_list('recipient_id', flat=True))
+
+    failed_chat_filter = (
+        Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid__isnull=True) |
+        Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid='') |
+        (Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid__in=failed_wamids) if failed_wamids else Q(pk__in=[])) |
+        (Q(phone__in=failed_phones) | Q(whatsapp_number__in=failed_phones) if failed_phones else Q(pk__in=[]))
+    )
+
+    base_filter = Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
+    total_count = Customer.objects.filter(base_filter).distinct().count()
+    buyers_count = Customer.objects.filter(base_filter, customer_type='buyer').distinct().count()
+    sellers_count = Customer.objects.filter(base_filter, customer_type='seller').distinct().count()
+    failed_count = Customer.objects.filter(base_filter).filter(failed_chat_filter).distinct().count()
 
     customers_with_chats = Customer.objects.filter(
-        Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False) | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
+        base_filter | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
     ).annotate(
         last_chat_time=Max('whatsapp_chats__timestamp')
     ).distinct().order_by('-last_chat_time', '-updated_at')
+
+    if party_type in ('buyer', 'seller'):
+        customers_with_chats = customers_with_chats.filter(customer_type=party_type)
+    elif party_type in ('failed', 'unsent'):
+        customers_with_chats = customers_with_chats.filter(failed_chat_filter)
 
     if query:
         customers_with_chats = customers_with_chats.filter(
@@ -3564,11 +3632,23 @@ def whatsapp_inbox(request):
     paginator = Paginator(customers_with_chats, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    page_cust_ids = [c.id for c in page_obj]
+    failed_cust_ids_in_page = set(
+        Customer.objects.filter(id__in=page_cust_ids).filter(failed_chat_filter).values_list('id', flat=True)
+    )
+    for c in page_obj:
+        c.has_failed_message = c.id in failed_cust_ids_in_page
     
     return render(request, 'core/whatsapp_inbox.html', {
         'page_obj': page_obj,
         'current_query': query,
         'active_customer_id': active_cust_id,
+        'current_party_type': party_type,
+        'total_count': total_count,
+        'buyers_count': buyers_count,
+        'sellers_count': sellers_count,
+        'failed_count': failed_count,
     })
 
 

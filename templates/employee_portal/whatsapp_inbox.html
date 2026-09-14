@@ -111,8 +111,8 @@
                 <!-- Dynamic Live Number Action Card -->
                 <div id="employee-phone-action-card" class="mb-2 d-none"></div>
 
-                <!-- Buyer vs Seller Filter Pills -->
-                <div class="d-flex gap-1">
+                <!-- Buyer vs Seller vs Failed Filter Pills -->
+                <div class="d-flex gap-1 flex-wrap">
                     <a href="{% url 'employee_portal:whatsapp_inbox' %}" 
                        class="btn btn-xs flex-grow-1 {% if not current_party_type %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
                         All ({{ total_count }})
@@ -124,6 +124,10 @@
                     <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=seller" 
                        class="btn btn-xs flex-grow-1 {% if current_party_type == 'seller' %}btn-success{% else %}btn-phoenix-secondary{% endif %}">
                         Sellers ({{ sellers_count }})
+                    </a>
+                    <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=failed" 
+                       class="btn btn-xs flex-grow-1 {% if current_party_type == 'failed' %}btn-danger text-white{% else %}btn-phoenix-danger{% endif %}" title="Filter chats with unsent or delivery failed messages">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Failed ({{ failed_count }})
                     </a>
                 </div>
             </div>
@@ -140,6 +144,9 @@
                             <div class="d-flex align-items-center gap-1">
                                 {% if c.last_chat_time %}
                                 <span class="fs-11 text-muted text-nowrap me-1">{{ c.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
+                                {% endif %}
+                                {% if c.has_failed_message %}
+                                <span class="badge badge-phoenix badge-phoenix-danger fs-10" title="Contains unsent or failed messages"><i class="fas fa-exclamation-circle me-1"></i>Failed</span>
                                 {% endif %}
                                 {% if c.customer_type == 'seller' %}
                                 <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
