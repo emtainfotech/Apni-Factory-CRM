@@ -25,7 +25,22 @@ from core.views import health_check, check_new_notifications
 
 from core import telegram_views
 
+def whatsapp_root_redirect(request):
+    """
+    Intelligently routes /whatsapp/inbox/ and /whatsapp/ to:
+    - /employee/whatsapp/ for logged-in employees
+    - /core/whatsapp/inbox/ for admins/managers
+    Preserves all query strings (e.g. ?customer_id=447).
+    """
+    query = request.GET.urlencode()
+    query_str = f"?{query}" if query else ""
+    if request.user.is_authenticated and getattr(request.user, 'role', '') == 'employee' and not request.user.is_superuser:
+        return redirect(f"/employee/whatsapp/{query_str}")
+    return redirect(f"/core/whatsapp/inbox/{query_str}")
+
 urlpatterns = [
+    path('whatsapp/inbox/', whatsapp_root_redirect, name='root_whatsapp_inbox'),
+    path('whatsapp/', whatsapp_root_redirect, name='root_whatsapp'),
     path('notifications/check-new/', check_new_notifications, name='root_check_new_notifications'),
     path('api/telegram/webhook/', telegram_views.telegram_webhook_view, name='telegram_webhook'),
     path('api/telegram/quick-approve/<int:request_id>/', telegram_views.quick_approve_view, name='telegram_quick_approve'),

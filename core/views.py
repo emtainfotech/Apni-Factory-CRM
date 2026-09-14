@@ -2518,7 +2518,7 @@ def whatsapp_webhook(request):
                     Notification.objects.create(
                         recipient=admin_user,
                         message=f"WhatsApp from {profile_name or phone_number}: {msg_preview[:45]}",
-                        url=f"/whatsapp/inbox/?customer_id={cust_id}",
+                        url=f"/core/whatsapp/inbox/?customer_id={cust_id}",
                         is_read=False
                     )
 
