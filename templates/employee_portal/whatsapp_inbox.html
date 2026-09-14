@@ -193,10 +193,21 @@
                         <a href="#" id="viewProfileBtn" class="btn btn-phoenix-secondary btn-sm" target="_blank">
                             <span class="fas fa-user me-1"></span> View Profile
                         </a>
-                        <a href="#" id="waDirectBtn" class="btn btn-phoenix-success btn-sm" target="_blank">
+                        <a href="#" id="waDirectBtn" class="btn btn-phoenix-success btn-sm" target="_blank" title="Open directly in WhatsApp Web (No Meta 24-hr limit)">
                             <span class="fab fa-whatsapp me-1"></span> WhatsApp Web
                         </a>
                     </div>
+                </div>
+
+                <!-- 24-Hour Meta Window Warning Banner (Shows if window expired) -->
+                <div id="metaWindowWarning" class="alert alert-warning py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-none d-flex align-items-center justify-content-between">
+                    <div>
+                        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                        <strong>24-Hour WhatsApp Window Inactive:</strong> Recipient has not messaged in the last 24h. Meta API freeform messages may fail (Error 131047).
+                    </div>
+                    <a href="#" id="windowDirectWaBtn" target="_blank" class="btn btn-xs btn-success text-white py-1 px-2 ms-2 text-nowrap">
+                        <i class="fab fa-whatsapp me-1"></i> Send via WhatsApp Web
+                    </a>
                 </div>
 
                 <!-- Messages Stream -->
@@ -205,14 +216,59 @@
                 </div>
 
                 <!-- Input Footer -->
-                <div class="p-3 bg-body border-top">
+                <div class="p-3 bg-body border-top position-relative">
+                    <!-- Quick Action Toolbar -->
+                    <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
+                        <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="insertSellerTemplate()" title="Quick load Seller Onboarding Template (Shortcut: type /seller)">
+                            <i class="fas fa-bolt text-warning me-1"></i> <span>Seller Onboarding</span> <span class="badge bg-secondary-subtle text-secondary ms-1">/seller</span>
+                        </button>
+                        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" id="btnTogglePdf" onclick="togglePdfAttachment()">
+                            <i class="fas fa-paperclip me-1"></i> <span id="pdfToggleText">Attach Seller Guide PDF</span>
+                        </button>
+                        <div class="ms-auto d-flex align-items-center gap-1">
+                            <a href="#" id="waWebSendDirectBtn" target="_blank" class="btn btn-xs btn-phoenix-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Open in WhatsApp Web with current message & PDF link (No 24h Meta limit)">
+                                <i class="fab fa-whatsapp me-1"></i> <span>Send via WhatsApp Web</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Attached PDF Preview Chip -->
+                    <div id="attachedPdfChip" class="d-none alert alert-primary py-1 px-2 mb-2 fs-10 d-flex align-items-center">
+                        <i class="fas fa-file-pdf text-danger fs-8 me-2"></i>
+                        <div class="flex-grow-1 text-truncate">
+                            <strong>Apni_Factory_Seller_Onboarding_Guide_Final.pdf</strong>
+                            <span class="badge bg-primary text-white ms-1">Auto-Attached (120 KB)</span>
+                        </div>
+                        <a href="https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf" target="_blank" class="btn btn-xs btn-link text-primary text-decoration-none p-0 me-2"><i class="fas fa-eye me-1"></i>Preview</a>
+                        <button type="button" class="btn-close fs-11" onclick="togglePdfAttachment(false)"></button>
+                    </div>
+
+                    <!-- Keyword Dropdown Suggestions Box -->
+                    <div id="keywordSuggestionsBox" class="dropdown-menu shadow-lg p-1 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 340px; margin-bottom: 8px;">
+                        <div class="px-2 py-1 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between">
+                            <span><i class="fas fa-magic text-primary me-1"></i> Quick Message Templates</span>
+                            <span class="badge bg-light text-secondary">Press Enter or Tab</span>
+                        </div>
+                        <a class="dropdown-item py-2 px-3 d-flex align-items-start gap-2 active-suggestion" href="javascript:void(0)" onclick="insertSellerTemplate()">
+                            <span class="badge bg-success-subtle text-success mt-1">/seller</span>
+                            <div>
+                                <div class="fw-bold text-body-emphasis">🌟 Welcome to Apni Factory! (Seller Onboarding)</div>
+                                <div class="text-body-tertiary fs-11">Includes registration link + auto-attaches Seller Guide PDF</div>
+                            </div>
+                        </a>
+                    </div>
+
                     <form id="sendMessageForm" onsubmit="submitMessage(event)">
                         {% csrf_token %}
+                        <input type="hidden" name="attach_seller_guide" id="attachSellerGuideInput" value="false">
                         <div class="input-group">
-                            <input type="text" name="message" id="messageInput" class="form-control fs-9" placeholder="Type a WhatsApp message..." autocomplete="off">
-                            <button type="submit" class="btn btn-primary px-4">
-                                <span class="fas fa-paper-plane me-1"></span> Send
+                            <textarea name="message" id="messageInput" class="form-control fs-9" rows="2" placeholder="Type a WhatsApp message or type /seller for onboarding template..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
+                            <button type="submit" class="btn btn-primary px-4 d-flex align-items-center justify-content-center" id="sendMsgBtn">
+                                <span class="fas fa-paper-plane me-1"></span> <span id="sendMsgBtnText">Send</span>
                             </button>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mt-1 text-muted fs-11">
+                            <span>Tip: Type <code class="text-primary">/seller</code> to load onboarding message & guide. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
                         </div>
                     </form>
                 </div>
@@ -254,9 +310,20 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fs-10 fw-bold">Initial Message (Optional)</label>
-                        <textarea class="form-control fs-9" id="emp-modal-initial-message" name="initial_message" rows="3" placeholder="Type a message to dispatch immediately..."></textarea>
-                        <small class="text-muted fs-10">Leave blank to open chat thread without sending immediately.</small>
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label fs-10 fw-bold mb-0">Initial Message (Optional)</label>
+                            <button type="button" class="btn btn-xs btn-outline-success rounded-pill py-0 px-2 fs-11" onclick="fillModalSellerTemplate()">
+                                <i class="fas fa-bolt text-warning me-1"></i> Use Seller Template (/seller)
+                            </button>
+                        </div>
+                        <textarea class="form-control fs-9" id="emp-modal-initial-message" name="initial_message" rows="4" placeholder="Type a message to dispatch immediately, or click 'Use Seller Template' above..."></textarea>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="emp-modal-attach-pdf" name="attach_seller_guide" value="true">
+                            <label class="form-check-label fs-10 text-body-secondary" for="emp-modal-attach-pdf">
+                                <i class="fas fa-file-pdf text-danger me-1"></i> Auto-Attach Seller Onboarding Guide PDF (Apni_Factory_Seller_Onboarding_Guide_Final.pdf)
+                            </label>
+                        </div>
+                        <small class="text-muted fs-10 d-block mt-1">Leave blank to open chat thread without sending immediately.</small>
                     </div>
                     <div id="emp-modal-alert-box" class="alert alert-danger d-none py-2 fs-10 mb-0"></div>
                 </div>
@@ -408,6 +475,135 @@ function loadChat(customerId, element) {
     }, 4000);
 }
 
+const SELLER_ONBOARDING_TEMPLATE = `🌟 *Welcome to Apni Factory!* 🌟
+
+Dear Sir/Madam,
+
+Greetings from *Apni Factory*! 👋
+We are delighted to invite you to join Apni Factory as a Seller/Vendor and showcase your products to customers across India. 🛍️📦
+
+To complete your Seller Registration & Verification, kindly keep the following documents/details ready:
+
+🔗 *Complete Seller Registration Here:*
+https://panel.apnifactory.co.in/register
+
+Once you have completed the registration, please share the required documents/details with our team for verification and onboarding.
+
+📄 *Download Seller Onboarding Guide (PDF):*
+https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf
+
+🤝 *Join Apni Factory and grow your business with a digital B2B marketplace.*
+
+Thank you for choosing Apni Factory.
+We look forward to welcoming you to our seller network! 🚀
+
+*Apni Factory*
+H Bose E-Commerce Pvt. Ltd.
+📞 +91 7648911811
+🌐 https://apnifactory.co.in/
+📘 https://www.facebook.com/apnifactoryapp/
+📷 https://www.instagram.com/apnifactory_app/
+📧 communication@apnifactory.co.in`;
+
+let isPdfAttached = false;
+
+function insertSellerTemplate() {
+    const input = document.getElementById('messageInput');
+    if (input) {
+        input.value = SELLER_ONBOARDING_TEMPLATE;
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+        input.focus();
+    }
+    togglePdfAttachment(true);
+    hideKeywordSuggestions();
+    updateWaWebDirectLink();
+}
+
+function togglePdfAttachment(forceState) {
+    if (typeof forceState === 'boolean') {
+        isPdfAttached = forceState;
+    } else {
+        isPdfAttached = !isPdfAttached;
+    }
+    const chip = document.getElementById('attachedPdfChip');
+    const inputFlag = document.getElementById('attachSellerGuideInput');
+    const toggleBtnText = document.getElementById('pdfToggleText');
+
+    if (chip) chip.classList.toggle('d-none', !isPdfAttached);
+    if (inputFlag) inputFlag.value = isPdfAttached ? 'true' : 'false';
+    if (toggleBtnText) toggleBtnText.innerText = isPdfAttached ? 'Guide PDF Attached ✓' : 'Attach Seller Guide PDF';
+    updateWaWebDirectLink();
+}
+
+function hideKeywordSuggestions() {
+    const suggestionsBox = document.getElementById('keywordSuggestionsBox');
+    if (suggestionsBox) suggestionsBox.classList.add('d-none');
+}
+
+function updateWaWebDirectLink() {
+    const phoneEl = document.getElementById('chatPhone');
+    const input = document.getElementById('messageInput');
+    const waWebBtn = document.getElementById('waWebSendDirectBtn');
+    const bannerBtn = document.getElementById('windowDirectWaBtn');
+    if (!phoneEl) return;
+
+    const rawPhone = phoneEl.innerText || '';
+    const cleanDigits = rawPhone.replace(/[^0-9]/g, '');
+    const phone10 = cleanDigits.slice(-10);
+    if (!phone10) return;
+
+    const currentMsg = (input && input.value.trim()) ? input.value.trim() : SELLER_ONBOARDING_TEMPLATE;
+    const encodedMsg = encodeURIComponent(currentMsg);
+    const waUrl = `https://web.whatsapp.com/send?phone=91${phone10}&text=${encodedMsg}`;
+    if (waWebBtn) waWebBtn.href = waUrl;
+    if (bannerBtn) bannerBtn.href = waUrl;
+}
+
+// Attach keyboard listeners for template shortcut /seller and Ctrl+Enter
+document.addEventListener('DOMContentLoaded', function() {
+    const messageInput = document.getElementById('messageInput');
+    if (messageInput) {
+        messageInput.addEventListener('input', function(e) {
+            const val = e.target.value;
+            updateWaWebDirectLink();
+
+            // Check for / or keyword
+            const suggestionsBox = document.getElementById('keywordSuggestionsBox');
+            if (!suggestionsBox) return;
+
+            const trimmed = val.trim().toLowerCase();
+            if (trimmed === '/' || trimmed === '/s' || trimmed === '/seller' || trimmed === '/onboard' || trimmed === '/onboarding' || trimmed === '/guide' || trimmed === '/welcome') {
+                suggestionsBox.classList.remove('d-none');
+            } else {
+                suggestionsBox.classList.add('d-none');
+            }
+        });
+
+        messageInput.addEventListener('keydown', function(e) {
+            const suggestionsBox = document.getElementById('keywordSuggestionsBox');
+            const isOpen = suggestionsBox && !suggestionsBox.classList.contains('d-none');
+
+            if (isOpen && (e.key === 'Enter' || e.key === 'Tab')) {
+                e.preventDefault();
+                insertSellerTemplate();
+                return;
+            }
+
+            if (e.key === 'Escape' && isOpen) {
+                suggestionsBox.classList.add('d-none');
+                return;
+            }
+
+            // Ctrl + Enter to quickly submit
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                submitMessage(e);
+            }
+        });
+    }
+});
+
 function fetchChatMessages(customerId, scroll = true) {
     fetch(`/employee/whatsapp/${customerId}/`)
         .then(res => res.json())
@@ -418,24 +614,83 @@ function fetchChatMessages(customerId, scroll = true) {
                 document.getElementById('chatAvatar').innerText = (data.customer_name || 'C').charAt(0).toUpperCase();
                 document.getElementById('chatTypeBadge').innerText = data.customer_type || 'Customer';
                 document.getElementById('viewProfileBtn').href = `/employee/customers/${customerId}/`;
-                document.getElementById('waDirectBtn').href = `https://wa.me/91${data.phone.replace(/[^0-9]/g, '').slice(-10)}`;
+
+                const cleanPhone = (data.phone || '').replace(/[^0-9]/g, '').slice(-10);
+                document.getElementById('waDirectBtn').href = `https://web.whatsapp.com/send?phone=91${cleanPhone}`;
+                updateWaWebDirectLink();
+
+                // 24h Meta Window Warning Banner
+                const warningBanner = document.getElementById('metaWindowWarning');
+                if (warningBanner) {
+                    if (data.window_24h_expired) {
+                        warningBanner.classList.remove('d-none');
+                    } else {
+                        warningBanner.classList.add('d-none');
+                    }
+                }
 
                 const container = document.getElementById('messagesContainer');
                 if (data.chats.length === 0) {
-                    container.innerHTML = '<div class="text-center text-body-quaternary my-auto fs-9">No messages yet. Send a message to start the conversation.</div>';
+                    container.innerHTML = '<div class="text-center text-body-quaternary my-auto fs-9">No messages yet. Type <strong>/seller</strong> or click "Seller Onboarding" above to send the welcome kit.</div>';
                 } else {
                     container.innerHTML = data.chats.map(chat => {
                         const isOutgoing = (chat.direction === 'outgoing');
                         const bubbleClass = isOutgoing ? 'msg-outgoing' : 'msg-incoming';
                         let attachHtml = '';
                         if (chat.attachment_url) {
-                            attachHtml = `<div class="mb-1"><a href="${chat.attachment_url}" target="_blank" class="text-white text-decoration-underline"><span class="fas fa-paperclip me-1"></span>Attachment</a></div>`;
+                            if (chat.attachment_url.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'))) {
+                                attachHtml = `
+                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm">
+                                        <i class="fas fa-file-pdf text-danger fs-5"></i>
+                                        <div class="flex-grow-1 text-truncate" style="max-width: 210px;">
+                                            <div class="fw-bold fs-10 text-truncate">Seller Onboarding Guide</div>
+                                            <div class="fs-11 text-muted">PDF Document (120 KB)</div>
+                                        </div>
+                                        <a href="${chat.attachment_url}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Open</a>
+                                    </div>
+                                `;
+                            } else {
+                                attachHtml = `<div class="mb-1"><a href="${chat.attachment_url}" target="_blank" class="text-white text-decoration-underline"><span class="fas fa-paperclip me-1"></span>Attachment</a></div>`;
+                            }
                         }
+
+                        // Delivery status indicators and Error 131047 fallback card
+                        let statusHtml = '';
+                        let failureCardHtml = '';
+                        if (isOutgoing) {
+                            if (chat.delivery_status === 'failed') {
+                                const encMsg = encodeURIComponent(chat.message || SELLER_ONBOARDING_TEMPLATE);
+                                const failWaLink = `https://web.whatsapp.com/send?phone=91${cleanPhone}&text=${encMsg}`;
+                                statusHtml = `<span class="badge bg-danger text-white py-0 px-1 ms-1 fs-11" title="Delivery Failed via Meta API"><i class="fas fa-exclamation-triangle me-1"></i>Failed</span>`;
+                                failureCardHtml = `
+                                    <div class="mt-2 p-2 rounded bg-danger-subtle text-danger border border-danger-subtle fs-11">
+                                        <div class="d-flex align-items-center justify-content-between mb-1">
+                                            <strong><i class="fas fa-clock me-1"></i>24-Hour WhatsApp Window Closed</strong>
+                                        </div>
+                                        <div class="text-dark fs-11 mb-2">Meta Cloud API rejected this message because the customer hasn't messaged in 24h. Deliver it immediately without restriction:</div>
+                                        <a href="${failWaLink}" target="_blank" class="btn btn-xs btn-danger text-white py-1 px-2 d-inline-flex align-items-center">
+                                            <i class="fab fa-whatsapp me-1"></i> Send via WhatsApp Web
+                                        </a>
+                                    </div>
+                                `;
+                            } else if (chat.delivery_status === 'read') {
+                                statusHtml = `<i class="fas fa-check-double text-info ms-1" title="Read by customer"></i>`;
+                            } else if (chat.delivery_status === 'delivered') {
+                                statusHtml = `<i class="fas fa-check-double text-light opacity-75 ms-1" title="Delivered to phone"></i>`;
+                            } else {
+                                statusHtml = `<i class="fas fa-check text-light opacity-75 ms-1" title="Sent to WhatsApp"></i>`;
+                            }
+                        }
+
                         return `
                             <div class="msg-bubble ${bubbleClass}">
                                 ${attachHtml}
-                                <div>${escapeHtml(chat.message || '')}</div>
-                                <div class="msg-time">${chat.timestamp}</div>
+                                <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(chat.message || '')}</div>
+                                <div class="msg-time d-flex align-items-center justify-content-end gap-1">
+                                    <span>${chat.timestamp}</span>
+                                    ${statusHtml}
+                                </div>
+                                ${failureCardHtml}
                             </div>
                         `;
                     }).join('');
@@ -450,15 +705,21 @@ function fetchChatMessages(customerId, scroll = true) {
 }
 
 function submitMessage(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!currentCustomerId) return;
 
     const input = document.getElementById('messageInput');
     const msg = input.value.trim();
-    if (!msg) return;
+    if (!msg && !isPdfAttached) return;
+
+    const sendBtn = document.getElementById('sendMsgBtn');
+    const sendBtnText = document.getElementById('sendMsgBtnText');
+    if (sendBtn) sendBtn.disabled = true;
+    if (sendBtnText) sendBtnText.innerText = "Sending...";
 
     const formData = new FormData();
     formData.append('message', msg);
+    formData.append('attach_seller_guide', isPdfAttached ? 'true' : 'false');
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
     fetch(`/employee/whatsapp/${currentCustomerId}/send/`, {
@@ -467,14 +728,24 @@ function submitMessage(e) {
     })
     .then(res => res.json())
     .then(data => {
+        if (sendBtn) sendBtn.disabled = false;
+        if (sendBtnText) sendBtnText.innerText = "Send";
+
         if (data.status === 'success') {
             input.value = '';
+            input.style.height = 'auto';
+            togglePdfAttachment(false);
+            hideKeywordSuggestions();
             fetchChatMessages(currentCustomerId, true);
         } else {
             alert(data.message || "Failed to send message.");
         }
     })
-    .catch(err => console.error("Error sending message:", err));
+    .catch(err => {
+        if (sendBtn) sendBtn.disabled = false;
+        if (sendBtnText) sendBtnText.innerText = "Send";
+        console.error("Error sending message:", err);
+    });
 }
 
 // Quick start modal opener
@@ -491,6 +762,15 @@ window.startEmployeeChatDirectly = function(phone, name = '') {
     }
 };
 
+function fillModalSellerTemplate() {
+    const msgArea = document.getElementById('emp-modal-initial-message');
+    const attachPdfCheck = document.getElementById('emp-modal-attach-pdf');
+    const typeSelect = document.getElementById('emp-modal-customer-type');
+    if (msgArea) msgArea.value = SELLER_ONBOARDING_TEMPLATE;
+    if (attachPdfCheck) attachPdfCheck.checked = true;
+    if (typeSelect) typeSelect.value = 'seller';
+}
+
 // Form submission for Employee new WhatsApp chat
 function handleEmployeeStartNewChat(e) {
     e.preventDefault();
@@ -498,6 +778,7 @@ function handleEmployeeStartNewChat(e) {
     const nameInput = document.getElementById('emp-modal-name');
     const typeSelect = document.getElementById('emp-modal-customer-type');
     const msgInput = document.getElementById('emp-modal-initial-message');
+    const attachPdfCheck = document.getElementById('emp-modal-attach-pdf');
     const submitBtn = document.getElementById('emp-modal-submit-btn');
     const btnText = document.getElementById('emp-modal-btn-text');
     const alertBox = document.getElementById('emp-modal-alert-box');
@@ -506,6 +787,7 @@ function handleEmployeeStartNewChat(e) {
     const name = nameInput.value.trim();
     const customerType = typeSelect.value;
     const initialMessage = msgInput.value.trim();
+    const attachSellerGuide = attachPdfCheck ? attachPdfCheck.checked : false;
 
     if (!phone) {
         alertBox.innerText = "Please provide a valid mobile number.";
@@ -523,6 +805,7 @@ function handleEmployeeStartNewChat(e) {
     formData.append('name', name);
     formData.append('customer_type', customerType);
     formData.append('initial_message', initialMessage);
+    formData.append('attach_seller_guide', attachSellerGuide ? 'true' : 'false');
 
     fetch('/employee/whatsapp/start-chat/', {
         method: 'POST',

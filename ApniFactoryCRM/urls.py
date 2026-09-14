@@ -1,4 +1,4 @@
-﻿"""
+"""
 URL configuration for ApniFactoryCRM project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -20,12 +20,13 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 
-from core.views import health_check
+from core.views import health_check, check_new_notifications
 
 
 from core import telegram_views
 
 urlpatterns = [
+    path('notifications/check-new/', check_new_notifications, name='root_check_new_notifications'),
     path('api/telegram/webhook/', telegram_views.telegram_webhook_view, name='telegram_webhook'),
     path('api/telegram/quick-approve/<int:request_id>/', telegram_views.quick_approve_view, name='telegram_quick_approve'),
 

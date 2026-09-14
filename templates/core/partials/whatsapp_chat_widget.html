@@ -1,20 +1,161 @@
+<!-- 24-Hour Meta Window Warning Banner -->
+<div id="core-meta-window-warning" class="alert alert-warning py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-none d-flex align-items-center justify-content-between">
+    <div>
+        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+        <strong>24-Hour WhatsApp Window Inactive:</strong> Recipient has not replied in 24 hours. Freeform Meta API messages may fail (Error 131047).
+    </div>
+    <a href="#" id="core-window-direct-wa-btn" target="_blank" class="btn btn-xs btn-success text-white py-1 px-2 ms-2 text-nowrap">
+        <i class="fab fa-whatsapp me-1"></i> Send via WhatsApp Web
+    </a>
+</div>
+
 <!-- Chat Messages Area -->
 <div class="flex-1 overflow-auto p-4 {% if not start_active %}d-none{% endif %}" id="chat-messages" style="background: #efeae2; min-height: 400px; max-height: 600px;">
     <!-- Messages will be injected here -->
 </div>
 
 <!-- Chat Input Form -->
-<div class="p-3 bg-white border-top border-300 {% if not start_active %}d-none{% endif %}" id="chat-input-area">
-    <form id="chat-form" class="d-flex w-100">
-        <input type="hidden" id="active-customer-id" value="{{ initial_customer_id|default:'' }}">
-        <input type="text" id="chat-input" class="form-control rounded-pill me-2" placeholder="Type a message..." autocomplete="off" required>
-        <button type="submit" class="btn btn-primary rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
-            <i class="fas fa-paper-plane"></i>
+<div class="p-3 bg-white border-top border-300 position-relative {% if not start_active %}d-none{% endif %}" id="chat-input-area">
+    <!-- Quick Action Bar -->
+    <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
+        <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="insertCoreSellerTemplate()" title="Load Seller Onboarding Template (Shortcut: type /seller)">
+            <i class="fas fa-bolt text-warning me-1"></i> <span>Seller Onboarding</span> <span class="badge bg-secondary-subtle text-secondary ms-1">/seller</span>
         </button>
+        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" id="coreBtnTogglePdf" onclick="toggleCorePdfAttachment()">
+            <i class="fas fa-paperclip me-1"></i> <span id="corePdfToggleText">Attach Seller Guide PDF</span>
+        </button>
+        <div class="ms-auto d-flex align-items-center gap-1">
+            <a href="#" id="coreWaWebSendDirectBtn" target="_blank" class="btn btn-xs btn-phoenix-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Open in WhatsApp Web with current message & PDF link (No 24h Meta limit)">
+                <i class="fab fa-whatsapp me-1"></i> <span>Send via WhatsApp Web</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Attached PDF Preview Chip -->
+    <div id="coreAttachedPdfChip" class="d-none alert alert-primary py-1 px-2 mb-2 fs-10 d-flex align-items-center">
+        <i class="fas fa-file-pdf text-danger fs-8 me-2"></i>
+        <div class="flex-grow-1 text-truncate">
+            <strong>Apni_Factory_Seller_Onboarding_Guide_Final.pdf</strong>
+            <span class="badge bg-primary text-white ms-1">Auto-Attached (120 KB)</span>
+        </div>
+        <a href="https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf" target="_blank" class="btn btn-xs btn-link text-primary text-decoration-none p-0 me-2"><i class="fas fa-eye me-1"></i>View</a>
+        <button type="button" class="btn-close fs-11" onclick="toggleCorePdfAttachment(false)"></button>
+    </div>
+
+    <!-- Keyword Dropdown Suggestions Box -->
+    <div id="coreKeywordSuggestionsBox" class="dropdown-menu shadow-lg p-1 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 340px; margin-bottom: 8px;">
+        <div class="px-2 py-1 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between">
+            <span><i class="fas fa-magic text-primary me-1"></i> Quick Message Templates</span>
+            <span class="badge bg-light text-secondary">Press Enter or Tab</span>
+        </div>
+        <a class="dropdown-item py-2 px-3 d-flex align-items-start gap-2 active-suggestion" href="javascript:void(0)" onclick="insertCoreSellerTemplate()">
+            <span class="badge bg-success-subtle text-success mt-1">/seller</span>
+            <div>
+                <div class="fw-bold text-body-emphasis">🌟 Welcome to Apni Factory! (Seller Onboarding)</div>
+                <div class="text-body-tertiary fs-11">Includes registration link + auto-attaches Seller Guide PDF</div>
+            </div>
+        </a>
+    </div>
+
+    <form id="chat-form" class="w-100">
+        <input type="hidden" id="active-customer-id" value="{{ initial_customer_id|default:'' }}">
+        <input type="hidden" id="coreAttachSellerGuideInput" value="false">
+        <div class="input-group">
+            <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message or /seller for onboarding template..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
+            <button type="submit" class="btn btn-primary px-4 d-flex align-items-center justify-content-center" id="coreSendMsgBtn">
+                <i class="fas fa-paper-plane me-1"></i> <span id="coreSendMsgBtnText">Send</span>
+            </button>
+        </div>
+        <div class="d-flex align-items-center justify-content-between mt-1 text-muted fs-11">
+            <span>Tip: Type <code class="text-primary">/seller</code> to load template & PDF guide. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
+        </div>
     </form>
 </div>
 
 <script>
+const CORE_SELLER_ONBOARDING_TEMPLATE = `🌟 *Welcome to Apni Factory!* 🌟
+
+Dear Sir/Madam,
+
+Greetings from *Apni Factory*! 👋
+We are delighted to invite you to join Apni Factory as a Seller/Vendor and showcase your products to customers across India. 🛍️📦
+
+To complete your Seller Registration & Verification, kindly keep the following documents/details ready:
+
+🔗 *Complete Seller Registration Here:*
+https://panel.apnifactory.co.in/register
+
+Once you have completed the registration, please share the required documents/details with our team for verification and onboarding.
+
+📄 *Download Seller Onboarding Guide (PDF):*
+https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf
+
+🤝 *Join Apni Factory and grow your business with a digital B2B marketplace.*
+
+Thank you for choosing Apni Factory.
+We look forward to welcoming you to our seller network! 🚀
+
+*Apni Factory*
+H Bose E-Commerce Pvt. Ltd.
+📞 +91 7648911811
+🌐 https://apnifactory.co.in/
+📘 https://www.facebook.com/apnifactoryapp/
+📷 https://www.instagram.com/apnifactory_app/
+📧 communication@apnifactory.co.in`;
+
+let isCorePdfAttached = false;
+let currentCustomerPhone = '';
+
+function insertCoreSellerTemplate() {
+    const input = document.getElementById('chat-input');
+    if (input) {
+        input.value = CORE_SELLER_ONBOARDING_TEMPLATE;
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+        input.focus();
+    }
+    toggleCorePdfAttachment(true);
+    hideCoreKeywordSuggestions();
+    updateCoreWaWebDirectLink();
+}
+
+function toggleCorePdfAttachment(forceState) {
+    if (typeof forceState === 'boolean') {
+        isCorePdfAttached = forceState;
+    } else {
+        isCorePdfAttached = !isCorePdfAttached;
+    }
+    const chip = document.getElementById('coreAttachedPdfChip');
+    const inputFlag = document.getElementById('coreAttachSellerGuideInput');
+    const toggleBtnText = document.getElementById('corePdfToggleText');
+
+    if (chip) chip.classList.toggle('d-none', !isCorePdfAttached);
+    if (inputFlag) inputFlag.value = isCorePdfAttached ? 'true' : 'false';
+    if (toggleBtnText) toggleBtnText.innerText = isCorePdfAttached ? 'Guide PDF Attached ✓' : 'Attach Seller Guide PDF';
+    updateCoreWaWebDirectLink();
+}
+
+function hideCoreKeywordSuggestions() {
+    const box = document.getElementById('coreKeywordSuggestionsBox');
+    if (box) box.classList.add('d-none');
+}
+
+function updateCoreWaWebDirectLink() {
+    const input = document.getElementById('chat-input');
+    const waWebBtn = document.getElementById('coreWaWebSendDirectBtn');
+    const bannerBtn = document.getElementById('core-window-direct-wa-btn');
+    if (!currentCustomerPhone) return;
+
+    const phone10 = currentCustomerPhone.replace(/[^0-9]/g, '').slice(-10);
+    if (!phone10) return;
+
+    const currentMsg = (input && input.value.trim()) ? input.value.trim() : CORE_SELLER_ONBOARDING_TEMPLATE;
+    const encodedMsg = encodeURIComponent(currentMsg);
+    const waUrl = `https://web.whatsapp.com/send?phone=91${phone10}&text=${encodedMsg}`;
+    if (waWebBtn) waWebBtn.href = waUrl;
+    if (bannerBtn) bannerBtn.href = waUrl;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     let currentCustomerId = document.getElementById('active-customer-id').value;
     let pollInterval = null;
@@ -26,6 +167,43 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatInput = document.getElementById('chat-input');
     const activeCustomerIdInput = document.getElementById('active-customer-id');
     
+    // Keyword suggestions listener
+    if (chatInput) {
+        chatInput.addEventListener('input', function(e) {
+            updateCoreWaWebDirectLink();
+            const suggestionsBox = document.getElementById('coreKeywordSuggestionsBox');
+            if (!suggestionsBox) return;
+
+            const trimmed = e.target.value.trim().toLowerCase();
+            if (trimmed === '/' || trimmed === '/s' || trimmed === '/seller' || trimmed === '/onboard' || trimmed === '/onboarding' || trimmed === '/guide' || trimmed === '/welcome') {
+                suggestionsBox.classList.remove('d-none');
+            } else {
+                suggestionsBox.classList.add('d-none');
+            }
+        });
+
+        chatInput.addEventListener('keydown', function(e) {
+            const suggestionsBox = document.getElementById('coreKeywordSuggestionsBox');
+            const isOpen = suggestionsBox && !suggestionsBox.classList.contains('d-none');
+
+            if (isOpen && (e.key === 'Enter' || e.key === 'Tab')) {
+                e.preventDefault();
+                insertCoreSellerTemplate();
+                return;
+            }
+
+            if (e.key === 'Escape' && isOpen) {
+                suggestionsBox.classList.add('d-none');
+                return;
+            }
+
+            if (e.key === 'Enter' && e.ctrlKey) {
+                e.preventDefault();
+                chatForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    }
+
     // Globally exposed for external callers (like contact lists)
     window.loadChat = function(customerId) {
         currentCustomerId = customerId;
@@ -41,10 +219,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Start polling
         if(pollInterval) clearInterval(pollInterval);
         pollInterval = setInterval(() => {
-            // Check if user is scrolled near bottom
             const isScrolledToBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 50;
             fetchMessages(customerId, isScrolledToBottom);
-        }, 5000);
+        }, 4000);
     };
 
     // Auto-load if initial ID was provided
@@ -57,8 +234,21 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 if(data.status === 'success') {
+                    currentCustomerPhone = data.phone || '';
+                    updateCoreWaWebDirectLink();
+
+                    // Update 24-hr window banner
+                    const warningBanner = document.getElementById('core-meta-window-warning');
+                    if (warningBanner) {
+                        if (data.window_24h_expired) {
+                            warningBanner.classList.remove('d-none');
+                        } else {
+                            warningBanner.classList.add('d-none');
+                        }
+                    }
+
                     if (data.chats.length !== lastRenderedCount) {
-                        renderMessages(data.chats, scrollToBottom);
+                        renderMessages(data.chats, scrollToBottom, currentCustomerPhone);
                         lastRenderedCount = data.chats.length;
                     }
                 }
@@ -66,9 +256,10 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => console.error("Error fetching chats", err));
     }
 
-    function renderMessages(chats, scrollToBottom) {
+    function renderMessages(chats, scrollToBottom, phone) {
         let html = '';
         let lastDateStr = null;
+        const cleanPhone10 = (phone || '').replace(/[^0-9]/g, '').slice(-10);
 
         chats.forEach(chat => {
             const isOutgoing = chat.direction === 'outgoing';
@@ -104,14 +295,52 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let attachmentHtml = '';
             if (chat.attachment_url) {
-                if (chat.attachment_type && chat.attachment_type.startsWith('image/') && !(chat.message && chat.message.toLowerCase().includes('document'))) {
-                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank"><img src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" alt="Image Attachment" onerror="this.outerHTML='<a href=\'${chat.attachment_url}\' target=\'_blank\' class=\'btn btn-sm btn-outline-primary\'><i class=\'fas fa-file-download me-1\'></i>Download Attachment</a>';"></a></div>`;
+                if (chat.attachment_url.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'))) {
+                    attachmentHtml = `
+                        <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm">
+                            <i class="fas fa-file-pdf text-danger fs-5"></i>
+                            <div class="flex-grow-1 text-truncate" style="max-width: 210px;">
+                                <div class="fw-bold fs-10 text-truncate">Seller Onboarding Guide</div>
+                                <div class="fs-11 text-muted">PDF Document (120 KB)</div>
+                            </div>
+                            <a href="${chat.attachment_url}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Open</a>
+                        </div>
+                    `;
+                } else if (chat.attachment_type && chat.attachment_type.startsWith('image/') && !(chat.message && chat.message.toLowerCase().includes('document'))) {
+                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank"><img src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" alt="Image Attachment"></a></div>`;
                 } else if (chat.attachment_type && chat.attachment_type.startsWith('video/')) {
                     attachmentHtml = `<div class="mb-2"><video src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" controls></video></div>`;
                 } else if (chat.attachment_type && chat.attachment_type.startsWith('audio/')) {
                     attachmentHtml = `<div class="mb-2"><audio src="${chat.attachment_url}" controls></audio></div>`;
                 } else {
                     attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center"><i class="fas fa-file-download me-2"></i>Download / View Document</a></div>`;
+                }
+            }
+
+            let statusHtml = '';
+            let failureCardHtml = '';
+            if (isOutgoing) {
+                if (chat.delivery_status === 'failed') {
+                    const encMsg = encodeURIComponent(chat.message || CORE_SELLER_ONBOARDING_TEMPLATE);
+                    const failWaLink = `https://web.whatsapp.com/send?phone=91${cleanPhone10}&text=${encMsg}`;
+                    statusHtml = `<span class="badge bg-danger text-white py-0 px-1 ms-1 fs-11" title="Delivery Failed via Meta API"><i class="fas fa-exclamation-triangle me-1"></i>Failed</span>`;
+                    failureCardHtml = `
+                        <div class="mt-2 p-2 rounded bg-danger-subtle text-danger border border-danger-subtle fs-11">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <strong><i class="fas fa-clock me-1"></i>24-Hour WhatsApp Window Closed</strong>
+                            </div>
+                            <div class="text-dark fs-11 mb-2">Meta Cloud API rejected this message because the customer hasn't messaged in 24h. Deliver it immediately:</div>
+                            <a href="${failWaLink}" target="_blank" class="btn btn-xs btn-danger text-white py-1 px-2 d-inline-flex align-items-center">
+                                <i class="fab fa-whatsapp me-1"></i> Send via WhatsApp Web
+                            </a>
+                        </div>
+                    `;
+                } else if (chat.delivery_status === 'read') {
+                    statusHtml = `<i class="fas fa-check-double text-info ms-1" title="Read"></i>`;
+                } else if (chat.delivery_status === 'delivered') {
+                    statusHtml = `<i class="fas fa-check-double text-muted ms-1" title="Delivered"></i>`;
+                } else {
+                    statusHtml = `<i class="fas fa-check text-muted ms-1" title="Sent"></i>`;
                 }
             }
 
@@ -122,7 +351,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <div class="p-2 rounded-3 shadow-sm ${bgClass}" style="max-width: 75%;">
                         ${attachmentHtml}
                         ${displayMsgText ? `<div style="white-space: pre-wrap; word-wrap: break-word;">${displayMsgText}</div>` : ''}
-                        <div class="text-end mt-1"><small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small></div>
+                        <div class="text-end mt-1 d-flex align-items-center justify-content-end gap-1">
+                            <small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small>
+                            ${statusHtml}
+                        </div>
+                        ${failureCardHtml}
                     </div>
                 </div>
             `;
@@ -137,24 +370,17 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         const customerId = activeCustomerIdInput.value;
         const msg = chatInput.value.trim();
-        if(!msg || !customerId) return;
+        if(!msg && !isCorePdfAttached) return;
+        if(!customerId) return;
         
-        // Optimistic UI update
-        const timeStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        const html = `
-            <div class="d-flex justify-content-end mb-3 opacity-50" id="temp-msg">
-                <div class="p-2 rounded-3 shadow-sm bg-success-subtle text-dark" style="max-width: 75%;">
-                    <div style="white-space: pre-wrap; word-wrap: break-word;">${escapeHTML(msg)}</div>
-                    <div class="text-end mt-1"><small class="text-muted" style="font-size: 0.65rem;">${timeStr} (Sending...)</small></div>
-                </div>
-            </div>
-        `;
-        chatMessages.insertAdjacentHTML('beforeend', html);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-        chatInput.value = '';
+        const sendBtn = document.getElementById('coreSendMsgBtn');
+        const sendBtnText = document.getElementById('coreSendMsgBtnText');
+        if (sendBtn) sendBtn.disabled = true;
+        if (sendBtnText) sendBtnText.innerText = "Sending...";
 
         const formData = new FormData();
         formData.append('message', msg);
+        formData.append('attach_seller_guide', isCorePdfAttached ? 'true' : 'false');
 
         fetch(`/core/whatsapp/send/${customerId}/`, {
             method: 'POST',
@@ -165,19 +391,24 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(res => res.json())
         .then(data => {
+            if (sendBtn) sendBtn.disabled = false;
+            if (sendBtnText) sendBtnText.innerText = "Send";
+
             if(data.status === 'success') {
+                chatInput.value = '';
+                chatInput.style.height = 'auto';
+                toggleCorePdfAttachment(false);
+                hideCoreKeywordSuggestions();
                 fetchMessages(customerId, true);
             } else {
                 alert("Error sending message: " + data.message);
-                const tempMsg = document.getElementById('temp-msg');
-                if (tempMsg) tempMsg.remove();
             }
         })
         .catch(err => {
+            if (sendBtn) sendBtn.disabled = false;
+            if (sendBtnText) sendBtnText.innerText = "Send";
             console.error("Error sending message", err);
             alert("Error sending message.");
-            const tempMsg = document.getElementById('temp-msg');
-            if (tempMsg) tempMsg.remove();
         });
     });
 

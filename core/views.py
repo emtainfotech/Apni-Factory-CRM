@@ -3572,16 +3572,44 @@ def whatsapp_inbox(request):
 
 @login_required
 def get_whatsapp_chat(request, customer_id):
+    from core.models import WhatsAppMessageStatus
+    from core.utils import format_whatsapp_phone
+
     customer = get_object_or_404(Customer, id=customer_id)
     chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
+    target_clean_phone = format_whatsapp_phone(customer.whatsapp_number or customer.phone)
+
+    # Collect wamids to batch-fetch delivery statuses
+    wamids = [c.wamid for c in chats if c.wamid]
+    status_map = {}
+    if wamids:
+        for st in WhatsAppMessageStatus.objects.filter(wamid__in=wamids):
+            status_map[st.wamid] = st
+
+    # Check recipient latest error (e.g. 131047: Re-engagement message)
+    latest_failed = WhatsAppMessageStatus.objects.filter(
+        recipient_id=target_clean_phone,
+        status='failed'
+    ).order_by('-timestamp').first()
+    window_24h_expired = bool(latest_failed and str(latest_failed.error_code) == '131047')
+
     chat_data = []
     for chat in chats:
+        st = status_map.get(chat.wamid)
+        delivery_status = st.status if st else ('sent' if chat.direction == 'outgoing' else None)
+        err_code = st.error_code if st else (latest_failed.error_code if (latest_failed and chat.direction == 'outgoing' and not st) else None)
+        err_title = st.error_title if st else (latest_failed.error_title if (latest_failed and chat.direction == 'outgoing' and not st) else None)
+
         chat_data.append({
             'id': chat.id,
             'message': chat.message,
             'direction': chat.direction,
             'attachment_url': chat.attachment.url if chat.attachment else None,
             'attachment_type': chat.attachment_type,
+            'wamid': chat.wamid,
+            'delivery_status': delivery_status,
+            'error_code': err_code,
+            'error_title': err_title,
             'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
         })
     return JsonResponse({
@@ -3589,7 +3617,9 @@ def get_whatsapp_chat(request, customer_id):
         'chats': chat_data,
         'customer_name': customer.get_full_name() if hasattr(customer, 'get_full_name') and customer.get_full_name() else (customer.first_name or customer.company_name or customer.phone),
         'phone': customer.whatsapp_number or customer.phone,
-        'customer_id': customer.id
+        'customer_id': customer.id,
+        'window_24h_expired': window_24h_expired,
+        'latest_error_title': latest_failed.error_title if latest_failed else None,
     })
 
 @login_required
@@ -3598,38 +3628,84 @@ def send_whatsapp_message_ajax(request, customer_id):
     if request.method == 'POST':
         customer = get_object_or_404(Customer, id=customer_id)
         message_text = request.POST.get('message', '').strip()
+        attachment_file = request.FILES.get('attachment')
+        attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
         
-        if not message_text:
+        if not message_text and not attachment_file and not attach_seller_guide:
             return JsonResponse({'status': 'error', 'message': 'Message cannot be empty.'})
             
         target_phone = customer.whatsapp_number or customer.phone
         
-        # Send via WhatsApp API
-        from core.utils import send_text_message, format_whatsapp_phone
-        success = send_text_message(target_phone, message_text)
-        
-        if success:
-            # Log the message
-            chat = WhatsAppChat.objects.create(
-                customer=customer,
-                message=message_text,
-                direction='outgoing'
+        from core.utils import (
+            send_text_message,
+            send_document_message,
+            format_whatsapp_phone,
+            DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+            DEFAULT_SELLER_GUIDE_PDF_FILENAME,
+            DEFAULT_SELLER_GUIDE_PDF_PATH
+        )
+
+        api_dispatched = False
+        chosen_wamid = None
+        api_error = None
+        chat_attachment = attachment_file
+        chat_attachment_type = attachment_file.content_type if attachment_file else None
+
+        if attach_seller_guide:
+            chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
+            chat_attachment_type = 'application/pdf'
+            doc_ok, doc_wamid, doc_err = send_document_message(
+                target_phone,
+                DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+                DEFAULT_SELLER_GUIDE_PDF_FILENAME,
+                caption=None,
+                return_details=True
             )
-            
-            # Disable Bot for this customer
-            lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))
-            lead.customer = customer
-            lead.needs_human = True
-            lead.save()
-            
-            return JsonResponse({'status': 'success', 'chat': {
+            if doc_ok:
+                api_dispatched = True
+                chosen_wamid = doc_wamid
+            elif doc_err:
+                api_error = doc_err
+
+        if message_text:
+            txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
+            if txt_ok:
+                api_dispatched = True
+                if not chosen_wamid:
+                    chosen_wamid = txt_wamid
+            elif txt_err:
+                api_error = txt_err
+
+        # Log the message
+        chat = WhatsAppChat.objects.create(
+            customer=customer,
+            message=message_text,
+            direction='outgoing',
+            attachment=chat_attachment,
+            attachment_type=chat_attachment_type,
+            wamid=chosen_wamid,
+            timestamp=timezone.now()
+        )
+        
+        # Disable Bot for this customer
+        lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))
+        lead.customer = customer
+        lead.needs_human = True
+        lead.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'chat': {
                 'id': chat.id,
                 'message': chat.message,
                 'direction': chat.direction,
+                'wamid': chat.wamid,
+                'attachment_url': chat.attachment.url if chat.attachment else None,
                 'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
-            }})
-        else:
-            return JsonResponse({'status': 'error', 'message': 'Failed to send message via Meta API.'})
+            },
+            'dispatched': api_dispatched,
+            'api_error': api_error
+        })
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
 
 
@@ -3716,6 +3792,7 @@ def whatsapp_start_new_chat(request):
     customer_name = request.POST.get('name', '').strip()
     customer_type = request.POST.get('customer_type', 'buyer').strip().lower()
     initial_message = request.POST.get('initial_message', '').strip()
+    attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
 
     digits = ''.join(c for c in raw_phone if c.isdigit())
     if len(digits) < 10:
@@ -3756,19 +3833,51 @@ def whatsapp_start_new_chat(request):
     lead.needs_human = True
     lead.save()
 
-    # If initial message provided, dispatch via Meta Cloud API and log
+    # If initial message or guide attachment provided, dispatch via Meta Cloud API and log
     sent_chat = None
-    if initial_message:
-        success = send_text_message(target_phone, initial_message)
+    if initial_message or attach_seller_guide:
+        from core.utils import (
+            send_document_message,
+            DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+            DEFAULT_SELLER_GUIDE_PDF_FILENAME,
+            DEFAULT_SELLER_GUIDE_PDF_PATH
+        )
+        chosen_wamid = None
+        attachment_path = None
+        attachment_type = None
+
+        if attach_seller_guide:
+            attachment_path = DEFAULT_SELLER_GUIDE_PDF_PATH
+            attachment_type = 'application/pdf'
+            doc_ok, doc_wamid, _ = send_document_message(
+                target_phone,
+                DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+                DEFAULT_SELLER_GUIDE_PDF_FILENAME,
+                caption=None,
+                return_details=True
+            )
+            if doc_wamid:
+                chosen_wamid = doc_wamid
+
+        if initial_message:
+            txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
+            if txt_wamid:
+                chosen_wamid = txt_wamid
+
         chat = WhatsAppChat.objects.create(
             customer=customer,
             message=initial_message,
             direction='outgoing',
+            attachment=attachment_path,
+            attachment_type=attachment_type,
+            wamid=chosen_wamid,
             timestamp=timezone.now()
         )
         sent_chat = {
             'id': chat.id,
             'message': chat.message,
+            'wamid': chat.wamid,
+            'attachment_url': chat.attachment.url if chat.attachment else None,
             'timestamp': timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
         }
 

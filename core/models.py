@@ -129,6 +129,7 @@ class WhatsAppChat(models.Model):
     direction = models.CharField(max_length=10, choices=DIRECTION_CHOICES)
     attachment = models.FileField(upload_to='whatsapp_attachments/', blank=True, null=True)
     attachment_type = models.CharField(max_length=50, blank=True, null=True)
+    wamid = models.CharField(max_length=255, blank=True, null=True, db_index=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

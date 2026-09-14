@@ -22,6 +22,40 @@ def generate_live_token():
     token = jwt.encode(payload, GST_SECRET_KEY, algorithm="HS256")
     return token
 
+DEFAULT_SELLER_ONBOARDING_TEXT = """🌟 *Welcome to Apni Factory!* 🌟
+
+Dear Sir/Madam,
+
+Greetings from *Apni Factory*! 👋
+We are delighted to invite you to join Apni Factory as a Seller/Vendor and showcase your products to customers across India. 🛍️📦
+
+To complete your Seller Registration & Verification, kindly keep the following documents/details ready:
+
+🔗 *Complete Seller Registration Here:*
+https://panel.apnifactory.co.in/register
+
+Once you have completed the registration, please share the required documents/details with our team for verification and onboarding.
+
+📄 *Download Seller Onboarding Guide (PDF):*
+https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf
+
+🤝 *Join Apni Factory and grow your business with a digital B2B marketplace.*
+
+Thank you for choosing Apni Factory.
+We look forward to welcoming you to our seller network! 🚀
+
+*Apni Factory*
+H Bose E-Commerce Pvt. Ltd.
+📞 +91 7648911811
+🌐 https://apnifactory.co.in/
+📘 https://www.facebook.com/apnifactoryapp/
+📷 https://www.instagram.com/apnifactory_app/
+📧 communication@apnifactory.co.in"""
+
+DEFAULT_SELLER_GUIDE_PDF_FILENAME = "Apni_Factory_Seller_Onboarding_Guide_Final.pdf"
+DEFAULT_SELLER_GUIDE_PDF_PATH = "whatsapp_attachments/Apni_Factory_Seller_Onboarding_Guide_Final.pdf"
+DEFAULT_SELLER_GUIDE_PUBLIC_URL = "https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf"
+
 def format_whatsapp_phone(raw_phone):
     """Normalizes phone number to international E.164 without leading plus."""
     digits = ''.join(c for c in str(raw_phone) if c.isdigit())
@@ -33,11 +67,15 @@ def format_whatsapp_phone(raw_phone):
         return digits
     return digits
 
-def send_text_message(to_number, text):
-    """Sends a standard WhatsApp text message via Meta Cloud API."""
+def send_text_message(to_number, text, return_details=False):
+    """
+    Sends a standard WhatsApp text message via Meta Cloud API.
+    If return_details=True: returns (success: bool, wamid: str, error_msg: str)
+    If return_details=False: returns success: bool
+    """
     clean_number = format_whatsapp_phone(to_number)
     if not clean_number:
-        return False
+        return (False, None, "Invalid phone number") if return_details else False
 
     meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
     meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
@@ -55,14 +93,69 @@ def send_text_message(to_number, text):
             "Content-Type": "application/json",
         }
         response = requests.post(meta_url, headers=headers, json=payload, timeout=10)
+        resp_data = response.json() if response.text else {}
         if response.status_code == 200:
-            return True
+            messages = resp_data.get('messages', [])
+            wamid = messages[0].get('id') if messages else None
+            return (True, wamid, None) if return_details else True
         else:
-            print(f"Meta API Error ({response.status_code}): {response.text}")
-            return False
+            err_msg = resp_data.get('error', {}).get('message') or response.text
+            print(f"Meta API Error ({response.status_code}): {err_msg}")
+            return (False, None, err_msg) if return_details else False
     except Exception as e:
         print(f"Meta API Dispatch Exception: {e}")
-        return False
+        return (False, None, str(e)) if return_details else False
+
+def send_document_message(to_number, document_url, filename, caption=None, return_details=False):
+    """
+    Sends a WhatsApp document (e.g. PDF) via Meta Cloud API.
+    If return_details=True: returns (success: bool, wamid: str, error_msg: str)
+    If return_details=False: returns success: bool
+    """
+    clean_number = format_whatsapp_phone(to_number)
+    if not clean_number:
+        return (False, None, "Invalid phone number") if return_details else False
+
+    meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
+    meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
+
+    # Meta limits document caption to 1024 characters
+    truncated_caption = None
+    if caption:
+        truncated_caption = caption[:1000]
+
+    doc_obj = {
+        "link": document_url,
+        "filename": filename,
+    }
+    if truncated_caption:
+        doc_obj["caption"] = truncated_caption
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_number,
+        "type": "document",
+        "document": doc_obj
+    }
+    try:
+        headers = {
+            "Authorization": f"Bearer {meta_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(meta_url, headers=headers, json=payload, timeout=12)
+        resp_data = response.json() if response.text else {}
+        if response.status_code == 200:
+            messages = resp_data.get('messages', [])
+            wamid = messages[0].get('id') if messages else None
+            return (True, wamid, None) if return_details else True
+        else:
+            err_msg = resp_data.get('error', {}).get('message') or response.text
+            print(f"Meta API Document Error ({response.status_code}): {err_msg}")
+            return (False, None, err_msg) if return_details else False
+    except Exception as e:
+        print(f"Meta API Document Exception: {e}")
+        return (False, None, str(e)) if return_details else False
 
 def verify_gst_number_live(gst_number):
     """

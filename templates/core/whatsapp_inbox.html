@@ -146,9 +146,20 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fs-10 fw-bold">Initial Message (Optional)</label>
-                        <textarea class="form-control fs-9" id="modal-initial-message" name="initial_message" rows="3" placeholder="Type a message to dispatch immediately..."></textarea>
-                        <small class="text-muted fs-10">Leave blank to open chat thread without sending immediately.</small>
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <label class="form-label fs-10 fw-bold mb-0">Initial Message (Optional)</label>
+                            <button type="button" class="btn btn-xs btn-outline-success rounded-pill py-0 px-2 fs-11" onclick="fillCoreModalSellerTemplate()">
+                                <i class="fas fa-bolt text-warning me-1"></i> Use Seller Template (/seller)
+                            </button>
+                        </div>
+                        <textarea class="form-control fs-9" id="modal-initial-message" name="initial_message" rows="4" placeholder="Type a message to dispatch immediately, or click 'Use Seller Template' above..."></textarea>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="modal-attach-pdf" name="attach_seller_guide" value="true">
+                            <label class="form-check-label fs-10 text-body-secondary" for="modal-attach-pdf">
+                                <i class="fas fa-file-pdf text-danger me-1"></i> Auto-Attach Seller Onboarding Guide PDF (Apni_Factory_Seller_Onboarding_Guide_Final.pdf)
+                            </label>
+                        </div>
+                        <small class="text-muted fs-10 d-block mt-1">Leave blank to open chat thread without sending immediately.</small>
                     </div>
                     <div id="modal-alert-box" class="alert alert-danger d-none py-2 fs-10 mb-0"></div>
                 </div>
@@ -363,6 +374,15 @@ window.startChatDirectly = function(phone, name = '') {
     }
 };
 
+function fillCoreModalSellerTemplate() {
+    const msgArea = document.getElementById('modal-initial-message');
+    const attachPdfCheck = document.getElementById('modal-attach-pdf');
+    const typeSelect = document.getElementById('modal-customer-type');
+    if (msgArea) msgArea.value = CORE_SELLER_ONBOARDING_TEMPLATE;
+    if (attachPdfCheck) attachPdfCheck.checked = true;
+    if (typeSelect) typeSelect.value = 'seller';
+}
+
 // Form submission for new WhatsApp chat
 function handleStartNewChat(e) {
     e.preventDefault();
@@ -370,6 +390,7 @@ function handleStartNewChat(e) {
     const nameInput = document.getElementById('modal-name');
     const typeSelect = document.getElementById('modal-customer-type');
     const msgInput = document.getElementById('modal-initial-message');
+    const attachPdfCheck = document.getElementById('modal-attach-pdf');
     const submitBtn = document.getElementById('modal-submit-btn');
     const btnText = document.getElementById('modal-btn-text');
     const alertBox = document.getElementById('modal-alert-box');
@@ -378,6 +399,7 @@ function handleStartNewChat(e) {
     const name = nameInput.value.trim();
     const customerType = typeSelect.value;
     const initialMessage = msgInput.value.trim();
+    const attachSellerGuide = attachPdfCheck ? attachPdfCheck.checked : false;
 
     if (!phone) {
         alertBox.innerText = "Please provide a valid mobile number.";
@@ -395,6 +417,7 @@ function handleStartNewChat(e) {
     formData.append('name', name);
     formData.append('customer_type', customerType);
     formData.append('initial_message', initialMessage);
+    formData.append('attach_seller_guide', attachSellerGuide ? 'true' : 'false');
 
     fetch('/core/whatsapp/start-chat/', {
         method: 'POST',
