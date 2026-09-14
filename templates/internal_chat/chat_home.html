@@ -791,7 +791,7 @@
             {% for rd in room_data %}
             <div class="chat-item {% if active_room_id == rd.room.id|stringformat:'s' %}active{% endif %}"
                  id="room-item-{{ rd.room.id }}"
-                 data-name="{{ rd.display_name }}"
+                 data-name="{{ rd.display_name|lower }} {% if rd.other_user %}{{ rd.other_user.username|lower }}{% endif %}"
                  onclick="openRoom({{ rd.room.id }}, '{{ rd.display_name|escapejs }}', '{{ rd.room.room_type }}')">
               <div class="avatar-wrap">
                 <div class="chat-avatar {% if rd.room.room_type == 'group' %}group-av{% elif rd.other_user and rd.other_user.role == 'admin' %}admin-av{% endif %}">
@@ -808,6 +808,9 @@
               <div class="chat-info">
                 <div class="chat-name">
                   <span>{{ rd.display_name }}</span>
+                  {% if rd.other_user and rd.other_user.username != rd.display_name %}
+                  <span class="text-body-tertiary fw-normal ms-1 fs-11" style="opacity:0.75;">({{ rd.other_user.username }})</span>
+                  {% endif %}
                   {% if rd.room.room_type == 'group' %}
                   <span class="badge rounded-pill bg-light text-dark ms-1" style="font-size:0.58rem;">Group</span>
                   {% elif rd.other_user and rd.other_user.role == 'admin' %}
@@ -851,10 +854,10 @@
         <div id="tabTeamView" style="display:none;">
           <div id="teamMembersContainer">
             {% for u in all_users %}
-            <div class="chat-item team-member-item" data-name="{{ u.get_full_name|default:u.username }}" onclick="startDirectChat({{ u.pk }})">
+            <div class="chat-item team-member-item" data-name="{{ u.get_display_name|lower }} {{ u.username|lower }}" onclick="startDirectChat({{ u.pk }})">
               <div class="avatar-wrap">
                 <div class="chat-avatar {% if u.is_superuser or u.role == 'admin' %}admin-av{% else %}group-av{% endif %}">
-                  {{ u.get_full_name|default:u.username|slice:":2"|upper }}
+                  {{ u.get_display_name|slice:":2"|upper }}
                 </div>
                 {% if u.pk in online_ids %}
                 <div class="status-dot"></div>
@@ -862,7 +865,10 @@
               </div>
               <div class="chat-info">
                 <div class="chat-name">
-                  <span>{{ u.get_full_name|default:u.username }}</span>
+                  <span>{{ u.get_display_name }}</span>
+                  {% if u.username != u.get_display_name %}
+                  <span class="text-body-tertiary fw-normal ms-1 fs-11" style="opacity:0.75;">({{ u.username }})</span>
+                  {% endif %}
                   {% if u.is_superuser or u.role == 'admin' %}
                   <span class="badge rounded-pill bg-warning-subtle text-warning ms-1" style="font-size:0.58rem;">Admin</span>
                   {% endif %}
@@ -901,7 +907,7 @@
         <div class="d-flex gap-2 flex-wrap justify-content-center" style="max-width: 440px;">
           {% for u in all_users|slice:":5" %}
           <button class="btn btn-sm btn-outline-secondary rounded-pill fs-10" onclick="startDirectChat({{ u.pk }})">
-            <i class="fas fa-comment me-1"></i> {{ u.get_full_name|default:u.username }}
+            <i class="fas fa-comment me-1"></i> {{ u.get_display_name }}
           </button>
           {% endfor %}
         </div>
@@ -1070,8 +1076,11 @@
           <div class="form-check mb-1">
             <input class="form-check-input group-member-cb" type="checkbox" value="{{ u.pk }}" id="cb-user-{{ u.pk }}">
             <label class="form-check-label fs-9" for="cb-user-{{ u.pk }}">
-              {{ u.get_full_name|default:u.username }}
-              <span class="text-muted">({{ u.get_role_display|default:u.role }})</span>
+              <strong>{{ u.get_display_name }}</strong>
+              {% if u.username != u.get_display_name %}
+              <span class="text-muted">({{ u.username }})</span>
+              {% endif %}
+              <span class="text-secondary"> - {{ u.get_role_display|default:u.role|title }}</span>
               {% if u.pk in online_ids %}<span class="text-success ms-1"><i class="fas fa-circle" style="font-size:0.45rem;"></i></span>{% endif %}
             </label>
           </div>
@@ -1115,7 +1124,7 @@ const availableRooms = [
 ];
 const availableUsers = [
   {% for u in all_users %}
-  { id: {{ u.pk }}, name: '{{ u.get_full_name|default:u.username|escapejs }}', role: '{{ u.role|default:"employee"|escapejs }}' },
+  { id: {{ u.pk }}, name: '{{ u.get_display_name|escapejs }}', username: '{{ u.username|escapejs }}', role: '{{ u.get_role_display|default:u.role|title|escapejs }}' },
   {% endfor %}
 ];
 
@@ -1221,13 +1230,14 @@ function loadMessages(isInitial) {
           const other = data.members.find(m => m.id !== currentUserId);
           if (other) {
             const dot = document.getElementById('panelOnlineDot');
-            if (other.online) {
-              dot.style.display = 'block';
-              document.getElementById('panelStatus').innerHTML = '<span class="text-success"><i class="fas fa-circle" style="font-size:0.42rem;"></i> Online</span>';
-            } else {
-              dot.style.display = 'none';
-              document.getElementById('panelStatus').textContent = 'Offline';
-            }
+            const statusText = other.online
+              ? '<span class="text-success"><i class="fas fa-circle" style="font-size:0.42rem;"></i> Online</span>'
+              : 'Offline';
+            const usernameTag = (other.username && other.username !== other.name)
+              ? ` • <span class="text-muted">ID: ${escapeHtml(other.username)}</span>`
+              : '';
+            dot.style.display = other.online ? 'block' : 'none';
+            document.getElementById('panelStatus').innerHTML = statusText + usernameTag;
           }
         } else {
           const onlineCount = data.members.filter(m => m.online).length;
@@ -1522,11 +1532,12 @@ function renderForwardRecipients() {
       if (u.id === currentUserId) return;
       const row = document.createElement('div');
       row.className = 'form-check mb-1 forward-recipient-row';
-      row.dataset.name = u.name.toLowerCase();
+      row.dataset.name = ((u.name || '') + ' ' + (u.username || '')).toLowerCase();
+      const usernameSub = (u.username && u.username !== u.name) ? `<span class="text-muted fs-11">(${escapeHtml(u.username)})</span> ` : '';
       row.innerHTML = `
         <input class="form-check-input forward-cb forward-user-cb" type="checkbox" value="${u.id}" id="fwd-user-${u.id}" onchange="updateForwardCount()">
         <label class="form-check-label fs-9" for="fwd-user-${u.id}">
-          ${escapeHtml(u.name)} <span class="text-muted fs-11">(${escapeHtml(u.role)})</span>
+          <strong>${escapeHtml(u.name)}</strong> ${usernameSub}<span class="badge bg-secondary-subtle text-secondary ms-1 fs-11">${escapeHtml(u.role)}</span>
         </label>`;
       container.appendChild(row);
     });

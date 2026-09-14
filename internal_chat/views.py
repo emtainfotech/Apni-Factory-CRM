@@ -29,7 +29,7 @@ def create_message_notification(message):
     try:
         from authentication.models import Notification
         room = message.room
-        sender_name = message.sender.get_full_name() or message.sender.username
+        sender_name = message.sender.get_display_name() if hasattr(message.sender, 'get_display_name') else (message.sender.get_full_name() or message.sender.username)
         preview = message.content[:60] if message.content else '📎 Attachment'
         room_name = room.get_display_name(message.sender)
         notif_msg = f"💬 {sender_name}: {preview}"
@@ -183,8 +183,9 @@ def get_messages(request, room_id):
     online_ids = UserPresence.get_online_user_ids()
     members = [{
         'id': m.pk,
-        'name': m.get_full_name() or m.username,
-        'initials': (m.get_full_name() or m.username)[:2].upper(),
+        'name': m.get_display_name() if hasattr(m, 'get_display_name') else (m.get_full_name() or m.username),
+        'username': m.username,
+        'initials': (m.get_display_name() if hasattr(m, 'get_display_name') else (m.get_full_name() or m.username))[:2].upper(),
         'online': m.pk in online_ids,
         'role': getattr(m, 'role', 'employee'),
     } for m in room.members.all()]

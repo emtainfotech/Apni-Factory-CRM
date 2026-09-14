@@ -32,7 +32,9 @@ class ChatRoom(models.Model):
         if self.room_type == self.DIRECT:
             members = list(self.members.all())
             if len(members) >= 2:
-                return f"DM: {members[0].get_full_name() or members[0].username} ↔ {members[1].get_full_name() or members[1].username}"
+                m0_name = members[0].get_display_name() if hasattr(members[0], 'get_display_name') else (members[0].get_full_name() or members[0].username)
+                m1_name = members[1].get_display_name() if hasattr(members[1], 'get_display_name') else (members[1].get_full_name() or members[1].username)
+                return f"DM: {m0_name} ↔ {m1_name}"
         return self.name or f"Room #{self.pk}"
 
     def get_display_name(self, for_user):
@@ -40,8 +42,9 @@ class ChatRoom(models.Model):
         if self.room_type == self.DIRECT:
             other = self.members.exclude(pk=for_user.pk).first()
             if other:
-                return other.get_full_name() or other.username
+                return other.get_display_name() if hasattr(other, 'get_display_name') else (other.get_full_name() or other.username)
         return self.name or f"Group Room #{self.pk}"
+
 
     def get_other_member(self, user):
         """For DM rooms, returns the other participant."""
@@ -98,15 +101,17 @@ class ChatMessage(models.Model):
         ordering = ['timestamp']
 
     def __str__(self):
-        return f"[{self.room}] {self.sender.username}: {self.content[:50]}"
+        sender_label = self.sender.get_display_name() if hasattr(self.sender, 'get_display_name') else (self.sender.get_full_name() or self.sender.username)
+        return f"[{self.room}] {sender_label}: {self.content[:50]}"
 
     def to_dict(self, current_user=None):
         """Serialize for JSON API response."""
-        sender_name = self.sender.get_full_name() or self.sender.username
+        sender_name = self.sender.get_display_name() if hasattr(self.sender, 'get_display_name') else (self.sender.get_full_name() or self.sender.username)
         data = {
             'id': self.id,
             'sender_id': self.sender_id,
             'sender_name': sender_name,
+            'sender_username': self.sender.username,
             'sender_initials': sender_name[:2].upper(),
             'sender_role': getattr(self.sender, 'role', 'employee'),
             'sender_is_superuser': self.sender.is_superuser,
@@ -120,10 +125,11 @@ class ChatMessage(models.Model):
             'read_by_count': self.read_by.count(),
         }
         if self.reply_to and not self.reply_to.is_deleted:
-            r_sender = self.reply_to.sender.get_full_name() or self.reply_to.sender.username
+            r_sender = self.reply_to.sender.get_display_name() if hasattr(self.reply_to.sender, 'get_display_name') else (self.reply_to.sender.get_full_name() or self.reply_to.sender.username)
             data['reply_to'] = {
                 'id': self.reply_to_id,
                 'sender_name': r_sender,
+                'sender_username': self.reply_to.sender.username,
                 'content': self.reply_to.content[:100] if self.reply_to.content else ('📎 Attachment' if self.reply_to.attachment else ''),
             }
         if self.attachment:
@@ -131,6 +137,7 @@ class ChatMessage(models.Model):
             data['attachment_type'] = self.attachment_type or 'file'
             data['attachment_name'] = self.attachment_name or self.attachment.name.split('/')[-1]
         return data
+
 
 
 class UserPresence(models.Model):

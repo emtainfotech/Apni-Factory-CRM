@@ -27,9 +27,17 @@
                     </div>
                 </div>
                 <div class="col">
-                    <div class="d-flex align-items-center gap-2 mb-1">
-                        <h2 class="mb-0">{{ user_profile.username }}</h2>
+                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                        <h2 class="mb-0">{{ user_profile.get_display_name }}</h2>
                         <span class="badge badge-phoenix badge-phoenix-info text-capitalize">{{ user_profile.get_role_display }}</span>
+                        {% if user_profile.username != user_profile.get_display_name %}
+                        <span class="badge badge-phoenix badge-phoenix-secondary">ID: {{ user_profile.username }}</span>
+                        {% endif %}
+                        {% if request.user.role == 'admin' or request.user.is_superuser %}
+                        <button class="btn btn-link p-0 text-primary fs-10" data-bs-toggle="modal" data-bs-target="#updateNameModal" title="Edit Employee Name">
+                            <i class="fas fa-edit"></i> Edit Name
+                        </button>
+                        {% endif %}
                     </div>
                     <p class="text-body-tertiary mb-0"><i class="fas fa-envelope me-1"></i>{{ user_profile.email }} | <i class="fas fa-phone me-1"></i>{{ user_profile.phone_number|default:"No Phone" }}</p>
                     <small class="text-body-quaternary"><i class="fas fa-calendar-alt me-1"></i>Joined: {{ user_profile.date_joined|date:"d M Y" }}</small>
@@ -426,6 +434,38 @@
         </div>
     </div>
 </div>
+
+<!-- Update Name Modal -->
+<div class="modal fade" id="updateNameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <form method="post" action="{% url 'user_detail' user_profile.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_name">
+                <div class="modal-header bg-body border-bottom py-3">
+                    <h5 class="modal-title"><i class="fas fa-user-edit me-2 text-primary"></i>Update Employee Name</h5>
+                    <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-3">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">First Name</label>
+                        <input type="text" class="form-control" name="first_name" value="{{ user_profile.first_name }}" placeholder="e.g. Rahul" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Last Name</label>
+                        <input type="text" class="form-control" name="last_name" value="{{ user_profile.last_name }}" placeholder="e.g. Sharma">
+                    </div>
+                    <small class="text-muted">Employee ID / Username: <strong>{{ user_profile.username }}</strong></small>
+                </div>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-outline-secondary rounded-pill" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary rounded-pill" type="submit">Save Name</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 <!-- Delete User Modal -->
 <div class="modal fade" id="deleteUserModal" tabindex="-1" aria-hidden="true">

@@ -558,6 +558,13 @@ def user_detail(request, user_id):
             profile.save()
             messages.success(request, f"Salary updated for {user_profile.username}.")
             return redirect('user_detail', user_id=user_id)
+        elif action == 'update_name':
+            user_profile.first_name = request.POST.get('first_name', '').strip()
+            user_profile.last_name = request.POST.get('last_name', '').strip()
+            user_profile.save()
+            messages.success(request, f"Name updated successfully to '{user_profile.get_display_name()}'.")
+            return redirect('user_detail', user_id=user_id)
+
             
     attendances = Attendance.objects.filter(user=user_profile).order_by('-date')
     leaves = LeaveRequest.objects.filter(employee=user_profile).order_by('-created_at')
@@ -3817,15 +3824,29 @@ def onboarding_create_user(request, pk):
             messages.error(request, f'Username "{username}" is already taken. Choose another.')
             return redirect('onboarding_detail', pk=pk)
 
+        # Resolve real candidate name for first_name / last_name
+        raw_name = ""
+        if submission and submission.full_name:
+            raw_name = submission.full_name.strip()
+        elif candidate.candidate_name:
+            raw_name = candidate.candidate_name.strip()
+
+        name_parts = raw_name.split(' ', 1) if raw_name else []
+        first_name = name_parts[0] if len(name_parts) > 0 else ""
+        last_name = name_parts[1] if len(name_parts) > 1 else ""
+
         # Create the CRM user
         new_user = User.objects.create_user(
             username=username,
             email=candidate.email,
             password=password,
+            first_name=first_name,
+            last_name=last_name,
             role=role,
             phone_number=phone_number or candidate.mobile,
             is_active=True,
         )
+
 
         # Link the submission data to EmployeeProfile if it exists
         from .models import EmployeeProfile

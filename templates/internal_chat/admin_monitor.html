@@ -263,7 +263,7 @@
               </div>
               <div class="min-w-0">
                 <div class="fw-bold fs-9 text-dark text-truncate">
-                  {% for m in rd.members %}{{ m.get_full_name|default:m.username }}{% if not forloop.last %} & {% endif %}{% endfor %}
+                  {% for m in rd.members %}{{ m.get_display_name }}{% if not forloop.last %} & {% endif %}{% endfor %}
                 </div>
                 <div class="fs-10 text-muted">
                   {{ rd.message_count }} msg{{ rd.message_count|pluralize }} •
@@ -282,14 +282,14 @@
               {% for m in rd.members %}
               <span class="rc-member-chip">
                 <i class="fas fa-user text-muted" style="font-size:0.6rem;"></i>
-                {{ m.get_full_name|default:m.username }}
+                {{ m.get_display_name }}
                 {% if m.pk in online_ids %}<i class="fas fa-circle text-success" style="font-size:0.45rem;"></i>{% endif %}
               </span>
               {% endfor %}
             </div>
             {% if rd.last_message %}
             <div class="rc-preview text-truncate">
-              <strong>{{ rd.last_message.sender.get_full_name|default:rd.last_message.sender.username }}:</strong>
+              <strong>{{ rd.last_message.sender.get_display_name }}:</strong>
               {% if rd.last_message.is_deleted %}
                 <em>Deleted</em>
               {% elif rd.last_message.attachment and not rd.last_message.content %}
