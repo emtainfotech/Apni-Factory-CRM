@@ -36,9 +36,6 @@ https://panel.apnifactory.co.in/register
 
 Once you have completed the registration, please share the required documents/details with our team for verification and onboarding.
 
-📄 *Download Seller Onboarding Guide (PDF):*
-https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf
-
 🤝 *Join Apni Factory and grow your business with a digital B2B marketplace.*
 
 Thank you for choosing Apni Factory.
@@ -122,7 +119,7 @@ def send_document_message(to_number, document_url, filename, caption=None, retur
     # Meta limits document caption to 1024 characters
     truncated_caption = None
     if caption:
-        truncated_caption = caption[:1000]
+        truncated_caption = caption[:1024]
 
     doc_obj = {
         "link": document_url,

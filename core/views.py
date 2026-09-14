@@ -3654,25 +3654,32 @@ def send_whatsapp_message_ajax(request, customer_id):
         if attach_seller_guide:
             chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
             chat_attachment_type = 'application/pdf'
+            # Send single document message with message_text as caption
             doc_ok, doc_wamid, doc_err = send_document_message(
                 target_phone,
                 DEFAULT_SELLER_GUIDE_PUBLIC_URL,
                 DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-                caption=None,
+                caption=message_text,
                 return_details=True
             )
             if doc_ok:
                 api_dispatched = True
                 chosen_wamid = doc_wamid
-            elif doc_err:
+            else:
                 api_error = doc_err
-
-        if message_text:
+                # Fallback to plain text if document dispatch fails
+                if message_text:
+                    txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
+                    if txt_ok:
+                        api_dispatched = True
+                        chosen_wamid = txt_wamid
+                    elif txt_err:
+                        api_error = f"Doc: {doc_err} | Text: {txt_err}"
+        elif message_text:
             txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
             if txt_ok:
                 api_dispatched = True
-                if not chosen_wamid:
-                    chosen_wamid = txt_wamid
+                chosen_wamid = txt_wamid
             elif txt_err:
                 api_error = txt_err
 
@@ -3853,13 +3860,16 @@ def whatsapp_start_new_chat(request):
                 target_phone,
                 DEFAULT_SELLER_GUIDE_PUBLIC_URL,
                 DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-                caption=None,
+                caption=initial_message,
                 return_details=True
             )
             if doc_wamid:
                 chosen_wamid = doc_wamid
-
-        if initial_message:
+            elif initial_message:
+                txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
+                if txt_wamid:
+                    chosen_wamid = txt_wamid
+        elif initial_message:
             txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
             if txt_wamid:
                 chosen_wamid = txt_wamid
@@ -4300,3 +4310,28 @@ def onboarding_public_submit(request, token):
 def onboarding_success(request):
     """Thank-you page shown to candidate after successful submission."""
     return render(request, 'core/onboarding_success.html')
+
+
+def serve_seller_guide_pdf(request):
+    """
+    Public endpoint to view or download the Seller Onboarding Guide PDF.
+    Guarantees 200 OK across Apache/Nginx/Gunicorn and Meta Cloud API document downloads.
+    """
+    import os
+    from django.http import FileResponse, Http404
+    from django.conf import settings
+
+    candidates = [
+        os.path.join(settings.BASE_DIR, 'media', 'documents', 'Apni_Factory_Seller_Onboarding_Guide_Final.pdf'),
+        os.path.join(settings.BASE_DIR, 'Apni_Factory_Seller_Onboarding_Guide_Final.pdf'),
+        os.path.join(settings.BASE_DIR, 'core', 'static', 'documents', 'Apni_Factory_Seller_Onboarding_Guide_Final.pdf'),
+        os.path.join(settings.MEDIA_ROOT, 'documents', 'Apni_Factory_Seller_Onboarding_Guide_Final.pdf'),
+        os.path.join(settings.MEDIA_ROOT, 'whatsapp_attachments', 'Apni_Factory_Seller_Onboarding_Guide_Final.pdf'),
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            response = FileResponse(open(p, 'rb'), content_type='application/pdf')
+            response['Content-Disposition'] = 'inline; filename="Apni_Factory_Seller_Onboarding_Guide_Final.pdf"'
+            response['Cache-Control'] = 'public, max-age=86400'
+            return response
+    raise Http404("Seller Onboarding Guide PDF not found")

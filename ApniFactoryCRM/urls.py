@@ -20,7 +20,7 @@ from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
 
-from core.views import health_check, check_new_notifications
+from core.views import health_check, check_new_notifications, serve_seller_guide_pdf
 
 
 from core import telegram_views
@@ -42,6 +42,10 @@ urlpatterns = [
     path('whatsapp/inbox/', whatsapp_root_redirect, name='root_whatsapp_inbox'),
     path('whatsapp/', whatsapp_root_redirect, name='root_whatsapp'),
     path('notifications/check-new/', check_new_notifications, name='root_check_new_notifications'),
+    path('media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf', serve_seller_guide_pdf, name='serve_seller_guide_pdf_media'),
+    path('media/whatsapp_attachments/Apni_Factory_Seller_Onboarding_Guide_Final.pdf', serve_seller_guide_pdf, name='serve_seller_guide_pdf_wa'),
+    path('documents/seller-guide.pdf', serve_seller_guide_pdf, name='serve_seller_guide_pdf_short'),
+    path('documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf', serve_seller_guide_pdf, name='serve_seller_guide_pdf_direct'),
     path('api/telegram/webhook/', telegram_views.telegram_webhook_view, name='telegram_webhook'),
     path('api/telegram/quick-approve/<int:request_id>/', telegram_views.quick_approve_view, name='telegram_quick_approve'),
 

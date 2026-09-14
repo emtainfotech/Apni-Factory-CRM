@@ -1621,26 +1621,34 @@ def send_whatsapp_message(request, customer_id):
     if attach_seller_guide:
         chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
         chat_attachment_type = 'application/pdf'
+        # Send as single native document message with caption so it renders as a single card in WhatsApp
         doc_ok, doc_wamid, doc_err = send_document_message(
             target_phone,
             DEFAULT_SELLER_GUIDE_PUBLIC_URL,
             DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-            caption=None,
+            caption=message_text,
             return_details=True
         )
         if doc_ok:
             api_dispatched = True
             chosen_wamid = doc_wamid
-        elif doc_err:
+        else:
             api_error = doc_err
+            # Fallback to plain text if media dispatch fails
+            if message_text:
+                txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
+                if txt_ok:
+                    api_dispatched = True
+                    chosen_wamid = txt_wamid
+                elif txt_err:
+                    api_error = f"Doc: {doc_err} | Text: {txt_err}"
 
-    # B. Send text message
-    if message_text:
+    # B. Send text message (if seller guide was not attached)
+    elif message_text:
         txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
         if txt_ok:
             api_dispatched = True
-            if not chosen_wamid:
-                chosen_wamid = txt_wamid
+            chosen_wamid = txt_wamid
         elif txt_err:
             api_error = txt_err
 
@@ -1891,13 +1899,16 @@ def whatsapp_start_new_chat(request):
                 target_phone,
                 DEFAULT_SELLER_GUIDE_PUBLIC_URL,
                 DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-                caption=None,
+                caption=initial_message,
                 return_details=True
             )
             if doc_wamid:
                 chosen_wamid = doc_wamid
-
-        if initial_message:
+            elif initial_message:
+                txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
+                if txt_wamid:
+                    chosen_wamid = txt_wamid
+        elif initial_message:
             txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
             if txt_wamid:
                 chosen_wamid = txt_wamid
