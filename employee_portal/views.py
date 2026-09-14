@@ -411,7 +411,7 @@ def add_customer(request):
             })
 
     # GET request - Full page add customer form
-    initial_type = request.GET.get('type', 'buyer')
+    initial_type = request.GET.get('type', 'seller')
     form = EmployeeCustomerCreateForm(initial={
         'customer_type': initial_type,
         'country': 'India',
@@ -425,6 +425,75 @@ def add_customer(request):
         'state_choices': state_choices,
         'next': redirect_url,
         'initial_type': initial_type
+    })
+
+
+@login_required
+@employee_required
+def check_customer_duplicate(request):
+    """
+    Checks if a customer/lead with the given mobile number already exists in the CRM.
+    Returns existing details for popup with direct profile redirect and skip options.
+    """
+    phone_query = request.GET.get('phone', '').strip()
+    if not phone_query:
+        return JsonResponse({'exists': False})
+
+    import re
+    from zoneinfo import ZoneInfo
+    clean_digits = re.sub(r'\D', '', phone_query)
+    phone10 = clean_digits[-10:] if len(clean_digits) >= 10 else clean_digits
+
+    if len(phone10) < 10:
+        return JsonResponse({'exists': False})
+
+    existing = Customer.objects.filter(
+        Q(phone__endswith=phone10) | Q(whatsapp_number__endswith=phone10)
+    ).select_related('assigned_to', 'created_by').first()
+
+    if not existing:
+        return JsonResponse({'exists': False})
+
+    assigned_name = 'Unassigned'
+    if existing.assigned_to:
+        assigned_name = existing.assigned_to.get_full_name() or existing.assigned_to.username
+
+    created_by_name = 'N/A'
+    if existing.created_by:
+        created_by_name = existing.created_by.get_full_name() or existing.created_by.username
+
+    ist_tz = ZoneInfo("Asia/Kolkata")
+    created_at_str = ''
+    if existing.created_at:
+        created_at_str = existing.created_at.astimezone(ist_tz).strftime('%d %b %Y, %I:%M %p')
+
+    full_name = f"{existing.first_name or ''} {existing.last_name or ''}".strip()
+    display_name = full_name or existing.company_name or existing.phone
+
+    profile_url = reverse('employee_portal:customer_detail', kwargs={'customer_id': existing.id})
+
+    return JsonResponse({
+        'exists': True,
+        'customer': {
+            'id': existing.id,
+            'name': display_name,
+            'first_name': existing.first_name or '',
+            'last_name': existing.last_name or '',
+            'company_name': existing.company_name or '',
+            'customer_type': existing.customer_type,
+            'customer_type_display': existing.get_customer_type_display(),
+            'phone': existing.phone,
+            'whatsapp_number': existing.whatsapp_number or '',
+            'email': existing.email or '',
+            'city': existing.city or '',
+            'state': existing.state or '',
+            'status': existing.get_status_display() if hasattr(existing, 'get_status_display') else existing.status,
+            'lead_source': existing.get_lead_source_display() if hasattr(existing, 'get_lead_source_display') else existing.lead_source,
+            'assigned_to': assigned_name,
+            'created_by': created_by_name,
+            'created_at': created_at_str,
+            'profile_url': profile_url,
+        }
     })
 
 

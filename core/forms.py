@@ -70,7 +70,7 @@ class EmployeeCustomerCreateForm(forms.ModelForm):
     customer_type = forms.ChoiceField(
         choices=CUSTOMER_TYPE_CHOICES,
         widget=forms.RadioSelect(attrs={'class': 'btn-check'}),
-        initial='buyer',
+        initial='seller',
         label="Entity / Party Type"
     )
 
