@@ -1432,6 +1432,8 @@ def convert_vendor_to_customer(request, vendor_id):
     return redirect('employee_portal:customer_detail', customer_id=new_cust.id)
 
 
+from django.views.decorators.csrf import csrf_exempt
+
 # ==============================================================================
 # WHATSAPP INBOX - EMPLOYEE SCOPED
 # ==============================================================================
@@ -1445,10 +1447,17 @@ def whatsapp_inbox(request):
     """
     party_type = request.GET.get('party_type', '').lower()
     query = request.GET.get('q', '').strip()
+    active_cust_id = request.GET.get('customer_id', '').strip()
+
+    if active_cust_id and active_cust_id.isdigit():
+        target_cust = Customer.objects.filter(id=active_cust_id).first()
+        if target_cust and target_cust.assigned_to is None:
+            target_cust.assigned_to = request.user
+            target_cust.save(update_fields=['assigned_to'])
 
     # Scope to this employee
     qs = Customer.objects.filter(
-        Q(assigned_to=request.user) | Q(created_by=request.user)
+        Q(assigned_to=request.user) | Q(created_by=request.user) | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
     ).annotate(
         last_chat_time=Max('whatsapp_chats__timestamp')
     ).distinct().order_by('-last_chat_time', '-updated_at')
@@ -1473,8 +1482,6 @@ def whatsapp_inbox(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    active_cust_id = request.GET.get('customer_id', '')
-
     return render(request, 'employee_portal/whatsapp_inbox.html', {
         'page_obj': page_obj,
         'customers': page_obj,
@@ -1492,15 +1499,19 @@ def whatsapp_inbox(request):
 def get_whatsapp_chat(request, customer_id):
     """
     Fetches WhatsApp message thread for a customer.
-    Ensures employee can only access their own assigned/created customers.
+    Ensures employee can access their own assigned/created customers or claim unassigned ones.
     """
     if request.user.is_superuser or request.user.role == 'admin':
         customer = get_object_or_404(Customer, id=customer_id)
     else:
-        customer = get_object_or_404(
-            Customer,
-            Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
-        )
+        customer = Customer.objects.filter(id=customer_id).first()
+        if not customer:
+            return JsonResponse({'status': 'error', 'message': 'Customer not found.'}, status=404)
+        if customer.assigned_to is None:
+            customer.assigned_to = request.user
+            customer.save(update_fields=['assigned_to'])
+        elif customer.assigned_to != request.user and customer.created_by != request.user:
+            return JsonResponse({'status': 'error', 'message': 'Permission denied. Customer is assigned to another employee.'}, status=403)
 
     chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
     chat_data = []
@@ -1539,10 +1550,14 @@ def send_whatsapp_message(request, customer_id):
     if request.user.is_superuser or request.user.role == 'admin':
         customer = get_object_or_404(Customer, id=customer_id)
     else:
-        customer = get_object_or_404(
-            Customer,
-            Q(id=customer_id) & (Q(assigned_to=request.user) | Q(created_by=request.user))
-        )
+        customer = Customer.objects.filter(id=customer_id).first()
+        if not customer:
+            return JsonResponse({'status': 'error', 'message': 'Customer not found.'}, status=404)
+        if customer.assigned_to is None:
+            customer.assigned_to = request.user
+            customer.save(update_fields=['assigned_to'])
+        elif customer.assigned_to != request.user and customer.created_by != request.user:
+            return JsonResponse({'status': 'error', 'message': 'Permission denied. Customer is assigned to another employee.'}, status=403)
 
     message_text = request.POST.get('message', '').strip()
     attachment_file = request.FILES.get('attachment')
@@ -1639,3 +1654,171 @@ def start_whatsapp_chat(request):
         return redirect(f"/employee/whatsapp/?customer_id={existing.id}")
 
     return redirect('employee_portal:whatsapp_inbox')
+
+
+@login_required
+@employee_required
+def whatsapp_search_contacts(request):
+    """
+    Live AJAX search for WhatsApp contacts for employee.
+    Detects if query is a phone number and checks if it exists in the database.
+    """
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'status': 'success', 'results': [], 'is_phone': False, 'phone_in_db': False})
+
+    digits = ''.join(c for c in q if c.isdigit())
+    is_phone = len(digits) >= 7
+    clean_10 = digits[-10:] if len(digits) >= 10 else digits
+
+    # Find matching customers assigned to or created by this employee
+    query_filter = (Q(assigned_to=request.user) | Q(created_by=request.user)) & (
+        Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(company_name__icontains=q)
+    )
+    if digits:
+        query_filter |= (Q(assigned_to=request.user) | Q(created_by=request.user)) & (
+            Q(phone__icontains=digits) | Q(whatsapp_number__icontains=digits)
+        )
+        if len(digits) >= 10:
+            query_filter |= (Q(assigned_to=request.user) | Q(created_by=request.user)) & (
+                Q(phone__endswith=clean_10) | Q(whatsapp_number__endswith=clean_10)
+            )
+
+    matches = Customer.objects.filter(query_filter).distinct()[:15]
+    
+    results = []
+    for c in matches:
+        full_name = f"{c.first_name or ''} {c.last_name or ''}".strip()
+        results.append({
+            'id': c.id,
+            'name': full_name or c.company_name or f"Customer {c.phone[-4:] if c.phone else ''}",
+            'phone': c.whatsapp_number or c.phone or '',
+            'company': c.company_name or '',
+            'type': c.get_customer_type_display() if hasattr(c, 'get_customer_type_display') else c.customer_type,
+            'city': c.city or '',
+        })
+
+    # Check specifically if the exact phone number is in the entire database
+    phone_in_db = False
+    existing_cust_data = None
+    if len(digits) >= 10:
+        existing_cust = Customer.objects.filter(
+            Q(phone=clean_10) | Q(whatsapp_number=clean_10) |
+            Q(phone__endswith=clean_10) | Q(whatsapp_number__endswith=clean_10)
+        ).first()
+        if existing_cust:
+            phone_in_db = True
+            is_mine = (existing_cust.assigned_to == request.user or existing_cust.created_by == request.user)
+            existing_cust_data = {
+                'id': existing_cust.id,
+                'name': f"{existing_cust.first_name or ''} {existing_cust.last_name or ''}".strip() or existing_cust.company_name or f"Customer {existing_cust.phone[-4:]}",
+                'phone': existing_cust.whatsapp_number or existing_cust.phone,
+                'type': existing_cust.get_customer_type_display() if hasattr(existing_cust, 'get_customer_type_display') else existing_cust.customer_type,
+                'is_mine': is_mine,
+                'assigned_to_me': is_mine,
+            }
+
+    return JsonResponse({
+        'status': 'success',
+        'query': q,
+        'is_phone': is_phone,
+        'digits': digits,
+        'clean_phone': clean_10,
+        'phone_in_db': phone_in_db,
+        'existing_customer': existing_cust_data,
+        'results': results,
+    })
+
+
+@login_required
+@employee_required
+@csrf_exempt
+def whatsapp_start_new_chat(request):
+    """
+    Employee initiates a WhatsApp conversation with a new or unsaved phone number.
+    If customer not in database, creates a new Customer assigned to this employee.
+    If customer exists and is unassigned, assigns to this employee.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST method required.'}, status=405)
+
+    from core.utils import send_text_message, format_whatsapp_phone
+    from core.models import WhatsAppLead
+
+    raw_phone = request.POST.get('phone', '').strip()
+    customer_name = request.POST.get('name', '').strip()
+    customer_type = request.POST.get('customer_type', 'buyer').strip().lower()
+    initial_message = request.POST.get('initial_message', '').strip()
+
+    digits = ''.join(c for c in raw_phone if c.isdigit())
+    if len(digits) < 10:
+        return JsonResponse({'status': 'error', 'message': 'Please provide a valid 10-digit mobile number.'}, status=400)
+
+    clean_10 = digits[-10:]
+
+    # Check if customer already exists in DB
+    customer = Customer.objects.filter(
+        Q(phone=clean_10) | Q(whatsapp_number=clean_10) |
+        Q(phone__endswith=clean_10) | Q(whatsapp_number__endswith=clean_10)
+    ).first()
+
+    is_new = False
+    if not customer:
+        is_new = True
+        first_name = customer_name if customer_name else f"Contact {clean_10[-4:]}"
+        customer = Customer.objects.create(
+            phone=clean_10,
+            whatsapp_number=clean_10,
+            first_name=first_name,
+            customer_type=customer_type if customer_type in ('buyer', 'seller') else 'buyer',
+            lead_source='whatsapp',
+            status='lead',
+            created_by=request.user,
+            assigned_to=request.user,
+            notes=f"Auto-created from Employee WhatsApp Inbox by {request.user.username} on {timezone.now().strftime('%d %b %Y %I:%M %p')}"
+        )
+    else:
+        # If unassigned, assign to this employee
+        if customer.assigned_to is None:
+            customer.assigned_to = request.user
+            customer.save(update_fields=['assigned_to'])
+        if customer_name and not customer.first_name:
+            customer.first_name = customer_name
+            customer.save(update_fields=['first_name'])
+
+    # Ensure WhatsApp lead state exists and set needs_human=True
+    target_phone = customer.whatsapp_number or customer.phone
+    lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))
+    lead.customer = customer
+    lead.needs_human = True
+    lead.save()
+
+    # If initial message provided, dispatch via Meta Cloud API and log
+    sent_chat = None
+    if initial_message:
+        success = send_text_message(target_phone, initial_message)
+        chat = WhatsAppChat.objects.create(
+            customer=customer,
+            message=initial_message,
+            direction='outgoing',
+            timestamp=timezone.now()
+        )
+        sent_chat = {
+            'id': chat.id,
+            'message': chat.message,
+            'timestamp': timezone.localtime(chat.timestamp).strftime('%I:%M %p | %d %b')
+        }
+
+    return JsonResponse({
+        'status': 'success',
+        'is_new': is_new,
+        'customer': {
+            'id': customer.id,
+            'name': f"{customer.first_name or ''} {customer.last_name or ''}".strip() or customer.company_name or customer.phone,
+            'first_name': customer.first_name,
+            'phone': customer.whatsapp_number or customer.phone,
+            'customer_type': customer.get_customer_type_display() if hasattr(customer, 'get_customer_type_display') else customer.customer_type,
+        },
+        'sent_chat': sent_chat,
+        'redirect_url': f"/employee/whatsapp/?customer_id={customer.id}"
+    })

@@ -87,19 +87,28 @@
             <div class="p-3 border-bottom">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                     <h5 class="mb-0 text-body-emphasis">💬 WhatsApp Inbox</h5>
-                    <span class="badge badge-phoenix badge-phoenix-success fs-10"><span class="fab fa-whatsapp me-1"></span>Connected</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-xs btn-success rounded-pill px-2 py-1 fs-10" id="btn-employee-new-chat" data-bs-toggle="modal" data-bs-target="#employeeNewWhatsAppModal">
+                            <i class="fas fa-plus me-1"></i>New Chat
+                        </button>
+                        <span class="badge badge-phoenix badge-phoenix-success fs-10"><span class="fab fa-whatsapp me-1"></span>Connected</span>
+                    </div>
                 </div>
                 
                 <!-- Search Box -->
-                <form method="GET" action="{% url 'employee_portal:whatsapp_inbox' %}" class="mb-2">
+                <form method="GET" action="{% url 'employee_portal:whatsapp_inbox' %}" class="mb-2" id="employee-search-form" onsubmit="return false;">
                     {% if current_party_type %}
                     <input type="hidden" name="party_type" value="{{ current_party_type }}">
                     {% endif %}
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-body-tertiary"><span class="fas fa-search"></span></span>
-                        <input type="text" name="q" class="form-control fs-10" placeholder="Search my chats..." value="{{ current_query }}">
+                        <input type="text" name="q" id="employee-search-input" class="form-control fs-10" placeholder="Search my chats or type number..." value="{{ current_query }}" autocomplete="off">
+                        <button class="btn btn-outline-secondary border-start-0 d-none" type="button" id="employee-clear-search-btn"><i class="fas fa-times"></i></button>
                     </div>
                 </form>
+
+                <!-- Dynamic Live Number Action Card -->
+                <div id="employee-phone-action-card" class="mb-2 d-none"></div>
 
                 <!-- Buyer vs Seller Filter Pills -->
                 <div class="d-flex gap-1">
@@ -122,7 +131,7 @@
             <div class="flex-grow-1 overflow-auto" id="contactsList">
                 {% if customers %}
                     {% for c in customers %}
-                    <div class="contact-item" onclick="loadChat('{{ c.id }}', this)" id="contact-{{ c.id }}">
+                    <div class="contact-item {% if c.id|stringformat:'s' == active_customer_id %}active{% endif %}" onclick="loadChat('{{ c.id }}', this)" id="contact-{{ c.id }}" data-name="{{ c.get_full_name|default:c.first_name }}" data-phone="{{ c.whatsapp_number|default:c.phone }}">
                         <div class="d-flex align-items-center justify-content-between mb-1">
                             <span class="fw-bold text-body-highlight text-truncate" style="max-width: 170px;">
                                 {{ c.get_full_name|default:c.first_name }}
@@ -134,15 +143,18 @@
                             {% endif %}
                         </div>
                         <div class="d-flex align-items-center justify-content-between fs-10 text-body-tertiary">
-                            <span><span class="fas fa-phone me-1"></span>{{ c.phone }}</span>
+                            <span><span class="fas fa-phone me-1"></span>{{ c.whatsapp_number|default:c.phone }}</span>
                             <span>{{ c.city|default:'' }}</span>
                         </div>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <div class="text-center p-4 text-body-quaternary">
+                    <div class="text-center p-4 text-body-quaternary" id="no-chats-placeholder">
                         <span class="fas fa-comment-slash fs-2 mb-2 d-block"></span>
-                        <p class="fs-9 mb-0">No assigned chats found for this filter.</p>
+                        <p class="fs-9 mb-2">No assigned chats found.</p>
+                        <button class="btn btn-xs btn-outline-success rounded-pill px-3 py-1 fs-10" data-bs-toggle="modal" data-bs-target="#employeeNewWhatsAppModal">
+                            <i class="fas fa-plus me-1"></i>Start New Chat
+                        </button>
                     </div>
                 {% endif %}
             </div>
@@ -156,7 +168,10 @@
                     <span class="fab fa-whatsapp text-success fs-2"></span>
                 </div>
                 <h5 class="text-body-emphasis">Select a Customer or Buyer to Start Chatting</h5>
-                <p class="text-body-secondary fs-9 max-w-400">Provide real-time support, answer wholesale inquiries, send product quotes, and follow up with your assigned accounts.</p>
+                <p class="text-body-secondary fs-9 max-w-400 mb-3">Provide real-time support, answer wholesale inquiries, send product quotes, and follow up with your assigned accounts.</p>
+                <button class="btn btn-success btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#employeeNewWhatsAppModal">
+                    <i class="fas fa-plus me-1"></i> Send to New Number
+                </button>
             </div>
 
             <!-- Active Chat Box (Hidden by default) -->
@@ -206,8 +221,59 @@
     </div>
 </div>
 
+<!-- Modal: Start New WhatsApp Chat (Employee) -->
+<div class="modal fade" id="employeeNewWhatsAppModal" tabindex="-1" aria-labelledby="employeeNewWhatsAppModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h6 class="modal-title fs-9 fw-bold text-body-highlight" id="employeeNewWhatsAppModalLabel">
+                    <i class="fab fa-whatsapp text-success me-2"></i>Send WhatsApp Message to New Number
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="employeeNewWhatsAppForm" onsubmit="handleEmployeeStartNewChat(event)">
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fs-10 fw-bold">Mobile / WhatsApp Number <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-body-tertiary fw-bold fs-10">+91</span>
+                            <input type="tel" class="form-control fs-9" id="emp-modal-phone" name="phone" placeholder="e.g. 9926369631" maxlength="15" required autofocus>
+                        </div>
+                        <small class="text-muted fs-10" id="emp-modal-phone-hint">Enter 10-digit mobile number</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-10 fw-bold">Customer Name (Optional)</label>
+                        <input type="text" class="form-control fs-9" id="emp-modal-name" name="name" placeholder="e.g. Mohit Sharma">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-10 fw-bold">Party Type</label>
+                        <select class="form-select fs-9" id="emp-modal-customer-type" name="customer_type">
+                            <option value="buyer">Buyer / Contractor</option>
+                            <option value="seller">Customer / Seller / Vendor</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-10 fw-bold">Initial Message (Optional)</label>
+                        <textarea class="form-control fs-9" id="emp-modal-initial-message" name="initial_message" rows="3" placeholder="Type a message to dispatch immediately..."></textarea>
+                        <small class="text-muted fs-10">Leave blank to open chat thread without sending immediately.</small>
+                    </div>
+                    <div id="emp-modal-alert-box" class="alert alert-danger d-none py-2 fs-10 mb-0"></div>
+                </div>
+                <div class="modal-footer border-top bg-light py-2">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4" id="emp-modal-submit-btn">
+                        <i class="fas fa-paper-plane me-1"></i> <span id="emp-modal-btn-text">Start Chat</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 let currentCustomerId = null;
+let chatPollInterval = null;
+let searchDebounceTimeout = null;
 
 // Auto-load chat if active_customer_id or URL parameter is present
 document.addEventListener('DOMContentLoaded', function() {
@@ -222,9 +288,101 @@ document.addEventListener('DOMContentLoaded', function() {
             loadChat(targetCustId, null);
         }
     }
-});
 
-let chatPollInterval = null;
+    // Search and Phone Detection Listener
+    const searchInput = document.getElementById('employee-search-input');
+    const clearBtn = document.getElementById('employee-clear-search-btn');
+    const actionCard = document.getElementById('employee-phone-action-card');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            const val = e.target.value.trim();
+            if (val.length > 0) {
+                clearBtn.classList.remove('d-none');
+            } else {
+                clearBtn.classList.add('d-none');
+                actionCard.classList.add('d-none');
+                actionCard.innerHTML = '';
+            }
+
+            // Local filter of list items
+            const valLower = val.toLowerCase();
+            document.querySelectorAll('.contact-item').forEach(item => {
+                const text = item.innerText.toLowerCase();
+                if (text.includes(valLower)) {
+                    item.style.setProperty("display", "block", "important");
+                } else {
+                    item.style.setProperty("display", "none", "important");
+                }
+            });
+
+            // Check if input looks like a phone number
+            const digits = val.replace(/[^0-9]/g, '');
+            if (digits.length >= 7) {
+                const clean10 = digits.slice(-10);
+                actionCard.classList.remove('d-none');
+                actionCard.innerHTML = `
+                    <div class="p-2 bg-primary-subtle border border-primary-subtle rounded-3">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <div class="fw-bold text-primary fs-9 mb-0">
+                                    <i class="fab fa-whatsapp me-1 text-success"></i> +91 ${clean10}
+                                </div>
+                                <small class="text-body-secondary fs-10" id="emp-live-phone-status"><i class="fas fa-spinner fa-spin me-1"></i>Checking CRM database...</small>
+                            </div>
+                            <button type="button" class="btn btn-xs btn-success rounded-pill px-3 py-1 fs-10" id="emp-live-action-btn" onclick="startEmployeeChatDirectly('${clean10}')">
+                                <i class="fas fa-paper-plane me-1"></i>Start Chat
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Debounced check with backend
+                clearTimeout(searchDebounceTimeout);
+                searchDebounceTimeout = setTimeout(() => {
+                    fetch(`/employee/whatsapp/search-contacts/?q=${encodeURIComponent(val)}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const statusEl = document.getElementById('emp-live-phone-status');
+                            const btnEl = document.getElementById('emp-live-action-btn');
+                            if (!statusEl) return;
+
+                            if (data.phone_in_db && data.existing_customer) {
+                                statusEl.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>Found: <strong>${escapeHtml(data.existing_customer.name)}</strong> (${escapeHtml(data.existing_customer.type || 'Customer')})</span>`;
+                                btnEl.innerHTML = `<i class="fas fa-comments me-1"></i>Open Chat`;
+                                btnEl.onclick = function() {
+                                    loadChat(data.existing_customer.id, document.getElementById('contact-' + data.existing_customer.id));
+                                };
+                            } else {
+                                statusEl.innerHTML = `<span class="text-body-secondary">Not in database — send message directly to customer</span>`;
+                                btnEl.innerHTML = `<i class="fas fa-paper-plane me-1"></i>Start Chat`;
+                                btnEl.onclick = function() {
+                                    startEmployeeChatDirectly(clean10);
+                                };
+                            }
+                        })
+                        .catch(() => {
+                            const statusEl = document.getElementById('emp-live-phone-status');
+                            if (statusEl) statusEl.innerHTML = `Send WhatsApp message to +91 ${clean10}`;
+                        });
+                }, 300);
+            } else {
+                actionCard.classList.add('d-none');
+                actionCard.innerHTML = '';
+            }
+        });
+
+        clearBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            clearBtn.classList.add('d-none');
+            actionCard.classList.add('d-none');
+            actionCard.innerHTML = '';
+            document.querySelectorAll('.contact-item').forEach(item => {
+                item.style.setProperty("display", "block", "important");
+            });
+        });
+    }
+});
 
 function loadChat(customerId, element) {
     currentCustomerId = customerId;
@@ -256,8 +414,8 @@ function fetchChatMessages(customerId, scroll = true) {
             if (data.status === 'success') {
                 document.getElementById('chatCustomerName').innerText = data.customer_name;
                 document.getElementById('chatPhone').innerText = data.phone;
-                document.getElementById('chatAvatar').innerText = data.customer_name.charAt(0).toUpperCase();
-                document.getElementById('chatTypeBadge').innerText = data.customer_type;
+                document.getElementById('chatAvatar').innerText = (data.customer_name || 'C').charAt(0).toUpperCase();
+                document.getElementById('chatTypeBadge').innerText = data.customer_type || 'Customer';
                 document.getElementById('viewProfileBtn').href = `/employee/customers/${customerId}/`;
                 document.getElementById('waDirectBtn').href = `https://wa.me/91${data.phone.replace(/[^0-9]/g, '').slice(-10)}`;
 
@@ -311,14 +469,134 @@ function submitMessage(e) {
         if (data.status === 'success') {
             input.value = '';
             fetchChatMessages(currentCustomerId, true);
+        } else {
+            alert(data.message || "Failed to send message.");
         }
     })
     .catch(err => console.error("Error sending message:", err));
 }
 
+// Quick start modal opener
+window.startEmployeeChatDirectly = function(phone, name = '') {
+    const modalPhone = document.getElementById('emp-modal-phone');
+    const modalName = document.getElementById('emp-modal-name');
+    if (modalPhone) modalPhone.value = phone;
+    if (modalName && name) modalName.value = name;
+
+    const modalEl = document.getElementById('employeeNewWhatsAppModal');
+    if (modalEl && window.bootstrap) {
+        const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.show();
+    }
+};
+
+// Form submission for Employee new WhatsApp chat
+function handleEmployeeStartNewChat(e) {
+    e.preventDefault();
+    const phoneInput = document.getElementById('emp-modal-phone');
+    const nameInput = document.getElementById('emp-modal-name');
+    const typeSelect = document.getElementById('emp-modal-customer-type');
+    const msgInput = document.getElementById('emp-modal-initial-message');
+    const submitBtn = document.getElementById('emp-modal-submit-btn');
+    const btnText = document.getElementById('emp-modal-btn-text');
+    const alertBox = document.getElementById('emp-modal-alert-box');
+
+    const phone = phoneInput.value.trim();
+    const name = nameInput.value.trim();
+    const customerType = typeSelect.value;
+    const initialMessage = msgInput.value.trim();
+
+    if (!phone) {
+        alertBox.innerText = "Please provide a valid mobile number.";
+        alertBox.classList.remove('d-none');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    btnText.innerText = "Initiating...";
+    alertBox.classList.add('d-none');
+
+    const formData = new FormData();
+    formData.append('phone', phone);
+    formData.append('name', name);
+    formData.append('customer_type', customerType);
+    formData.append('initial_message', initialMessage);
+
+    fetch('/employee/whatsapp/start-chat/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        submitBtn.disabled = false;
+        btnText.innerText = "Start Chat";
+
+        if (data.status === 'success') {
+            const modalEl = document.getElementById('employeeNewWhatsAppModal');
+            if (modalEl && window.bootstrap) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+
+            document.getElementById('employeeNewWhatsAppForm').reset();
+
+            // Check if contact already in DOM
+            let contactEl = document.getElementById('contact-' + data.customer.id);
+            if (!contactEl) {
+                const placeholder = document.getElementById('no-chats-placeholder');
+                if (placeholder) placeholder.remove();
+
+                const contactsList = document.getElementById('contactsList');
+                const badgeClass = (data.customer.customer_type === 'seller') ? 'badge-phoenix-success' : 'badge-phoenix-warning';
+                const badgeLabel = (data.customer.customer_type === 'seller') ? 'Seller' : 'Buyer';
+
+                const newContactHtml = `
+                    <div class="contact-item active" onclick="loadChat('${data.customer.id}', this)" id="contact-${data.customer.id}" data-name="${escapeHtml(data.customer.name)}" data-phone="${escapeHtml(data.customer.phone)}">
+                        <div class="d-flex align-items-center justify-content-between mb-1">
+                            <span class="fw-bold text-body-highlight text-truncate" style="max-width: 170px;">
+                                ${escapeHtml(data.customer.name)}
+                            </span>
+                            <span class="badge badge-phoenix ${badgeClass} fs-10">${badgeLabel}</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between fs-10 text-body-tertiary">
+                            <span><span class="fas fa-phone me-1"></span>${escapeHtml(data.customer.phone)}</span>
+                            <span></span>
+                        </div>
+                    </div>
+                `;
+                contactsList.insertAdjacentHTML('afterbegin', newContactHtml);
+                contactEl = document.getElementById('contact-' + data.customer.id);
+            }
+
+            // Open chat pane
+            loadChat(data.customer.id, contactEl);
+
+            // Focus message input
+            setTimeout(() => {
+                const msgInputEl = document.getElementById('messageInput');
+                if (msgInputEl) msgInputEl.focus();
+            }, 300);
+
+        } else {
+            alertBox.innerText = data.message || "Failed to start chat.";
+            alertBox.classList.remove('d-none');
+        }
+    })
+    .catch(err => {
+        submitBtn.disabled = false;
+        btnText.innerText = "Start Chat";
+        alertBox.innerText = "Server communication error. Please try again.";
+        alertBox.classList.remove('d-none');
+    });
+}
+
 function escapeHtml(text) {
+    if (!text) return '';
     const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    return text.toString().replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 </script>
 {% endblock %}

@@ -81,6 +81,8 @@ urlpatterns = [
     path('verify-gst/', views.verify_gst_ajax, name='verify_gst_ajax'),
     path('whatsapp/webhook/', views.whatsapp_webhook, name='whatsapp_webhook'),
     path('whatsapp/inbox/', views.whatsapp_inbox, name='whatsapp_inbox'),
+    path('whatsapp/search-contacts/', views.whatsapp_search_contacts, name='whatsapp_search_contacts'),
+    path('whatsapp/start-chat/', views.whatsapp_start_new_chat, name='whatsapp_start_new_chat'),
     path('whatsapp/chat/<int:customer_id>/', views.get_whatsapp_chat, name='get_whatsapp_chat'),
     path('whatsapp/send/<int:customer_id>/', views.send_whatsapp_message_ajax, name='send_whatsapp_message_ajax'),
     path('api/login/', api_views.app_login),

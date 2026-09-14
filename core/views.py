@@ -3541,19 +3541,34 @@ from django.views.decorators.csrf import csrf_exempt
 @login_required
 def whatsapp_inbox(request):
     from django.db.models import Max
+    query = request.GET.get('q', '').strip()
+    active_cust_id = request.GET.get('customer_id', '').strip()
+
     customers_with_chats = Customer.objects.filter(
-        Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
+        Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False) | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
     ).annotate(
         last_chat_time=Max('whatsapp_chats__timestamp')
     ).distinct().order_by('-last_chat_time', '-updated_at')
+
+    if query:
+        customers_with_chats = customers_with_chats.filter(
+            Q(first_name__icontains=query) |
+            Q(last_name__icontains=query) |
+            Q(phone__icontains=query) |
+            Q(whatsapp_number__icontains=query) |
+            Q(company_name__icontains=query)
+        )
     
-    paginator = Paginator(customers_with_chats, 10)
+    paginator = Paginator(customers_with_chats, 20)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
     return render(request, 'core/whatsapp_inbox.html', {
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'current_query': query,
+        'active_customer_id': active_cust_id,
     })
+
 
 @login_required
 def get_whatsapp_chat(request, customer_id):
@@ -3569,7 +3584,13 @@ def get_whatsapp_chat(request, customer_id):
             'attachment_type': chat.attachment_type,
             'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
         })
-    return JsonResponse({'status': 'success', 'chats': chat_data, 'customer_name': customer.first_name, 'phone': customer.phone})
+    return JsonResponse({
+        'status': 'success',
+        'chats': chat_data,
+        'customer_name': customer.get_full_name() if hasattr(customer, 'get_full_name') and customer.get_full_name() else (customer.first_name or customer.company_name or customer.phone),
+        'phone': customer.whatsapp_number or customer.phone,
+        'customer_id': customer.id
+    })
 
 @login_required
 @csrf_exempt
@@ -3584,6 +3605,7 @@ def send_whatsapp_message_ajax(request, customer_id):
         target_phone = customer.whatsapp_number or customer.phone
         
         # Send via WhatsApp API
+        from core.utils import send_text_message, format_whatsapp_phone
         success = send_text_message(target_phone, message_text)
         
         if success:
@@ -3595,7 +3617,7 @@ def send_whatsapp_message_ajax(request, customer_id):
             )
             
             # Disable Bot for this customer
-            lead, _ = WhatsAppLead.objects.get_or_create(phone_number=target_phone)
+            lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))
             lead.customer = customer
             lead.needs_human = True
             lead.save()
@@ -3609,6 +3631,160 @@ def send_whatsapp_message_ajax(request, customer_id):
         else:
             return JsonResponse({'status': 'error', 'message': 'Failed to send message via Meta API.'})
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
+
+
+@login_required
+def whatsapp_search_contacts(request):
+    """
+    Live AJAX search for WhatsApp contacts by name, company, or phone number.
+    Detects if the query is a phone number and checks if it exists in the database.
+    """
+    q = request.GET.get('q', '').strip()
+    if not q:
+        return JsonResponse({'status': 'success', 'results': [], 'is_phone': False, 'phone_in_db': False})
+
+    # Extract digits to check if query looks like a phone number
+    digits = ''.join(c for c in q if c.isdigit())
+    is_phone = len(digits) >= 7
+    clean_10 = digits[-10:] if len(digits) >= 10 else digits
+
+    # Find matching customers in database
+    query_filter = Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(company_name__icontains=q)
+    if digits:
+        query_filter |= Q(phone__icontains=digits) | Q(whatsapp_number__icontains=digits)
+        if len(digits) >= 10:
+            query_filter |= Q(phone__endswith=clean_10) | Q(whatsapp_number__endswith=clean_10)
+
+    matches = Customer.objects.filter(query_filter).distinct()[:15]
+    
+    results = []
+    for c in matches:
+        full_name = f"{c.first_name or ''} {c.last_name or ''}".strip()
+        results.append({
+            'id': c.id,
+            'name': full_name or c.company_name or f"Customer {c.phone[-4:] if c.phone else ''}",
+            'phone': c.whatsapp_number or c.phone or '',
+            'company': c.company_name or '',
+            'type': c.get_customer_type_display() if hasattr(c, 'get_customer_type_display') else c.customer_type,
+            'city': c.city or '',
+        })
+
+    # Check specifically if the exact 10-digit phone number is in the database
+    phone_in_db = False
+    existing_cust_data = None
+    if len(digits) >= 10:
+        existing_cust = Customer.objects.filter(
+            Q(phone=clean_10) | Q(whatsapp_number=clean_10) |
+            Q(phone__endswith=clean_10) | Q(whatsapp_number__endswith=clean_10)
+        ).first()
+        if existing_cust:
+            phone_in_db = True
+            existing_cust_data = {
+                'id': existing_cust.id,
+                'name': f"{existing_cust.first_name or ''} {existing_cust.last_name or ''}".strip() or existing_cust.company_name or f"Customer {existing_cust.phone[-4:]}",
+                'phone': existing_cust.whatsapp_number or existing_cust.phone,
+                'type': existing_cust.get_customer_type_display() if hasattr(existing_cust, 'get_customer_type_display') else existing_cust.customer_type,
+            }
+
+    return JsonResponse({
+        'status': 'success',
+        'query': q,
+        'is_phone': is_phone,
+        'digits': digits,
+        'clean_phone': clean_10,
+        'phone_in_db': phone_in_db,
+        'existing_customer': existing_cust_data,
+        'results': results,
+    })
+
+
+@login_required
+@csrf_exempt
+def whatsapp_start_new_chat(request):
+    """
+    Starts or opens a WhatsApp conversation with a phone number (admin view).
+    If the customer does not exist in the database, automatically creates a new Customer
+    and WhatsAppLead record. Sends initial message if provided.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'POST method required.'}, status=405)
+
+    from core.utils import send_text_message, format_whatsapp_phone
+    from core.models import WhatsAppLead
+
+    raw_phone = request.POST.get('phone', '').strip()
+    customer_name = request.POST.get('name', '').strip()
+    customer_type = request.POST.get('customer_type', 'buyer').strip().lower()
+    initial_message = request.POST.get('initial_message', '').strip()
+
+    digits = ''.join(c for c in raw_phone if c.isdigit())
+    if len(digits) < 10:
+        return JsonResponse({'status': 'error', 'message': 'Please provide a valid 10-digit mobile number.'}, status=400)
+
+    clean_10 = digits[-10:]
+
+    # Check if customer already exists
+    customer = Customer.objects.filter(
+        Q(phone=clean_10) | Q(whatsapp_number=clean_10) |
+        Q(phone__endswith=clean_10) | Q(whatsapp_number__endswith=clean_10)
+    ).first()
+
+    is_new = False
+    if not customer:
+        is_new = True
+        first_name = customer_name if customer_name else f"Contact {clean_10[-4:]}"
+        customer = Customer.objects.create(
+            phone=clean_10,
+            whatsapp_number=clean_10,
+            first_name=first_name,
+            customer_type=customer_type if customer_type in ('buyer', 'seller') else 'buyer',
+            lead_source='whatsapp',
+            status='lead',
+            created_by=request.user,
+            notes=f"Auto-created from Admin WhatsApp Inbox by {request.user.username} on {timezone.now().strftime('%d %b %Y %I:%M %p')}"
+        )
+    else:
+        # If existing customer has empty name and a name was provided, update it
+        if customer_name and not customer.first_name:
+            customer.first_name = customer_name
+            customer.save(update_fields=['first_name'])
+
+    # Ensure WhatsApp lead state exists and set needs_human=True
+    target_phone = customer.whatsapp_number or customer.phone
+    lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))
+    lead.customer = customer
+    lead.needs_human = True
+    lead.save()
+
+    # If initial message provided, dispatch via Meta Cloud API and log
+    sent_chat = None
+    if initial_message:
+        success = send_text_message(target_phone, initial_message)
+        chat = WhatsAppChat.objects.create(
+            customer=customer,
+            message=initial_message,
+            direction='outgoing',
+            timestamp=timezone.now()
+        )
+        sent_chat = {
+            'id': chat.id,
+            'message': chat.message,
+            'timestamp': timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
+        }
+
+    return JsonResponse({
+        'status': 'success',
+        'is_new': is_new,
+        'customer': {
+            'id': customer.id,
+            'name': f"{customer.first_name or ''} {customer.last_name or ''}".strip() or customer.company_name or customer.phone,
+            'first_name': customer.first_name,
+            'phone': customer.whatsapp_number or customer.phone,
+            'customer_type': customer.get_customer_type_display() if hasattr(customer, 'get_customer_type_display') else customer.customer_type,
+        },
+        'sent_chat': sent_chat,
+        'redirect_url': f"/core/whatsapp/inbox/?customer_id={customer.id}"
+    })
 
 @login_required
 @user_passes_test(is_admin)
