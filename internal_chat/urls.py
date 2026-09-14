@@ -10,6 +10,7 @@ urlpatterns = [
     path('<int:room_id>/messages/', views.get_messages, name='get_messages'),
     path('<int:room_id>/send/', views.send_message, name='send_message'),
     path('message/<int:message_id>/delete/', views.delete_message, name='delete_message'),
+    path('message/forward/', views.forward_message, name='forward_message'),
     path('rooms/', views.get_rooms_list, name='get_rooms_list'),
     path('presence/update/', views.update_presence, name='update_presence'),
     path('presence/', views.get_presence, name='get_presence'),

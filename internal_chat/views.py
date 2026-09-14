@@ -227,9 +227,18 @@ def send_message(request, room_id):
         att_type = 'image' if mime and mime.startswith('image/') else ('audio' if mime and mime.startswith('audio/') else 'file')
         att_name = attachment.name
 
+    reply_to_id = request.POST.get('reply_to_id')
+    reply_to_msg = None
+    if reply_to_id:
+        try:
+            reply_to_msg = ChatMessage.objects.filter(pk=int(reply_to_id), room=room).first()
+        except (ValueError, TypeError):
+            pass
+
     msg = ChatMessage.objects.create(
         room=room, sender=request.user, content=content,
         attachment=attachment, attachment_type=att_type, attachment_name=att_name,
+        reply_to=reply_to_msg,
     )
     msg.read_by.add(request.user)
     room.save()
@@ -240,6 +249,69 @@ def send_message(request, room_id):
     UserPresence.mark_online(request.user)
 
     return JsonResponse({'status': 'sent', 'message': msg.to_dict(current_user=request.user)})
+
+
+# ===========================================================================
+# FORWARD MESSAGE
+# ===========================================================================
+
+@login_required
+@require_POST
+def forward_message(request):
+    """Forward an existing message to one or multiple destination rooms/users."""
+    message_id = request.POST.get('message_id')
+    target_room_ids = request.POST.getlist('target_room_ids[]') or request.POST.getlist('target_room_ids')
+    target_user_ids = request.POST.getlist('target_user_ids[]') or request.POST.getlist('target_user_ids')
+
+    orig_msg = get_object_or_404(ChatMessage, pk=message_id)
+    if orig_msg.is_deleted:
+        return JsonResponse({'error': 'Cannot forward a deleted message'}, status=400)
+
+    forwarded_count = 0
+    # Destination rooms
+    for r_id in target_room_ids:
+        try:
+            room = ChatRoom.objects.filter(pk=int(r_id)).first()
+            if room and (room.members.filter(pk=request.user.pk).exists() or is_admin_or_manager(request.user)):
+                f_msg = ChatMessage.objects.create(
+                    room=room,
+                    sender=request.user,
+                    content=orig_msg.content,
+                    attachment=orig_msg.attachment,
+                    attachment_type=orig_msg.attachment_type,
+                    attachment_name=orig_msg.attachment_name,
+                    is_forwarded=True
+                )
+                f_msg.read_by.add(request.user)
+                room.save()
+                create_message_notification(f_msg)
+                forwarded_count += 1
+        except (ValueError, TypeError):
+            pass
+
+    # Destination users (DM rooms)
+    for u_id in target_user_ids:
+        try:
+            target_user = User.objects.filter(pk=int(u_id)).first()
+            if target_user and target_user.pk != request.user.pk:
+                room, _ = ChatRoom.get_or_create_direct_room(request.user, target_user)
+                f_msg = ChatMessage.objects.create(
+                    room=room,
+                    sender=request.user,
+                    content=orig_msg.content,
+                    attachment=orig_msg.attachment,
+                    attachment_type=orig_msg.attachment_type,
+                    attachment_name=orig_msg.attachment_name,
+                    is_forwarded=True
+                )
+                f_msg.read_by.add(request.user)
+                room.save()
+                create_message_notification(f_msg)
+                forwarded_count += 1
+        except (ValueError, TypeError):
+            pass
+
+    return JsonResponse({'status': 'ok', 'forwarded_count': forwarded_count})
 
 
 # ===========================================================================

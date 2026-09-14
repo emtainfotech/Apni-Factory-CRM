@@ -1,4 +1,4 @@
-﻿from django.db import models
+from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
@@ -89,6 +89,10 @@ class ChatMessage(models.Model):
 
     timestamp = models.DateTimeField(auto_now_add=True)
     is_deleted = models.BooleanField(default=False)  # soft delete
+    reply_to = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies'
+    )
+    is_forwarded = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['timestamp']
@@ -108,12 +112,20 @@ class ChatMessage(models.Model):
             'sender_is_superuser': self.sender.is_superuser,
             'content': self.content if not self.is_deleted else '🚫 This message was deleted.',
             'is_deleted': self.is_deleted,
+            'is_forwarded': self.is_forwarded,
             'timestamp': self.timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
             'time_display': self.timestamp.strftime('%I:%M %p'),
             'date_display': self.timestamp.strftime('%d %b %Y'),
             'is_own': (self.sender_id == current_user.pk) if current_user else False,
             'read_by_count': self.read_by.count(),
         }
+        if self.reply_to and not self.reply_to.is_deleted:
+            r_sender = self.reply_to.sender.get_full_name() or self.reply_to.sender.username
+            data['reply_to'] = {
+                'id': self.reply_to_id,
+                'sender_name': r_sender,
+                'content': self.reply_to.content[:100] if self.reply_to.content else ('📎 Attachment' if self.reply_to.attachment else ''),
+            }
         if self.attachment:
             data['attachment_url'] = self.attachment.url
             data['attachment_type'] = self.attachment_type or 'file'
