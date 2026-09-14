@@ -3698,8 +3698,8 @@ def whatsapp_search_contacts(request):
     })
 
 
-@login_required
 @csrf_exempt
+@login_required
 def whatsapp_start_new_chat(request):
     """
     Starts or opens a WhatsApp conversation with a phone number (admin view).

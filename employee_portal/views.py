@@ -1,4 +1,5 @@
 import json
+from functools import wraps
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -40,6 +41,7 @@ from core.invoice_utils import calculate_gst_values, get_next_invoice_number
 
 def employee_required(view_func):
     """Restricts access to employees, managers, and superusers/admins only."""
+    @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
@@ -1730,9 +1732,9 @@ def whatsapp_search_contacts(request):
     })
 
 
+@csrf_exempt
 @login_required
 @employee_required
-@csrf_exempt
 def whatsapp_start_new_chat(request):
     """
     Employee initiates a WhatsApp conversation with a new or unsaved phone number.

@@ -232,6 +232,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="employeeNewWhatsAppForm" onsubmit="handleEmployeeStartNewChat(event)">
+                {% csrf_token %}
                 <div class="modal-body p-4">
                     <div class="mb-3">
                         <label class="form-label fs-10 fw-bold">Mobile / WhatsApp Number <span class="text-danger">*</span></label>
@@ -517,6 +518,7 @@ function handleEmployeeStartNewChat(e) {
     alertBox.classList.add('d-none');
 
     const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
     formData.append('phone', phone);
     formData.append('name', name);
     formData.append('customer_type', customerType);
@@ -526,7 +528,8 @@ function handleEmployeeStartNewChat(e) {
         method: 'POST',
         body: formData,
         headers: {
-            'X-Requested-With': 'XMLHttpRequest'
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
         }
     })
     .then(res => res.json())
