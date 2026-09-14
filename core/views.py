@@ -2543,7 +2543,9 @@ def save_message_status(status_data):
     recipient_id = status_data.get('recipient_id')
     status = status_data.get('status')
     ts = status_data.get('timestamp')
-    timestamp = datetime.fromtimestamp(int(ts), tz=dt_timezone.utc) if ts else None
+    from zoneinfo import ZoneInfo
+    ist_tz = ZoneInfo("Asia/Kolkata")
+    timestamp = datetime.fromtimestamp(int(ts), tz=ist_tz) if ts else None
 
     error_code = error_title = error_message = None
     if status == 'failed':
@@ -3586,12 +3588,17 @@ def get_whatsapp_chat(request, customer_id):
         for st in WhatsAppMessageStatus.objects.filter(wamid__in=wamids):
             status_map[st.wamid] = st
 
+    from core.utils import get_whatsapp_window_status, format_india_time
+
+    # Compute accurate 24h window status
+    window_status = get_whatsapp_window_status(customer=customer)
+    window_24h_expired = not window_status['is_open']
+
     # Check recipient latest error (e.g. 131047: Re-engagement message)
     latest_failed = WhatsAppMessageStatus.objects.filter(
         recipient_id=target_clean_phone,
         status='failed'
     ).order_by('-timestamp').first()
-    window_24h_expired = bool(latest_failed and str(latest_failed.error_code) == '131047')
 
     chat_data = []
     for chat in chats:
@@ -3610,7 +3617,8 @@ def get_whatsapp_chat(request, customer_id):
             'delivery_status': delivery_status,
             'error_code': err_code,
             'error_title': err_title,
-            'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
+            'timestamp': format_india_time(chat.timestamp),
+            'timestamp_iso': chat.timestamp.isoformat() if chat.timestamp else '',
         })
     return JsonResponse({
         'status': 'success',
@@ -3619,6 +3627,9 @@ def get_whatsapp_chat(request, customer_id):
         'phone': customer.whatsapp_number or customer.phone,
         'customer_id': customer.id,
         'window_24h_expired': window_24h_expired,
+        'window_is_open': window_status['is_open'],
+        'window_remaining_str': window_status['formatted_remaining'],
+        'window_status_mode': window_status['status_mode'],
         'latest_error_title': latest_failed.error_title if latest_failed else None,
     })
 
@@ -3639,6 +3650,9 @@ def send_whatsapp_message_ajax(request, customer_id):
         from core.utils import (
             send_text_message,
             send_document_message,
+            send_seller_onboarding_template,
+            get_whatsapp_window_status,
+            format_india_time,
             format_whatsapp_phone,
             DEFAULT_SELLER_GUIDE_PUBLIC_URL,
             DEFAULT_SELLER_GUIDE_PDF_FILENAME,
@@ -3651,36 +3665,61 @@ def send_whatsapp_message_ajax(request, customer_id):
         chat_attachment = attachment_file
         chat_attachment_type = attachment_file.content_type if attachment_file else None
 
+        window_status = get_whatsapp_window_status(customer=customer)
+        is_window_open = window_status['is_open']
+
         if attach_seller_guide:
             chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
             chat_attachment_type = 'application/pdf'
-            # Send single document message with message_text as caption
-            doc_ok, doc_wamid, doc_err = send_document_message(
-                target_phone,
-                DEFAULT_SELLER_GUIDE_PUBLIC_URL,
-                DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-                caption=message_text,
-                return_details=True
-            )
-            if doc_ok:
-                api_dispatched = True
-                chosen_wamid = doc_wamid
-            else:
-                api_error = doc_err
-                # Fallback to plain text if document dispatch fails
-                if message_text:
-                    txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
-                    if txt_ok:
+
+            if is_window_open:
+                # Inside 24h window: send free-form document message with caption (Cost-saving!)
+                doc_ok, doc_wamid, doc_err = send_document_message(
+                    target_phone,
+                    DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+                    DEFAULT_SELLER_GUIDE_PDF_FILENAME,
+                    caption=message_text,
+                    return_details=True
+                )
+                if doc_ok:
+                    api_dispatched = True
+                    chosen_wamid = doc_wamid
+                elif doc_err and ('131047' in str(doc_err) or 'Re-engagement' in str(doc_err)):
+                    tmpl_ok, tmpl_wamid, tmpl_err = send_seller_onboarding_template(target_phone, return_details=True)
+                    if tmpl_ok:
                         api_dispatched = True
-                        chosen_wamid = txt_wamid
-                    elif txt_err:
-                        api_error = f"Doc: {doc_err} | Text: {txt_err}"
+                        chosen_wamid = tmpl_wamid
+                    else:
+                        api_error = tmpl_err
+                else:
+                    api_error = doc_err
+            else:
+                # Outside 24h window: send approved Meta template directly
+                tmpl_ok, tmpl_wamid, tmpl_err = send_seller_onboarding_template(target_phone, return_details=True)
+                if tmpl_ok:
+                    api_dispatched = True
+                    chosen_wamid = tmpl_wamid
+                else:
+                    api_error = tmpl_err
+
         elif message_text:
             txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
             if txt_ok:
                 api_dispatched = True
                 chosen_wamid = txt_wamid
-            elif txt_err:
+            elif txt_err and ('131047' in str(txt_err) or 'Re-engagement' in str(txt_err)):
+                if 'Welcome to Apni Factory' in message_text:
+                    tmpl_ok, tmpl_wamid, tmpl_err = send_seller_onboarding_template(target_phone, return_details=True)
+                    if tmpl_ok:
+                        api_dispatched = True
+                        chosen_wamid = tmpl_wamid
+                        chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
+                        chat_attachment_type = 'application/pdf'
+                    else:
+                        api_error = tmpl_err
+                else:
+                    api_error = txt_err
+            else:
                 api_error = txt_err
 
         # Log the message
@@ -3844,7 +3883,11 @@ def whatsapp_start_new_chat(request):
     sent_chat = None
     if initial_message or attach_seller_guide:
         from core.utils import (
+            send_text_message,
             send_document_message,
+            send_seller_onboarding_template,
+            get_whatsapp_window_status,
+            format_india_time,
             DEFAULT_SELLER_GUIDE_PUBLIC_URL,
             DEFAULT_SELLER_GUIDE_PDF_FILENAME,
             DEFAULT_SELLER_GUIDE_PDF_PATH
@@ -3853,26 +3896,43 @@ def whatsapp_start_new_chat(request):
         attachment_path = None
         attachment_type = None
 
+        window_status = get_whatsapp_window_status(customer=customer, phone=target_phone)
+        is_window_open = window_status['is_open']
+
         if attach_seller_guide:
             attachment_path = DEFAULT_SELLER_GUIDE_PDF_PATH
             attachment_type = 'application/pdf'
-            doc_ok, doc_wamid, _ = send_document_message(
-                target_phone,
-                DEFAULT_SELLER_GUIDE_PUBLIC_URL,
-                DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-                caption=initial_message,
-                return_details=True
-            )
-            if doc_wamid:
-                chosen_wamid = doc_wamid
-            elif initial_message:
-                txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
-                if txt_wamid:
-                    chosen_wamid = txt_wamid
+
+            if is_window_open:
+                # Inside 24h window: send document with caption
+                doc_ok, doc_wamid, doc_err = send_document_message(
+                    target_phone,
+                    DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+                    DEFAULT_SELLER_GUIDE_PDF_FILENAME,
+                    caption=initial_message,
+                    return_details=True
+                )
+                if doc_wamid:
+                    chosen_wamid = doc_wamid
+                elif doc_err and ('131047' in str(doc_err) or 'Re-engagement' in str(doc_err)):
+                    tmpl_ok, tmpl_wamid, _ = send_seller_onboarding_template(target_phone, return_details=True)
+                    if tmpl_wamid:
+                        chosen_wamid = tmpl_wamid
+            else:
+                # Outside 24h window: send approved template
+                tmpl_ok, tmpl_wamid, _ = send_seller_onboarding_template(target_phone, return_details=True)
+                if tmpl_wamid:
+                    chosen_wamid = tmpl_wamid
         elif initial_message:
-            txt_ok, txt_wamid, _ = send_text_message(target_phone, initial_message, return_details=True)
+            txt_ok, txt_wamid, txt_err = send_text_message(target_phone, initial_message, return_details=True)
             if txt_wamid:
                 chosen_wamid = txt_wamid
+            elif txt_err and ('131047' in str(txt_err) or 'Re-engagement' in str(txt_err)) and 'Welcome to Apni Factory' in initial_message:
+                tmpl_ok, tmpl_wamid, _ = send_seller_onboarding_template(target_phone, return_details=True)
+                if tmpl_wamid:
+                    chosen_wamid = tmpl_wamid
+                    attachment_path = DEFAULT_SELLER_GUIDE_PDF_PATH
+                    attachment_type = 'application/pdf'
 
         chat = WhatsAppChat.objects.create(
             customer=customer,
@@ -3888,7 +3948,7 @@ def whatsapp_start_new_chat(request):
             'message': chat.message,
             'wamid': chat.wamid,
             'attachment_url': chat.attachment.url if chat.attachment else None,
-            'timestamp': timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
+            'timestamp': format_india_time(chat.timestamp)
         }
 
     return JsonResponse({

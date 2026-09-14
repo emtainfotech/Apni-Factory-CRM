@@ -1,12 +1,17 @@
-<!-- 24-Hour Meta Window Warning Banner -->
-<div id="core-meta-window-warning" class="alert alert-warning py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-none d-flex align-items-center justify-content-between">
-    <div>
-        <i class="fas fa-exclamation-triangle text-warning me-1"></i>
-        <strong>24-Hour WhatsApp Window Inactive:</strong> Recipient has not replied in 24 hours. Freeform Meta API messages may fail (Error 131047).
+<!-- 24-Hour Meta Window Status Banner -->
+<div id="core-meta-window-warning" class="alert py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-none d-flex align-items-center justify-content-between">
+    <div id="coreMetaWindowWarningText">
+        <i class="fas fa-clock text-warning me-1"></i>
+        <span>Checking 24-hour window status...</span>
     </div>
-    <a href="#" id="core-window-direct-wa-btn" target="_blank" class="btn btn-xs btn-success text-white py-1 px-2 ms-2 text-nowrap">
-        <i class="fab fa-whatsapp me-1"></i> Send via WhatsApp Web
-    </a>
+    <div class="d-flex align-items-center gap-1">
+        <button type="button" class="btn btn-xs btn-outline-primary py-1 px-2 text-nowrap" onclick="insertCoreSellerTemplate()">
+            <i class="fas fa-bolt text-warning me-1"></i> Seller Template
+        </button>
+        <a href="#" id="core-window-direct-wa-btn" target="_blank" class="btn btn-xs btn-success text-white py-1 px-2 text-nowrap">
+            <i class="fab fa-whatsapp me-1"></i> WhatsApp Web
+        </a>
+    </div>
 </div>
 
 <!-- Chat Messages Area -->
@@ -115,6 +120,14 @@ function insertCoreSellerTemplate() {
     hideCoreKeywordSuggestions();
     updateCoreWaWebDirectLink();
 }
+
+window.quickSendCoreSellerTemplate = function() {
+    insertCoreSellerTemplate();
+    setTimeout(() => {
+        const form = document.getElementById('chat-form');
+        if (form) form.requestSubmit();
+    }, 80);
+};
 
 function toggleCorePdfAttachment(forceState) {
     if (typeof forceState === 'boolean') {
@@ -236,11 +249,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Update 24-hr window banner
                     const warningBanner = document.getElementById('core-meta-window-warning');
+                    const warningText = document.getElementById('coreMetaWindowWarningText');
                     if (warningBanner) {
-                        if (data.window_24h_expired) {
-                            warningBanner.classList.remove('d-none');
+                        warningBanner.classList.remove('d-none');
+                        if (data.window_is_open) {
+                            warningBanner.className = 'alert alert-success py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-flex align-items-center justify-content-between';
+                            if (warningText) {
+                                warningText.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i> <strong>24h Service Window Active:</strong> ${data.window_remaining_str} (Free-form / Low-Cost Session)`;
+                            }
                         } else {
-                            warningBanner.classList.add('d-none');
+                            warningBanner.className = 'alert alert-warning py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-flex align-items-center justify-content-between';
+                            if (warningText) {
+                                warningText.innerHTML = `<i class="fas fa-clock text-warning me-1"></i> <strong>24h Window Closed:</strong> Freeform restricted. Sending Onboarding Guide will auto-deliver via Meta Template <code>seller_onboarding_details_template</code>.`;
+                            }
                         }
                     }
 
@@ -320,16 +341,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (chat.delivery_status === 'failed') {
                     const encMsg = encodeURIComponent(chat.message || CORE_SELLER_ONBOARDING_TEMPLATE);
                     const failWaLink = `https://web.whatsapp.com/send?phone=91${cleanPhone10}&text=${encMsg}`;
-                    statusHtml = `<span class="badge bg-danger text-white py-0 px-1 ms-1 fs-11" title="Delivery Failed via Meta API"><i class="fas fa-exclamation-triangle me-1"></i>Failed</span>`;
+                    const isReengagement = chat.error_code == '131047' || (chat.error_title && chat.error_title.includes('Re-engagement'));
+                    statusHtml = `<span class="badge bg-danger text-white py-0 px-1 ms-1 fs-11" title="Delivery Failed via Meta API: Error ${chat.error_code || ''}"><i class="fas fa-exclamation-triangle me-1"></i>Failed</span>`;
                     failureCardHtml = `
                         <div class="mt-2 p-2 rounded bg-danger-subtle text-danger border border-danger-subtle fs-11">
                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                <strong><i class="fas fa-clock me-1"></i>24-Hour WhatsApp Window Closed</strong>
+                                <strong><i class="fas fa-exclamation-circle me-1"></i>${isReengagement ? '24-Hour WhatsApp Window Closed (Error 131047)' : 'Delivery Failed: ' + (chat.error_title || 'Error')}</strong>
                             </div>
-                            <div class="text-dark fs-11 mb-2">Meta Cloud API rejected this message because the customer hasn't messaged in 24h. Deliver it immediately:</div>
-                            <a href="${failWaLink}" target="_blank" class="btn btn-xs btn-danger text-white py-1 px-2 d-inline-flex align-items-center">
-                                <i class="fab fa-whatsapp me-1"></i> Send via WhatsApp Web
-                            </a>
+                            <div class="text-dark fs-11 mb-2">${isReengagement ? 'Meta blocked free-form delivery because 24h passed without customer reply. Click below to deliver via pre-approved template:' : 'The message could not be delivered via Meta Cloud API.'}</div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button type="button" class="btn btn-xs btn-primary text-white py-1 px-2 d-inline-flex align-items-center" onclick="quickSendCoreSellerTemplate()">
+                                    <i class="fas fa-paper-plane me-1"></i> Send Approved Seller Template
+                                </button>
+                                <a href="${failWaLink}" target="_blank" class="btn btn-xs btn-outline-secondary py-1 px-2 d-inline-flex align-items-center">
+                                    <i class="fab fa-whatsapp me-1"></i> WhatsApp Web
+                                </a>
+                            </div>
                         </div>
                     `;
                 } else if (chat.delivery_status === 'read') {
