@@ -1,5 +1,6 @@
 {% extends 'core/base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block title %}WhatsApp Inbox | CRM{% endblock %}
 
@@ -38,9 +39,14 @@
                         <div class="avatar avatar-xl me-3">
                             <div class="avatar-name rounded-circle"><span>{{ customer.first_name|default:'C'|first|upper }}</span></div>
                         </div>
-                        <div class="flex-1">
-                            <h6 class="mb-0 text-dark">{{ customer.get_full_name|default:customer.first_name }}</h6>
-                            <p class="fs-10 text-body-tertiary mb-0">{{ customer.whatsapp_number|default:customer.phone }}</p>
+                        <div class="flex-1 min-w-0">
+                            <div class="d-flex align-items-center justify-content-between mb-1">
+                                <h6 class="mb-0 text-dark text-truncate">{{ customer.get_full_name|default:customer.first_name }}</h6>
+                                {% if customer.last_chat_time %}
+                                <span class="fs-11 text-muted text-nowrap ms-2">{{ customer.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="fs-10 text-body-tertiary mb-0 text-truncate">{{ customer.whatsapp_number|default:customer.phone }}</p>
                         </div>
                     </a>
                     {% empty %}

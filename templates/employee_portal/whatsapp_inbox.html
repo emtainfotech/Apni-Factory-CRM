@@ -1,5 +1,6 @@
 {% extends 'employee_portal/base.html' %}
 {% load static %}
+{% load tz %}
 
 {% block content %}
 <style>
@@ -136,11 +137,16 @@
                             <span class="fw-bold text-body-highlight text-truncate" style="max-width: 170px;">
                                 {{ c.get_full_name|default:c.first_name }}
                             </span>
-                            {% if c.customer_type == 'seller' %}
-                            <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
-                            {% else %}
-                            <span class="badge badge-phoenix badge-phoenix-warning fs-10">Buyer</span>
-                            {% endif %}
+                            <div class="d-flex align-items-center gap-1">
+                                {% if c.last_chat_time %}
+                                <span class="fs-11 text-muted text-nowrap me-1">{{ c.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
+                                {% endif %}
+                                {% if c.customer_type == 'seller' %}
+                                <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-warning fs-10">Buyer</span>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="d-flex align-items-center justify-content-between fs-10 text-body-tertiary">
                             <span><span class="fas fa-phone me-1"></span>{{ c.whatsapp_number|default:c.phone }}</span>
@@ -614,6 +620,88 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+function formatWhatsAppTime(chat) {
+    if (chat.time) return chat.time;
+    if (chat.timestamp_iso) {
+        try {
+            const d = new Date(chat.timestamp_iso);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+        } catch (e) {}
+    }
+    if (chat.timestamp && typeof chat.timestamp === 'string') {
+        if (chat.timestamp.includes('|')) {
+            return chat.timestamp.split('|')[0].trim();
+        }
+        if (chat.timestamp.includes(':') && (chat.timestamp.toLowerCase().includes('am') || chat.timestamp.toLowerCase().includes('pm'))) {
+            return chat.timestamp;
+        }
+        try {
+            const d = new Date(chat.timestamp);
+            if (!isNaN(d.getTime())) {
+                return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+            }
+        } catch (e) {}
+    }
+    return '';
+}
+
+function getWhatsAppDateGroupKey(chat) {
+    if (chat.date_str) return chat.date_str;
+    if (chat.timestamp_iso) {
+        try {
+            const d = new Date(chat.timestamp_iso);
+            if (!isNaN(d.getTime())) {
+                const yr = d.getFullYear();
+                const mo = String(d.getMonth() + 1).padStart(2, '0');
+                const da = String(d.getDate()).padStart(2, '0');
+                return `${yr}-${mo}-${da}`;
+            }
+        } catch (e) {}
+    }
+    return 'today';
+}
+
+function formatWhatsAppDateLabel(dateKey, isoString) {
+    if (!dateKey || dateKey === 'today') {
+        if (isoString) {
+            try {
+                const d = new Date(isoString);
+                if (!isNaN(d.getTime())) return formatWhatsAppDateFromDate(d);
+            } catch (e) {}
+        }
+        return 'Today';
+    }
+
+    const parts = dateKey.split('-');
+    if (parts.length === 3) {
+        const yr = parseInt(parts[0], 10);
+        const mo = parseInt(parts[1], 10) - 1;
+        const da = parseInt(parts[2], 10);
+        const target = new Date(yr, mo, da);
+        return formatWhatsAppDateFromDate(target);
+    }
+    return dateKey;
+}
+
+function formatWhatsAppDateFromDate(target) {
+    if (isNaN(target.getTime())) return 'Today';
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const comp = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+
+    const diffMs = today.getTime() - comp.getTime();
+    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays > 1 && diffDays < 7) {
+        return comp.toLocaleDateString('en-IN', { weekday: 'long' });
+    }
+    return comp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function fetchChatMessages(customerId, scroll = true) {
     fetch(`/employee/whatsapp/${customerId}/`)
         .then(res => res.json())
@@ -651,9 +739,27 @@ function fetchChatMessages(customerId, scroll = true) {
                 if (data.chats.length === 0) {
                     container.innerHTML = '<div class="text-center text-body-quaternary my-auto fs-9">No messages yet. Type <strong>/seller</strong> or click "Seller Onboarding" above to send the welcome kit.</div>';
                 } else {
-                    container.innerHTML = data.chats.map(chat => {
+                    let chatHtml = '';
+                    let lastDateKey = null;
+
+                    data.chats.forEach(chat => {
                         const isOutgoing = (chat.direction === 'outgoing');
                         const bubbleClass = isOutgoing ? 'msg-outgoing' : 'msg-incoming';
+                        const timeStr = formatWhatsAppTime(chat);
+                        const dateKey = getWhatsAppDateGroupKey(chat);
+
+                        if (dateKey !== lastDateKey) {
+                            const dateBadgeText = formatWhatsAppDateLabel(dateKey, chat.timestamp_iso);
+                            chatHtml += `
+                                <div class="d-flex justify-content-center my-2">
+                                    <span class="badge bg-white text-secondary fw-semibold fs-10 px-3 py-1 shadow-sm border" style="border-radius: 8px; background-color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08) !important; letter-spacing: 0.2px;">
+                                        ${dateBadgeText}
+                                    </span>
+                                </div>
+                            `;
+                            lastDateKey = dateKey;
+                        }
+
                         let attachHtml = '';
                         if (chat.attachment_url) {
                             if (chat.attachment_url.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'))) {
@@ -698,7 +804,7 @@ function fetchChatMessages(customerId, scroll = true) {
                                     </div>
                                 `;
                             } else if (chat.delivery_status === 'read') {
-                                statusHtml = `<i class="fas fa-check-double text-info ms-1" title="Read by customer"></i>`;
+                                statusHtml = `<i class="fas fa-check-double text-info ms-1" title="Read by customer" style="color: #53bdeb !important;"></i>`;
                             } else if (chat.delivery_status === 'delivered') {
                                 statusHtml = `<i class="fas fa-check-double text-light opacity-75 ms-1" title="Delivered to phone"></i>`;
                             } else {
@@ -706,18 +812,19 @@ function fetchChatMessages(customerId, scroll = true) {
                             }
                         }
 
-                        return `
+                        chatHtml += `
                             <div class="msg-bubble ${bubbleClass}">
                                 ${attachHtml}
                                 <div style="white-space: pre-wrap; word-break: break-word;">${escapeHtml(chat.message || '')}</div>
                                 <div class="msg-time d-flex align-items-center justify-content-end gap-1">
-                                    <span>${chat.timestamp}</span>
+                                    <span class="opacity-75" style="font-size: 0.68rem; letter-spacing: 0.2px;">${timeStr}</span>
                                     ${statusHtml}
                                 </div>
                                 ${failureCardHtml}
                             </div>
                         `;
-                    }).join('');
+                    });
+                    container.innerHTML = chatHtml;
                 }
 
                 if (scroll) {

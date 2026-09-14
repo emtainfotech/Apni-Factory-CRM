@@ -274,9 +274,91 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(err => console.error("Error fetching chats", err));
     }
 
+    function formatWhatsAppTime(chat) {
+        if (chat.time) return chat.time;
+        if (chat.timestamp_iso) {
+            try {
+                const d = new Date(chat.timestamp_iso);
+                if (!isNaN(d.getTime())) {
+                    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                }
+            } catch (e) {}
+        }
+        if (chat.timestamp && typeof chat.timestamp === 'string') {
+            if (chat.timestamp.includes('|')) {
+                return chat.timestamp.split('|')[0].trim();
+            }
+            if (chat.timestamp.includes(':') && (chat.timestamp.toLowerCase().includes('am') || chat.timestamp.toLowerCase().includes('pm'))) {
+                return chat.timestamp;
+            }
+            try {
+                const d = new Date(chat.timestamp);
+                if (!isNaN(d.getTime())) {
+                    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                }
+            } catch (e) {}
+        }
+        return '';
+    }
+
+    function getWhatsAppDateGroupKey(chat) {
+        if (chat.date_str) return chat.date_str;
+        if (chat.timestamp_iso) {
+            try {
+                const d = new Date(chat.timestamp_iso);
+                if (!isNaN(d.getTime())) {
+                    const yr = d.getFullYear();
+                    const mo = String(d.getMonth() + 1).padStart(2, '0');
+                    const da = String(d.getDate()).padStart(2, '0');
+                    return `${yr}-${mo}-${da}`;
+                }
+            } catch (e) {}
+        }
+        return 'today';
+    }
+
+    function formatWhatsAppDateLabel(dateKey, isoString) {
+        if (!dateKey || dateKey === 'today') {
+            if (isoString) {
+                try {
+                    const d = new Date(isoString);
+                    if (!isNaN(d.getTime())) return formatWhatsAppDateFromDate(d);
+                } catch (e) {}
+            }
+            return 'Today';
+        }
+
+        const parts = dateKey.split('-');
+        if (parts.length === 3) {
+            const yr = parseInt(parts[0], 10);
+            const mo = parseInt(parts[1], 10) - 1;
+            const da = parseInt(parts[2], 10);
+            const target = new Date(yr, mo, da);
+            return formatWhatsAppDateFromDate(target);
+        }
+        return dateKey;
+    }
+
+    function formatWhatsAppDateFromDate(target) {
+        if (isNaN(target.getTime())) return 'Today';
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const comp = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+
+        const diffMs = today.getTime() - comp.getTime();
+        const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays > 1 && diffDays < 7) {
+            return comp.toLocaleDateString('en-IN', { weekday: 'long' });
+        }
+        return comp.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
     function renderMessages(chats, scrollToBottom, phone) {
         let html = '';
-        let lastDateStr = null;
+        let lastDateKey = null;
         const cleanPhone10 = (phone || '').replace(/[^0-9]/g, '').slice(-10);
 
         chats.forEach(chat => {
@@ -284,31 +366,19 @@ document.addEventListener('DOMContentLoaded', function() {
             const align = isOutgoing ? 'justify-content-end' : 'justify-content-start';
             const bgClass = isOutgoing ? 'bg-success-subtle text-dark' : 'bg-white text-dark';
             
-            let dateObj = new Date(chat.timestamp);
-            let timeStr = chat.timestamp;
-            let dateStr = '';
-            try {
-                timeStr = dateObj.toLocaleTimeString('en-IN', {hour: '2-digit', minute:'2-digit'});
-                dateStr = dateObj.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-                
-                const today = new Date();
-                const yesterday = new Date(today);
-                yesterday.setDate(yesterday.getDate() - 1);
+            const timeStr = formatWhatsAppTime(chat);
+            const dateKey = getWhatsAppDateGroupKey(chat);
 
-                if (dateObj.toDateString() === today.toDateString()) {
-                    dateStr = 'Today';
-                } else if (dateObj.toDateString() === yesterday.toDateString()) {
-                    dateStr = 'Yesterday';
-                }
-            } catch(e) {}
-            
-            if (dateStr !== lastDateStr) {
+            if (dateKey !== lastDateKey) {
+                const dateBadgeLabel = formatWhatsAppDateLabel(dateKey, chat.timestamp_iso);
                 html += `
-                    <div class="d-flex justify-content-center mb-3">
-                        <span class="badge bg-secondary-subtle text-secondary fw-normal fs-10 px-3 py-1 shadow-sm">${dateStr}</span>
+                    <div class="d-flex justify-content-center my-3">
+                        <span class="badge bg-white text-secondary fw-semibold fs-10 px-3 py-1 shadow-sm border" style="border-radius: 8px; background-color: #ffffff !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08) !important; letter-spacing: 0.2px;">
+                            ${dateBadgeLabel}
+                        </span>
                     </div>
                 `;
-                lastDateStr = dateStr;
+                lastDateKey = dateKey;
             }
 
             let attachmentHtml = '';
@@ -360,7 +430,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </div>
                     `;
                 } else if (chat.delivery_status === 'read') {
-                    statusHtml = `<i class="fas fa-check-double text-info ms-1" title="Read"></i>`;
+                    statusHtml = `<i class="fas fa-check-double text-info ms-1" title="Read" style="color: #53bdeb !important;"></i>`;
                 } else if (chat.delivery_status === 'delivered') {
                     statusHtml = `<i class="fas fa-check-double text-muted ms-1" title="Delivered"></i>`;
                 } else {
@@ -376,7 +446,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         ${attachmentHtml}
                         ${displayMsgText ? `<div style="white-space: pre-wrap; word-wrap: break-word;">${displayMsgText}</div>` : ''}
                         <div class="text-end mt-1 d-flex align-items-center justify-content-end gap-1">
-                            <small class="text-muted" style="font-size: 0.65rem;">${timeStr}</small>
+                            <small class="text-secondary opacity-75" style="font-size: 0.68rem; letter-spacing: 0.2px;">${timeStr}</small>
                             ${statusHtml}
                         </div>
                         ${failureCardHtml}

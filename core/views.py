@@ -3601,11 +3601,19 @@ def get_whatsapp_chat(request, customer_id):
     ).order_by('-timestamp').first()
 
     chat_data = []
+    from zoneinfo import ZoneInfo
+    ist_tz = ZoneInfo("Asia/Kolkata")
+
     for chat in chats:
         st = status_map.get(chat.wamid)
         delivery_status = st.status if st else ('sent' if chat.direction == 'outgoing' else None)
         err_code = st.error_code if st else (latest_failed.error_code if (latest_failed and chat.direction == 'outgoing' and not st) else None)
         err_title = st.error_title if st else (latest_failed.error_title if (latest_failed and chat.direction == 'outgoing' and not st) else None)
+
+        if timezone.is_aware(chat.timestamp):
+            chat_ist = chat.timestamp.astimezone(ist_tz)
+        else:
+            chat_ist = timezone.make_aware(chat.timestamp, timezone.utc).astimezone(ist_tz)
 
         chat_data.append({
             'id': chat.id,
@@ -3617,8 +3625,11 @@ def get_whatsapp_chat(request, customer_id):
             'delivery_status': delivery_status,
             'error_code': err_code,
             'error_title': err_title,
-            'timestamp': format_india_time(chat.timestamp),
-            'timestamp_iso': chat.timestamp.isoformat() if chat.timestamp else '',
+            'time': chat_ist.strftime('%I:%M %p'),
+            'date_str': chat_ist.strftime('%Y-%m-%d'),
+            'timestamp': chat_ist.strftime('%I:%M %p'),
+            'timestamp_iso': chat_ist.isoformat(),
+            'timestamp_formatted': chat_ist.strftime('%I:%M %p | %d %b %Y'),
         })
     return JsonResponse({
         'status': 'success',
@@ -3739,6 +3750,10 @@ def send_whatsapp_message_ajax(request, customer_id):
         lead.needs_human = True
         lead.save()
         
+        from zoneinfo import ZoneInfo
+        ist_tz = ZoneInfo("Asia/Kolkata")
+        chat_ist = chat.timestamp.astimezone(ist_tz) if timezone.is_aware(chat.timestamp) else timezone.make_aware(chat.timestamp, timezone.utc).astimezone(ist_tz)
+
         return JsonResponse({
             'status': 'success',
             'chat': {
@@ -3747,7 +3762,10 @@ def send_whatsapp_message_ajax(request, customer_id):
                 'direction': chat.direction,
                 'wamid': chat.wamid,
                 'attachment_url': chat.attachment.url if chat.attachment else None,
-                'timestamp': __import__('django').utils.timezone.localtime(chat.timestamp).strftime('%Y-%m-%dT%H:%M:%S%z')
+                'time': chat_ist.strftime('%I:%M %p'),
+                'date_str': chat_ist.strftime('%Y-%m-%d'),
+                'timestamp': chat_ist.strftime('%I:%M %p'),
+                'timestamp_iso': chat_ist.isoformat(),
             },
             'dispatched': api_dispatched,
             'api_error': api_error
@@ -3943,12 +3961,19 @@ def whatsapp_start_new_chat(request):
             wamid=chosen_wamid,
             timestamp=timezone.now()
         )
+        from zoneinfo import ZoneInfo
+        ist_tz = ZoneInfo("Asia/Kolkata")
+        chat_ist = chat.timestamp.astimezone(ist_tz) if timezone.is_aware(chat.timestamp) else timezone.make_aware(chat.timestamp, timezone.utc).astimezone(ist_tz)
+
         sent_chat = {
             'id': chat.id,
             'message': chat.message,
             'wamid': chat.wamid,
             'attachment_url': chat.attachment.url if chat.attachment else None,
-            'timestamp': format_india_time(chat.timestamp)
+            'time': chat_ist.strftime('%I:%M %p'),
+            'date_str': chat_ist.strftime('%Y-%m-%d'),
+            'timestamp': chat_ist.strftime('%I:%M %p'),
+            'timestamp_iso': chat_ist.isoformat(),
         }
 
     return JsonResponse({
