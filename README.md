@@ -61,6 +61,29 @@ Significant dashboard UX/UI overhaul and e-commerce profile management system:
 - **Route Namespace Corrections**: Audited and corrected all legacy `hostinger_` endpoints to namespaced app URL routes across the listing and details templates.
 - **Tracking & Marketing Tag Panel**: Added a dedicated tracking tag panel at `/core/settings/tracking/` loaded from environment settings to inspect and integrate Meta Pixel, GA4, GTM, Ads Conversion, Search Console, and WhatsApp Chat events.
 
+### 10. WhatsApp Cloud API Integration & Smart Inbox
+Enterprise-grade two-way WhatsApp business communication suite:
+- **Meta Cloud API Dispatch**: Real-time message dispatching supporting text messages and native document attachments (`Apni_Factory_Seller_Onboarding_Guide_Final.pdf`) directly attached to chat messages without external URL redirects.
+- **24-Hour Session Window & Cost Optimization**: Intelligently tracks the Meta 24-hour customer care window. Messages inside the session are dispatched as standard session chats for significant cost savings; messages outside the window automatically switch to approved Meta templates (e.g. `seller_onboarding_details_template`).
+- **4-Way Chat Filtering**: Filter chats seamlessly by `All`, `Buyers`, `Sellers`, and **`Failed / Unsent`** messages. Contacts with delivery failures or unsent dispatches are badged with danger alerts for immediate follow-up.
+- **WhatsApp Web-Style Date/Time UI**: Native chat bubbles display localized Indian Standard Time (IST, Asia/Kolkata), with floating WhatsApp-style date separators (`Today`, `Yesterday`, and formatted dates).
+- **Default Seller Onboarding & Duplicity Guard**: "Add New Party" and "New Chat" workflows default to **Seller / Vendor** onboarding, with automated real-time phone number duplication validation and conflict resolution modal (skip or redirect to existing profile).
+
+### 11. Employee Duty Dashboard & "Customers Connected" Analytics
+Specialized productivity dashboard empowering sales reps and account managers:
+- **Today's Scheduled Follow-ups**: Dedicated action center spotlighting today's scheduled follow-up appointments and callbacks (IST) with quick one-click actions: 📞 **Direct Call** (`tel:`), 💬 **WhatsApp Chat**, and 👤 **360° Profile**, alongside overdue indicators.
+- **Customers Connected Metric**: Real-time performance KPI tracking unique accounts engaged by the employee:
+  - **Profiles Created**: Contacts added by the employee (`created_by`).
+  - **Profile Modifications / Updates**: Changes made to customer profile details, business categories, or pipeline stages (audited via `CustomerActivityLog`).
+  - **KPI Breakdown**: Real-time display of today's distinct connected accounts (`+X created • +Y updated`), Month-to-date totals, and a live activity feed.
+
+### 12. Admin Team Performance & Figure Analytics Suite
+Comprehensive managerial ledger for live team tracking and historical performance auditing:
+- **Dynamic Time Period Switching**: Interactive controls to switch figures across **`Today`**, **`This Week`**, **`This Month`**, and **`All Time`** with zero data loss.
+- **Team Aggregate KPI Strip**: High-level metric summary showing team-wide Connected Customers, Profiles Created, Profile Updates/Changes, Outbound Calls Dialed, Follow-ups Due, and Attributed Sales Revenue.
+- **Live Search Filtering**: Fast client-side search box allowing administrators to instantly filter employee records by name, email, or role.
+- **Granular Figures Ledger**: Comprehensive multi-column performance matrix detailing each employee's punch status, connected unique accounts, created profiles, profile updates, outbound calls, follow-ups due today, assigned pipeline size, and attributed revenue.
+
 ---
 
 ## 🗺️ Page Directory & Descriptions
@@ -81,6 +104,7 @@ This CRM application is partitioned into core namespaces managing distinct works
 - **CRM Buyer Directory** (`/core/customers/`): Directory of CRM customers, B2B profiles, status settings, assignment attributes, and bulk uploading utilities.
 - **CRM Customer Details** (`/core/customers/<int:customer_id>/`): Shows communication histories, logged calls, follow-up timers, and customer conversion forms.
 - **Interactive Lead Kanban Board** (`/core/leads/kanban/`): Drag-and-drop workspace displaying lead stages (`Leads`, `Prospects`, `Customers`, `Inactive`, and `Lost Leads`) powered by HTMX handlers.
+- **Admin WhatsApp Inbox** (`/core/whatsapp/inbox/`): System-wide conversational hub with 4-way filtering (`All`, `Buyers`, `Sellers`, and `Failed/Unsent`), Meta template failovers, document dispatches, and WhatsApp-style date/time grouping.
 
 ### 3. Application Data Workspace (Hostinger DB)
 - **Sellers Directory** (`/core/app-db/sellers/`): Dynamic index of e-commerce vendors registered on the platform.
@@ -102,9 +126,11 @@ This CRM application is partitioned into core namespaces managing distinct works
 - **Invoice Detail View** (`/core/invoices/<int:invoice_id>/`): Detail view allowing finalized rendering, emailing, WhatsApp dispatching, or downloading tax invoices as PDF.
 
 ### 5. Employee Portal Workspace (`/employee/` prefix)
-- **Employee Dashboard** (`/employee/dashboard/`): Isolated workspace for CRM employees. Enforces dynamic duty locks (punch-in controls) on lead lists and financial dashboards. Contains personal attendance timelines, call logs, and attributed revenue maps.
+- **Employee Dashboard** (`/employee/dashboard/`): Isolated workspace for CRM employees. Enforces dynamic duty locks (punch-in controls) on lead lists and financial dashboards. Features Today's Scheduled Follow-ups (with direct call, WhatsApp, and profile actions), Customers Connected KPI metrics (profiles created + updated), personal attendance timelines, call logs, and attributed revenue maps.
+- **Employee WhatsApp Inbox** (`/employee/whatsapp/`): Scoped messaging workspace with 4-way status filters (`All`, `Buyers`, `Sellers`, `Failed`), new direct-to-number chat modal, PDF document attachments, and automatic 24h window session optimization.
+- **Customer Duplicate Check API** (`/employee/customers/check-duplicate/`): Instant AJAX endpoint checking mobile number collisions across Buyer and Seller records with modal skip/redirect options.
 - **Punch History & Leave Panel** (`/employee/attendance/`): Detailed timeline of personal punch-ins, breaks, late threshold warnings, and leave request forms.
-- **Employee Portal Customers** (`/employee/customers/`): Assigned buyers list, calling interfaces, and profile details.
+- **Employee Portal Customers** (`/employee/customers/`): Assigned buyers and sellers list, calling interfaces, and profile details.
 - **Employee Portal Kanban** (`/employee/leads/kanban/`): Kanban board restricted to leads assigned to the logged-in employee.
 
 ---
