@@ -1,0 +1,508 @@
+﻿{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Attendance Management — Admin{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --att-green: #10b981;
+    --att-red: #ef4444;
+    --att-orange: #f59e0b;
+    --att-blue: #3b82f6;
+    --att-grey: #6b7280;
+    --card-bg: rgba(255,255,255,0.04);
+    --card-border: rgba(255,255,255,0.08);
+  }
+  .att-page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .att-page-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+  .att-page-title span.badge-live {
+    background: rgba(16,185,129,0.2);
+    border: 1px solid rgba(16,185,129,0.4);
+    border-radius: 50px;
+    padding: .25rem .75rem;
+    font-size: .65rem;
+    font-weight: 700;
+    color: #10b981;
+    letter-spacing: .08em;
+    animation: pulse-live 2s infinite;
+  }
+  @keyframes pulse-live {
+    0%,100% { opacity: 1; }
+    50% { opacity: .5; }
+  }
+  /* KPI Strip */
+  .att-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+  .att-kpi {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 1.1rem 1.25rem;
+    transition: transform .2s, box-shadow .2s;
+  }
+  .att-kpi:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .att-kpi-label {
+    font-size: .72rem;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    margin-bottom: .35rem;
+  }
+  .att-kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .att-kpi-value.green { color: var(--att-green); }
+  .att-kpi-value.orange { color: var(--att-orange); }
+  .att-kpi-value.red { color: var(--att-red); }
+  .att-kpi-value.blue { color: var(--att-blue); }
+  /* Section Cards */
+  .att-section {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+  .att-section-header {
+    padding: 1rem 1.25rem;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--card-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .att-section-title {
+    font-size: .95rem;
+    font-weight: 600;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .att-badge {
+    border-radius: 50px;
+    padding: .15rem .6rem;
+    font-size: .7rem;
+    font-weight: 700;
+  }
+  .att-badge-orange { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .att-badge-red { background: rgba(239,68,68,0.2); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+  .att-badge-blue { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); }
+  .att-badge-green { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+  /* Live Status Grid */
+  .live-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+  .live-card {
+    background: rgba(255,255,255,0.03);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    transition: all .2s;
+  }
+  .live-card:hover { border-color: rgba(255,255,255,0.15); }
+  .live-avatar {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1rem; color: #fff; flex-shrink: 0;
+  }
+  .live-avatar.in { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 0 12px rgba(16,185,129,0.4); }
+  .live-avatar.out { background: linear-gradient(135deg, #6b7280, #4b5563); }
+  .live-avatar.absent { background: linear-gradient(135deg, #ef4444, #dc2626); }
+  .live-avatar.partial { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .live-name {
+    font-size: .88rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .live-meta {
+    font-size: .73rem;
+    color: rgba(255,255,255,0.45);
+    margin-top: .2rem;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+    margin-right: .3rem;
+  }
+  .status-dot.in { background: #10b981; box-shadow: 0 0 6px #10b981; animation: blink 1.5s infinite; }
+  .status-dot.out { background: #6b7280; }
+  .status-dot.absent { background: #ef4444; }
+  .status-dot.partial { background: #f59e0b; }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:.3;} }
+  /* Tables */
+  .att-table { width: 100%; border-collapse: collapse; }
+  .att-table th {
+    font-size: .72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: rgba(255,255,255,0.45);
+    padding: .75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .att-table td {
+    padding: .75rem 1rem;
+    font-size: .85rem;
+    color: rgba(255,255,255,0.8);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .att-table tr:last-child td { border-bottom: none; }
+  .att-table tr:hover td { background: rgba(255,255,255,0.03); }
+  .btn-approve { background: rgba(16,185,129,0.2); color: #34d399; border: 1px solid rgba(16,185,129,0.3); border-radius:7px; padding: .3rem .75rem; font-size:.78rem; font-weight:600; cursor:pointer; transition:.2s; text-decoration:none; display:inline-block; }
+  .btn-approve:hover { background: rgba(16,185,129,0.35); }
+  .btn-reject-trigger { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); border-radius:7px; padding: .3rem .75rem; font-size:.78rem; font-weight:600; cursor:pointer; transition:.2s; }
+  .btn-reject-trigger:hover { background: rgba(239,68,68,0.35); }
+  .btn-review { background: rgba(59,130,246,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.3); border-radius:7px; padding: .3rem .75rem; font-size:.78rem; font-weight:600; cursor:pointer; transition:.2s; text-decoration:none; display:inline-block; }
+  .btn-review:hover { background: rgba(59,130,246,0.35); }
+  /* Month Filter */
+  .month-filter-form { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+  .month-filter-form select, .month-filter-form input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: #fff;
+    padding: .4rem .75rem;
+    font-size: .85rem;
+  }
+  .month-filter-form button {
+    background: rgba(99,102,241,0.3);
+    border: 1px solid rgba(99,102,241,0.5);
+    border-radius: 8px;
+    color: #c7d2fe;
+    padding: .4rem .85rem;
+    font-size: .85rem;
+    cursor: pointer;
+  }
+  /* Toggle Switch */
+  .toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider {
+    position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+    background: rgba(239,68,68,0.4); border-radius:24px; transition:.3s;
+  }
+  .toggle-slider:before {
+    position:absolute; content:""; height:18px; width:18px;
+    left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s;
+  }
+  input:checked + .toggle-slider { background: rgba(16,185,129,0.5); }
+  input:checked + .toggle-slider:before { transform: translateX(20px); }
+  /* Reject Modal */
+  .modal-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(0,0,0,0.7); z-index:9999;
+    align-items:center; justify-content:center;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal-box {
+    background: #1e2235;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 420px; width: 90%;
+  }
+  .modal-title { font-size: 1.1rem; font-weight: 700; color:#fff; margin-bottom: 1rem; }
+  .modal-textarea {
+    width:100%; background: rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px; color:#fff; padding:.7rem; font-size:.85rem; resize:vertical; min-height:80px;
+  }
+  .modal-actions { display:flex; gap:.75rem; margin-top:1rem; justify-content:flex-end; }
+  .modal-cancel { background:none; border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:rgba(255,255,255,0.6); padding:.5rem 1rem; cursor:pointer; }
+  .modal-confirm { background: rgba(239,68,68,0.3); border:1px solid rgba(239,68,68,0.5); border-radius:8px; color:#fca5a5; padding:.5rem 1rem; cursor:pointer; font-weight:600; }
+</style>
+
+<!-- Reject Modal -->
+<div class="modal-overlay" id="rejectModal">
+  <div class="modal-box">
+    <div class="modal-title">Reject Early Punch-Out</div>
+    <p style="color:rgba(255,255,255,0.6);font-size:.85rem;margin-bottom:.75rem;">Provide a reason for rejection (optional but recommended).</p>
+    <form method="post" id="rejectForm">
+      {% csrf_token %}
+      <textarea name="rejection_reason" class="modal-textarea" placeholder="e.g. Task not completed, please finish first..."></textarea>
+      <div class="modal-actions">
+        <button type="button" class="modal-cancel" onclick="closeRejectModal()">Cancel</button>
+        <button type="submit" class="modal-confirm">Reject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="att-page-header">
+  <div class="att-page-title">
+    Attendance Management
+    <span class="badge-live">LIVE</span>
+  </div>
+  <a href="{% url 'admin_attendance_dashboard' %}" class="btn-review">Refresh</a>
+</div>
+
+<!-- KPI Strip -->
+<div class="att-kpi-strip">
+  <div class="att-kpi">
+    <div class="att-kpi-label">Total Employees</div>
+    <div class="att-kpi-value blue">{{ employees_count }}</div>
+  </div>
+  <div class="att-kpi">
+    <div class="att-kpi-label">Active Now</div>
+    <div class="att-kpi-value green">{{ active_now_count }}</div>
+  </div>
+  <div class="att-kpi">
+    <div class="att-kpi-label">Absent Today</div>
+    <div class="att-kpi-value red">{{ absent_today_count }}</div>
+  </div>
+  <div class="att-kpi">
+    <div class="att-kpi-label">Pending Approvals</div>
+    <div class="att-kpi-value orange">{{ pending_early_outs|length }}</div>
+  </div>
+  <div class="att-kpi">
+    <div class="att-kpi-label">Missed Punchouts</div>
+    <div class="att-kpi-value orange">{{ pending_missed|length }}</div>
+  </div>
+  <div class="att-kpi">
+    <div class="att-kpi-label">Working Days (Month)</div>
+    <div class="att-kpi-value blue">{{ total_working_days }}</div>
+  </div>
+</div>
+
+<!-- Live Today Status -->
+<div class="att-section">
+  <div class="att-section-header">
+    <div class="att-section-title">&#128202; Live Status — {{ today|date:"d M Y" }}</div>
+  </div>
+  <div class="live-grid">
+    {% for item in live_status %}
+    <div class="live-card">
+      <div class="live-avatar {{ item.state }}">
+        {{ item.employee.get_display_name|first|upper }}
+      </div>
+      <div style="min-width:0;">
+        <div class="live-name">{{ item.employee.get_display_name }}</div>
+        <div class="live-meta">
+          <span class="status-dot {{ item.state }}"></span>
+          {% if item.state == 'in' %}
+            Punched In
+            {% if item.attendance.punch_in %} — {{ item.attendance.punch_in|date:"H:i" }} IST{% endif %}
+            {% if item.attendance.is_late %} <span class="att-badge att-badge-orange">LATE</span>{% endif %}
+          {% elif item.state == 'out' %}
+            Punched Out — {{ item.attendance.punch_out|date:"H:i" }} IST
+          {% elif item.state == 'partial' %}
+            Punch-In Only
+          {% else %}
+            Absent
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% empty %}
+    <div style="padding:1.5rem;color:rgba(255,255,255,0.4);text-align:center;grid-column:1/-1;">No employees found.</div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Pending Early Punch-Out Approvals -->
+{% if pending_early_outs %}
+<div class="att-section">
+  <div class="att-section-header">
+    <div class="att-section-title">
+      &#9203; Pending Early Punch-Out Approvals
+      <span class="att-badge att-badge-orange">{{ pending_early_outs|length }}</span>
+    </div>
+  </div>
+  <table class="att-table">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Date</th>
+        <th>Punch In</th>
+        <th>Hours Worked</th>
+        <th>Reason</th>
+        <th>Requested At</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for att in pending_early_outs %}
+      <tr>
+        <td>
+          <div style="font-weight:600;color:#fff;">{{ att.user.get_display_name }}</div>
+          <div style="font-size:.73rem;color:rgba(255,255,255,0.4);">{{ att.user.get_role_display }}</div>
+        </td>
+        <td>{{ att.date|date:"d M Y" }}</td>
+        <td>{{ att.punch_in|date:"H:i" }}</td>
+        <td>
+          {% with secs=att.get_worked_seconds %}
+            {{ secs|floatformat:0|divisibleby:3600 }}
+            {% widthratio secs 3600 1 %}h
+          {% endwith %}
+        </td>
+        <td style="max-width:200px;">
+          <span title="{{ att.early_out_reason }}">
+            {{ att.early_out_reason|truncatechars:60 }}
+          </span>
+        </td>
+        <td>{{ att.early_out_requested_at|date:"d M, H:i" }}</td>
+        <td>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <a href="{% url 'approve_early_punchout' att.pk %}" class="btn-approve">&#10003; Approve</a>
+            <button class="btn-reject-trigger" onclick="openRejectModal('{% url 'reject_early_punchout' att.pk %}')">&#10007; Reject</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Pending Missed Punch-Out Reviews -->
+{% if pending_missed %}
+<div class="att-section">
+  <div class="att-section-header">
+    <div class="att-section-title">
+      &#128203; Missed Punch-Out Records — Needs Review
+      <span class="att-badge att-badge-red">{{ pending_missed|length }}</span>
+    </div>
+  </div>
+  <table class="att-table">
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Missed Date</th>
+        <th>Reported Exit</th>
+        <th>Reason</th>
+        <th>Submitted</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rec in pending_missed %}
+      <tr>
+        <td>
+          <div style="font-weight:600;color:#fff;">{{ rec.user.get_display_name }}</div>
+        </td>
+        <td>{{ rec.missed_date|date:"d M Y" }}</td>
+        <td>{{ rec.reported_exit_time }}</td>
+        <td style="max-width:220px;">{{ rec.reason|truncatechars:80 }}</td>
+        <td>{{ rec.submitted_at|date:"d M, H:i" }}</td>
+        <td>
+          <a href="{% url 'review_missed_punchout' rec.pk %}" class="btn-review">Mark Reviewed</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Monthly Attendance Summary -->
+<div class="att-section">
+  <div class="att-section-header">
+    <div class="att-section-title">&#128197; Monthly Summary — {{ report_month_name }} {{ report_year }}</div>
+    <form method="get" class="month-filter-form">
+      <select name="month">
+        {% for num, name in month_choices %}
+          <option value="{{ num }}" {% if num == report_month %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="year" value="{{ report_year }}" min="2020" max="2099" style="width:90px;">
+      <button type="submit">Apply</button>
+    </form>
+  </div>
+  <div style="overflow-x:auto;">
+    <table class="att-table">
+      <thead>
+        <tr>
+          <th>Employee</th>
+          <th>Present</th>
+          <th>Half Day</th>
+          <th>Late</th>
+          <th>Absent</th>
+          <th>Leaves</th>
+          <th>Total Hours</th>
+          <th>Status</th>
+          <th>Profile</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in monthly_summary %}
+        <tr>
+          <td>
+            <div style="font-weight:600;color:#fff;">{{ s.employee.get_display_name }}</div>
+            <div style="font-size:.72rem;color:rgba(255,255,255,0.4);">{{ s.employee.get_role_display }}</div>
+          </td>
+          <td><span class="att-badge att-badge-green">{{ s.days_present }}</span></td>
+          <td>{% if s.days_half %}<span class="att-badge att-badge-orange">{{ s.days_half }}</span>{% else %}&mdash;{% endif %}</td>
+          <td>{% if s.days_late %}<span class="att-badge att-badge-orange">{{ s.days_late }}</span>{% else %}&mdash;{% endif %}</td>
+          <td>{% if s.days_absent %}<span class="att-badge att-badge-red">{{ s.days_absent }}</span>{% else %}<span class="att-badge att-badge-green">0</span>{% endif %}</td>
+          <td>{% if s.leaves_taken %}<span class="att-badge att-badge-blue">{{ s.leaves_taken }}</span>{% else %}&mdash;{% endif %}</td>
+          <td>
+            <span style="font-weight:700;color:{% if s.total_worked_h >= 176 %}#10b981{% elif s.total_worked_h >= 120 %}#f59e0b{% else %}#ef4444{% endif %}">
+              {{ s.total_worked_h }}h
+            </span>
+          </td>
+          <td>
+            {% if s.employee.is_employee_active %}
+              <span class="att-badge att-badge-green">Active</span>
+            {% else %}
+              <span class="att-badge att-badge-red">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{% url 'user_detail' s.employee.id %}" class="btn-review" style="padding:.25rem .6rem;">View</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" style="text-align:center;color:rgba(255,255,255,0.4);padding:1.5rem;">No employees found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function openRejectModal(url) {
+  document.getElementById('rejectForm').action = url;
+  document.getElementById('rejectModal').classList.add('active');
+}
+function closeRejectModal() {
+  document.getElementById('rejectModal').classList.remove('active');
+}
+document.getElementById('rejectModal').addEventListener('click', function(e) {
+  if (e.target === this) closeRejectModal();
+});
+</script>
+{% endblock %}

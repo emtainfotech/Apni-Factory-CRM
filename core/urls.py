@@ -37,6 +37,13 @@ urlpatterns = [
     path('dashboard/admin/reject-leave/<int:leave_id>/', views.reject_leave, name='reject_leave'),
     path('dashboard/admin/whatsapp-marketing/', views.whatsapp_marketing, name='whatsapp_marketing'),
     path('dashboard/admin/whatsapp-marketing/sample/', views.whatsapp_marketing_sample, name='whatsapp_marketing_sample'),
+
+    # --- Attendance Management (Admin) ---
+    path('attendance/', views.admin_attendance_dashboard, name='admin_attendance_dashboard'),
+    path('attendance/approve-early-out/<int:pk>/', views.approve_early_punchout, name='approve_early_punchout'),
+    path('attendance/reject-early-out/<int:pk>/', views.reject_early_punchout, name='reject_early_punchout'),
+    path('attendance/review-missed-punchout/<int:pk>/', views.review_missed_punchout, name='review_missed_punchout'),
+    path('users/<int:user_id>/toggle-active/', views.toggle_employee_active, name='toggle_employee_active'),
     
     # Order Routes
     path('orders/', views.order_list, name='order_list'),

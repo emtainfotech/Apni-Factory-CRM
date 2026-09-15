@@ -250,6 +250,16 @@
                                         </li>
 
                                         <li class="nav-item">
+                                            <a class="nav-link {% if 'attendance' in request.path %}active{% endif %}"
+                                                href="{% url 'admin_attendance_dashboard' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="clock"></span></span>
+                                                    <span class="nav-link-text">Attendance</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
                                             <a class="nav-link {% if url_name == 'customer_list' %}active{% endif %}"
                                                 href="{% url 'customer_list' %}">
                                                 <div class="d-flex align-items-center">

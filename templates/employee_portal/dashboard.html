@@ -37,13 +37,31 @@
                         <i class="fas fa-coffee me-2"></i>Take Break
                     </button>
                     {% endif %}
-                    
-                    <form action="{% url 'employee_portal:punch_out' %}" method="post" id="punch-out-form">
+
+                    {% if attendance.early_out_approval_status == 'pending' %}
+                    <!-- Early out pending admin approval -->
+                    <button class="btn btn-outline-danger btn-lg px-4" disabled>
+                        <i class="fas fa-hourglass-half me-2"></i>Awaiting Approval...
+                    </button>
+                    {% elif attendance.early_out_approval_status == 'rejected' %}
+                    <!-- Early out rejected -->
+                    <form action="{% url 'employee_portal:punch_out' %}" method="post">
                         {% csrf_token %}
                         <button class="btn btn-danger btn-lg px-4" type="submit" id="punch-out-btn">
                             <i class="fas fa-sign-out-alt me-2"></i>Punch Out
                         </button>
                     </form>
+                    {% else %}
+                    <!-- Smart punch-out: JS checks hours first -->
+                    <button class="btn btn-danger btn-lg px-4" type="button" id="punch-out-btn"
+                            onclick="handlePunchOut({{ work_seconds }}, '{{ attendance.early_out_approval_status }}')"
+                            data-url="{% url 'employee_portal:punch_out' %}">
+                        <i class="fas fa-sign-out-alt me-2"></i>Punch Out
+                    </button>
+                    <form action="{% url 'employee_portal:punch_out' %}" method="post" id="punch-out-form" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                    {% endif %}
                 </div>
                 {% endif %}
             </div>
@@ -664,4 +682,98 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <!-- Add Customer Modal Partial -->
 {% include 'employee_portal/partials/add_customer_modal.html' %}
+
+<!-- Early Punch-Out Request Modal -->
+{% if attendance and attendance.is_punched_in %}
+<div class="modal fade" id="earlyPunchOutModal" tabindex="-1" aria-labelledby="earlyPunchOutModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-warning">
+        <h5 class="modal-title text-warning" id="earlyPunchOutModalLabel">
+          <i class="fas fa-exclamation-triangle me-2"></i>Early Punch-Out Request
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning mb-3" role="alert">
+          <i class="fas fa-clock me-2"></i>
+          You have worked less than <strong>8 hours</strong> today. An early punch-out requires admin approval.
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="earlyOutReason">Reason for early departure <span class="text-danger">*</span></label>
+          <textarea class="form-control" id="earlyOutReason" rows="3"
+            placeholder="e.g. Family emergency, medical appointment, task completed early..."></textarea>
+          <div class="invalid-feedback" id="earlyOutReasonError">Please provide a reason.</div>
+        </div>
+        <div id="earlyOutStatus" class="d-none mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-warning" id="submitEarlyOutBtn" onclick="submitEarlyPunchOut()">
+          <i class="fas fa-paper-plane me-2"></i>Submit for Approval
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const REQUIRED_WORK_SECONDS = 28800; // 8 hours
+
+function handlePunchOut(workedSeconds, approvalStatus) {
+  if (approvalStatus === 'approved' || workedSeconds >= REQUIRED_WORK_SECONDS) {
+    // Enough hours or already approved — submit normally
+    document.getElementById('punch-out-form').submit();
+  } else {
+    // Not enough hours — show early-out request modal
+    const earlyModal = new bootstrap.Modal(document.getElementById('earlyPunchOutModal'));
+    earlyModal.show();
+  }
+}
+
+function submitEarlyPunchOut() {
+  const reasonField = document.getElementById('earlyOutReason');
+  const reason = reasonField.value.trim();
+  const statusDiv = document.getElementById('earlyOutStatus');
+  const btn = document.getElementById('submitEarlyOutBtn');
+
+  if (!reason) {
+    reasonField.classList.add('is-invalid');
+    return;
+  }
+  reasonField.classList.remove('is-invalid');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting...';
+
+  const formData = new FormData();
+  formData.append('reason', reason);
+  formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+  fetch("{% url 'employee_portal:request_early_punchout' %}", {
+    method: 'POST',
+    body: formData,
+  })
+  .then(r => r.json())
+  .then(data => {
+    statusDiv.className = data.status === 'success'
+      ? 'alert alert-success mt-2'
+      : 'alert alert-danger mt-2';
+    statusDiv.textContent = data.message;
+    statusDiv.classList.remove('d-none');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-check me-2"></i>Request Submitted';
+    // Reload after 2s to reflect pending state
+    setTimeout(() => location.reload(), 2000);
+  })
+  .catch(() => {
+    statusDiv.className = 'alert alert-danger mt-2';
+    statusDiv.textContent = 'An error occurred. Please try again.';
+    statusDiv.classList.remove('d-none');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Submit for Approval';
+  });
+}
+</script>
+{% endif %}
 {% endblock %}

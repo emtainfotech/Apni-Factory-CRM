@@ -269,29 +269,66 @@ class TicketInternalNote(models.Model):
 
 # --- 6. ATTENDANCE SYSTEM ---
 class Attendance(models.Model):
+    STATUS_PRESENT = 'present'
+    STATUS_HALF_DAY = 'half_day'
+    STATUS_ABSENT = 'absent'
+    STATUS_ON_LEAVE = 'on_leave'
+    STATUS_HOLIDAY = 'holiday'
+    STATUS_CHOICES = (
+        ('present', 'Present'),
+        ('half_day', 'Half Day'),
+        ('absent', 'Absent'),
+        ('on_leave', 'On Leave'),
+        ('holiday', 'Holiday'),
+    )
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attendances')
     date = models.DateField(auto_now_add=True)
     punch_in = models.DateTimeField(null=True, blank=True)
     punch_out = models.DateTimeField(null=True, blank=True)
-    
+
+    # Daily status label (computed/set at punch-out or by admin)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='present')
+
     # Track working status
     is_punched_in = models.BooleanField(default=False)
     on_break = models.BooleanField(default=False)
-    
+
     # Audit trail & Accuracy
     ip_address = models.GenericIPAddressField(blank=True, null=True)
     user_agent = models.TextField(blank=True, null=True)
     is_late = models.BooleanField(default=False)
-    
+
     # Live Location Tracking
     current_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     current_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True)
     last_location_update = models.DateTimeField(null=True, blank=True)
-    
+
     # Totals
     total_working_hours = models.DurationField(null=True, blank=True)
     total_break_duration = models.DurationField(null=True, blank=True)
-    
+
+    # --- Early Punch-Out Approval Workflow ---
+    # Employee submits reason; admin approves/rejects before punch-out is finalised.
+    early_out_reason = models.TextField(blank=True, null=True,
+        help_text="Reason submitted by employee for early punch-out.")
+    early_out_requested_at = models.DateTimeField(null=True, blank=True)
+    early_out_approval_status = models.CharField(
+        max_length=20,
+        choices=(
+            ('none', 'Not Requested'),
+            ('pending', 'Pending Approval'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+        ),
+        default='none'
+    )
+    early_out_approved_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='approved_early_outs'
+    )
+    early_out_rejection_reason = models.TextField(blank=True, null=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -299,8 +336,42 @@ class Attendance(models.Model):
         verbose_name_plural = "Attendances"
         ordering = ['-date', '-punch_in']
 
+    def get_worked_seconds(self):
+        """Return total worked seconds so far (excludes breaks)."""
+        if not self.punch_in:
+            return 0
+        end = self.punch_out or timezone.now()
+        total = (end - self.punch_in).total_seconds()
+        break_secs = sum(
+            b.duration.total_seconds() for b in self.breaks.all() if b.duration
+        )
+        return max(0, total - break_secs)
+
     def __str__(self):
         return f"{self.user.username} - {self.date}"
+
+
+class MissedPunchOutRecord(models.Model):
+    """Created when an employee submits a reason for a missed punch-out on the previous day."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='missed_punchouts')
+    missed_date = models.DateField(help_text="The date on which punch-out was missed.")
+    reported_exit_time = models.TimeField(help_text="Exit time reported by the employee.")
+    reason = models.TextField()
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_reviewed = models.BooleanField(default=False,
+        help_text="Admin has acknowledged this record.")
+    reviewed_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='reviewed_missed_punchouts'
+    )
+
+    class Meta:
+        ordering = ['-missed_date']
+        verbose_name = "Missed Punch-Out Record"
+        verbose_name_plural = "Missed Punch-Out Records"
+
+    def __str__(self):
+        return f"{self.user.username} missed punch-out on {self.missed_date}"
 
 
 class Break(models.Model):
@@ -482,29 +553,34 @@ class LeaveRequest(models.Model):
         ('casual', 'Casual Leave'),
         ('sick', 'Sick Leave'),
         ('earned', 'Earned Leave'),
+        ('half_day', 'Half Day'),
     )
-    
+
     STATUS_CHOICES = (
         ('pending', 'Pending Approval'),
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
     )
-    
+
     employee = models.ForeignKey(User, on_delete=models.CASCADE, related_name='leave_requests')
     leave_type = models.CharField(max_length=20, choices=LEAVE_TYPE_CHOICES, default='casual')
-    
+
     start_date = models.DateField()
     end_date = models.DateField()
     reason = models.TextField()
-    
+
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_leaves')
-    
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.employee.username} - {self.get_leave_type_display()} ({self.start_date} to {self.end_date})"
+
+    @property
+    def is_half_day(self):
+        return self.leave_type == 'half_day'
 
 
 class EmployeeProfile(models.Model):

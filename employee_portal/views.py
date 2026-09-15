@@ -14,7 +14,7 @@ from django.urls import reverse
 from authentication.models import User, Notification
 from core.models import (
     Customer, Attendance, Break, CallLog, CustomerActivityLog,
-    Invoice, InvoiceItem, Transaction, LeaveRequest
+    Invoice, InvoiceItem, Transaction, LeaveRequest, MissedPunchOutRecord
 )
 from core.forms import CustomerModalForm, EmployeeCustomerCreateForm
 
@@ -40,15 +40,30 @@ from core.invoice_utils import calculate_gst_values, get_next_invoice_number
 # ==========================================
 
 def employee_required(view_func):
-    """Restricts access to employees, managers, and superusers/admins only."""
+    """Restricts access to employees, managers, and superusers/admins only.
+    Also blocks employees whose is_employee_active flag has been disabled by admin.
+    """
     @wraps(view_func)
     def _wrapped_view(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        if request.user.is_superuser or request.user.role in ['employee', 'manager', 'admin']:
+        # Admins / superusers are always allowed
+        if request.user.is_superuser or request.user.role == 'admin':
             return view_func(request, *args, **kwargs)
-        messages.error(request, "Access restricted to Employee Portal.")
-        return redirect('login')
+        # Check valid role
+        if request.user.role not in ['employee', 'manager']:
+            messages.error(request, "Access restricted to Employee Portal.")
+            return redirect('login')
+        # Check admin-controlled active status
+        if not getattr(request.user, 'is_employee_active', True):
+            messages.error(
+                request,
+                "Your account has been deactivated. Please contact your administrator."
+            )
+            from django.contrib.auth import logout
+            logout(request)
+            return redirect('login')
+        return view_func(request, *args, **kwargs)
     return _wrapped_view
 
 
@@ -280,87 +295,303 @@ def attendance_history(request):
 @login_required
 @employee_required
 def punch_in(request):
-    """Handles Punch In trigger with IP and User-Agent audit logging."""
-    today = timezone.now().date()
+    """Handles Punch In.
+    Rules:
+    - Blocked on Sundays (weekday() == 6)
+    - If previous working day had no punch-out, redirect to missed-punchout form first
+    - Records IP, user agent, and late status (threshold: 09:30 IST)
+    """
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo('Asia/Kolkata')
+    now_local = timezone.now().astimezone(kolkata_tz)
+    today = now_local.date()
+
+    # --- Sunday Block ---
+    if today.weekday() == 6:  # Sunday
+        messages.error(request, "🚫 Today is Sunday — a weekly off. Punch-in is not allowed.")
+        return redirect('employee_portal:dashboard')
+
+    # --- Missed Punch-Out Check ---
+    # Look for yesterday's (or most recent working day's) attendance with no punch-out
+    yesterday = today - timedelta(days=1)
+    # Skip Sunday when calculating previous working day
+    if yesterday.weekday() == 6:
+        yesterday = today - timedelta(days=2)
+
+    missed_attendance = Attendance.objects.filter(
+        user=request.user,
+        date=yesterday,
+        punch_in__isnull=False,
+        punch_out__isnull=True,
+    ).first()
+
+    # Only block if we haven't already collected a missed-punchout record for that day
+    already_reported = MissedPunchOutRecord.objects.filter(
+        user=request.user, missed_date=yesterday
+    ).exists()
+
+    if missed_attendance and not already_reported:
+        # Store context in session so the form knows which day to fix
+        request.session['missed_punchout_date'] = str(yesterday)
+        messages.warning(
+            request,
+            f"⚠️ You forgot to punch out on {yesterday.strftime('%d %b %Y')}. "
+            "Please provide your exit time and reason before punching in today."
+        )
+        return redirect('employee_portal:missed_punchout_form')
+
+    # --- Normal Punch In ---
     attendance, created = Attendance.objects.get_or_create(user=request.user, date=today)
-    
+
     if not attendance.is_punched_in:
-        now = timezone.now()
-        attendance.punch_in = now
+        now_utc = timezone.now()
+        attendance.punch_in = now_utc
         attendance.is_punched_in = True
-        
+        attendance.status = 'present'
+
         # Extract IP Address
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0].strip()
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-            
+        ip = x_forwarded_for.split(',')[0].strip() if x_forwarded_for else request.META.get('REMOTE_ADDR')
         attendance.ip_address = ip
         attendance.user_agent = request.META.get('HTTP_USER_AGENT', '')
-        
-        # Determine Late Status (Asia/Kolkata threshold: 09:30 AM IST)
-        from zoneinfo import ZoneInfo
-        kolkata_tz = ZoneInfo('Asia/Kolkata')
-        local_time = timezone.now().astimezone(kolkata_tz)
-        late_threshold = local_time.replace(hour=9, minute=30, second=0, microsecond=0)
-        is_late = local_time > late_threshold
+
+        # Determine Late Status (threshold: 09:30 IST)
+        late_threshold = now_local.replace(hour=9, minute=30, second=0, microsecond=0)
+        is_late = now_local > late_threshold
         attendance.is_late = is_late
-        
         attendance.save()
-        
-        # Notify employee and admins
+
         if is_late:
             Notification.objects.create(
                 recipient=request.user,
-                message=f"Late punch-in recorded today at {local_time.strftime('%H:%M')} IST.",
-                is_read=False
+                message=f"⏰ Late punch-in recorded today at {now_local.strftime('%H:%M')} IST.",
             )
-            # Notify admins
             admins = User.objects.filter(Q(role='admin') | Q(is_superuser=True))
             for admin in admins:
                 Notification.objects.create(
                     recipient=admin,
-                    message=f"Late Punch Alert: {request.user.username} punched in today at {local_time.strftime('%H:%M')} IST from IP {ip}.",
-                    is_read=False
+                    message=(
+                        f"🔴 Late Punch Alert: {request.user.get_display_name()} punched in "
+                        f"at {now_local.strftime('%H:%M')} IST from IP {ip}."
+                    ),
                 )
-                
-        messages.success(request, "Punched-in successfully.")
+
+        messages.success(request, f"✅ Punched-in successfully at {now_local.strftime('%H:%M')} IST.")
     else:
         messages.info(request, "You are already punched-in.")
-        
-    return redirect(request.META.get('HTTP_REFERER', 'employee_portal:dashboard'))
+
+    return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
+
+
+@login_required
+@employee_required
+def missed_punchout_form(request):
+    """Interstitial form: employee submits yesterday's exit time & reason before today's punch-in."""
+    missed_date_str = request.session.get('missed_punchout_date')
+    if not missed_date_str:
+        return redirect('employee_portal:punch_in')
+
+    from datetime import date as date_cls
+    missed_date = date_cls.fromisoformat(missed_date_str)
+
+    if request.method == 'POST':
+        exit_time_str = request.POST.get('exit_time', '').strip()
+        reason = request.POST.get('reason', '').strip()
+
+        if not exit_time_str or not reason:
+            messages.error(request, "Both exit time and reason are required.")
+            return render(request, 'employee_portal/missed_punchout_form.html', {'missed_date': missed_date})
+
+        try:
+            from datetime import time as time_cls
+            exit_time = time_cls.fromisoformat(exit_time_str)  # HH:MM
+        except ValueError:
+            messages.error(request, "Invalid time format. Use HH:MM.")
+            return render(request, 'employee_portal/missed_punchout_form.html', {'missed_date': missed_date})
+
+        # Save the missed punch-out record
+        MissedPunchOutRecord.objects.create(
+            user=request.user,
+            missed_date=missed_date,
+            reported_exit_time=exit_time,
+            reason=reason,
+        )
+
+        # Retroactively update yesterday's Attendance record
+        from zoneinfo import ZoneInfo
+        kolkata_tz = ZoneInfo('Asia/Kolkata')
+        missed_attendance = Attendance.objects.filter(
+            user=request.user, date=missed_date, punch_out__isnull=True
+        ).first()
+        if missed_attendance and missed_attendance.punch_in:
+            from datetime import datetime as dt_cls
+            exit_dt_naive = dt_cls.combine(missed_date, exit_time)
+            exit_dt = kolkata_tz.localize(exit_dt_naive)
+            missed_attendance.punch_out = exit_dt
+            missed_attendance.is_punched_in = False
+            work_duration = exit_dt - missed_attendance.punch_in
+            total_break = timedelta()
+            for b in missed_attendance.breaks.all():
+                if b.duration:
+                    total_break += b.duration
+            missed_attendance.total_working_hours = work_duration - total_break
+            missed_attendance.total_break_duration = total_break
+            missed_attendance.save()
+
+        # Notify admins
+        admins = User.objects.filter(Q(role='admin') | Q(is_superuser=True))
+        for admin in admins:
+            Notification.objects.create(
+                recipient=admin,
+                message=(
+                    f"📋 {request.user.get_display_name()} submitted a missed punch-out record for "
+                    f"{missed_date.strftime('%d %b %Y')} — exit at {exit_time_str}."
+                ),
+            )
+
+        # Clear session
+        request.session.pop('missed_punchout_date', None)
+        messages.success(
+            request,
+            f"✅ Missed punch-out for {missed_date.strftime('%d %b %Y')} recorded. You can now punch in."
+        )
+        return redirect('employee_portal:punch_in')
+
+    return render(request, 'employee_portal/missed_punchout_form.html', {'missed_date': missed_date})
 
 
 @login_required
 @employee_required
 def punch_out(request):
-    """Handles Punch Out trigger."""
-    today = timezone.now().date()
+    """Handles Punch Out.
+    Rules:
+    - If hours worked < 8 AND no approved leave/half-day → require early punch-out approval from admin
+    - If early_out_approval_status == 'pending' → block, show awaiting message
+    - If early_out_approval_status == 'approved' OR hours >= 8 OR approved leave → allow punch-out
+    """
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo('Asia/Kolkata')
+    today = timezone.now().astimezone(kolkata_tz).date()
+    REQUIRED_HOURS = 8 * 3600  # 8 hours in seconds
+
     attendance = Attendance.objects.filter(user=request.user, date=today, is_punched_in=True).first()
-    
-    if attendance:
-        now = timezone.now()
-        attendance.punch_out = now
-        attendance.is_punched_in = False
-        
-        # Calculate working hours (excluding breaks)
-        if attendance.punch_in:
-            work_duration = now - attendance.punch_in
-            total_break = timedelta()
-            for b in attendance.breaks.all():
-                if b.duration:
-                    total_break += b.duration
-            
-            attendance.total_working_hours = work_duration - total_break
-            attendance.total_break_duration = total_break
-            
-        attendance.save()
-        messages.success(request, "Punched-out successfully.")
-    else:
+
+    if not attendance:
         messages.error(request, "No active punch-in found for today.")
-        
-    return redirect(request.META.get('HTTP_REFERER', 'employee_portal:dashboard'))
+        return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
+
+    # Check for an approved leave/half-day for today
+    approved_leave = LeaveRequest.objects.filter(
+        employee=request.user,
+        start_date__lte=today,
+        end_date__gte=today,
+        status='approved'
+    ).first()
+    required_seconds = REQUIRED_HOURS
+    if approved_leave and approved_leave.is_half_day:
+        required_seconds = 4 * 3600  # Half-day = 4h
+    elif approved_leave:
+        required_seconds = 0  # Full-day leave — no hour requirement
+
+    worked_seconds = attendance.get_worked_seconds()
+    hours_short = worked_seconds < required_seconds
+
+    # Check early-out approval state
+    if hours_short and required_seconds > 0:
+        if attendance.early_out_approval_status == 'approved':
+            # Admin has approved — allow punch-out
+            pass
+        elif attendance.early_out_approval_status == 'pending':
+            messages.warning(
+                request,
+                "⏳ Your early punch-out request is awaiting admin approval. Please wait."
+            )
+            return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
+        else:
+            # No request yet — redirect employee to submit one
+            messages.warning(
+                request,
+                "⚠️ You have worked less than 8 hours. Please submit an early punch-out request for admin approval."
+            )
+            return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
+
+    # --- Finalise Punch Out ---
+    now_utc = timezone.now()
+    attendance.punch_out = now_utc
+    attendance.is_punched_in = False
+
+    if attendance.punch_in:
+        work_duration = now_utc - attendance.punch_in
+        total_break = timedelta()
+        for b in attendance.breaks.all():
+            if b.duration:
+                total_break += b.duration
+        attendance.total_working_hours = work_duration - total_break
+        attendance.total_break_duration = total_break
+
+    # Determine final status
+    if approved_leave and approved_leave.is_half_day:
+        attendance.status = 'half_day'
+    else:
+        attendance.status = 'present'
+
+    attendance.save()
+    messages.success(request, "✅ Punched-out successfully. Have a great evening!")
+    return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
+
+
+@login_required
+@employee_required
+def request_early_punchout(request):
+    """AJAX endpoint: employee submits reason for early punch-out.
+    Admin is notified; punch-out is blocked until approval.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Method not allowed'}, status=405)
+
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo('Asia/Kolkata')
+    today = timezone.now().astimezone(kolkata_tz).date()
+
+    attendance = Attendance.objects.filter(
+        user=request.user, date=today, is_punched_in=True
+    ).first()
+
+    if not attendance:
+        return JsonResponse({'status': 'error', 'message': 'No active punch-in found.'}, status=400)
+
+    if attendance.early_out_approval_status in ('pending', 'approved'):
+        return JsonResponse({
+            'status': 'info',
+            'message': f'Request already {attendance.early_out_approval_status}.'
+        })
+
+    reason = request.POST.get('reason', '').strip()
+    if not reason:
+        return JsonResponse({'status': 'error', 'message': 'Reason is required.'}, status=400)
+
+    worked_hours = attendance.get_worked_seconds() / 3600
+    attendance.early_out_reason = reason
+    attendance.early_out_requested_at = timezone.now()
+    attendance.early_out_approval_status = 'pending'
+    attendance.save()
+
+    # Notify all admins
+    admins = User.objects.filter(Q(role='admin') | Q(is_superuser=True))
+    for admin in admins:
+        Notification.objects.create(
+            recipient=admin,
+            message=(
+                f"🚪 Early Punch-Out Request: {request.user.get_display_name()} wants to leave after "
+                f"{worked_hours:.1f}h. Reason: {reason[:80]}{'…' if len(reason) > 80 else ''}"
+            ),
+            url=f'/admin-attendance/',
+        )
+
+    return JsonResponse({
+        'status': 'success',
+        'message': '✅ Early punch-out request submitted. Awaiting admin approval.'
+    })
 
 
 @login_required

@@ -33,8 +33,16 @@ class User(AbstractUser):
     # --- MAKE SURE THESE FIELDS EXIST ---
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=EMPLOYEE)
     phone_number = models.CharField(max_length=15, blank=True, null=True)
-    region = models.CharField(max_length=100, blank=True, null=True)  # <--- THIS WAS MISSING
+    region = models.CharField(max_length=100, blank=True, null=True)
     invitation_status = models.CharField(max_length=20, choices=INVITATION_STATUS_CHOICES, default=INVITATION_ACCEPTED)
+
+    # Admin-controlled CRM portal access toggle.
+    # Setting this to False blocks the employee from accessing the portal
+    # without deleting their account or revoking their Django auth.
+    is_employee_active = models.BooleanField(
+        default=True,
+        help_text="If unchecked, employee cannot access the CRM portal."
+    )
 
     def get_full_name(self):
         """

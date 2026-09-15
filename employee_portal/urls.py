@@ -14,6 +14,8 @@ urlpatterns = [
     path('attendance/toggle-break/', views.toggle_break, name='toggle_break'),
     path('attendance/update-location/', views.update_location, name='update_location'),
     path('attendance/apply-leave/', views.apply_leave, name='apply_leave'),
+    path('attendance/missed-punchout/', views.missed_punchout_form, name='missed_punchout_form'),
+    path('attendance/request-early-out/', views.request_early_punchout, name='request_early_punchout'),
     
     # Customers
     path('customers/', views.customer_list, name='customer_list'),

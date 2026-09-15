@@ -51,6 +51,27 @@
                     </button>
                     {% endif %}
                 </div>
+                {% if request.user.role == 'admin' or request.user.is_superuser %}
+                {% if not user_profile.is_superuser and user_profile.role != 'admin' %}
+                <div class="col-auto text-end">
+                    <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase">Portal Access</p>
+                    <div class="d-flex align-items-center gap-2 justify-content-end">
+                        <span id="active-status-label" class="badge {% if user_profile.is_employee_active %}badge-phoenix badge-phoenix-success{% else %}badge-phoenix badge-phoenix-danger{% endif %} fs-10">
+                            {% if user_profile.is_employee_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                        <div class="form-check form-switch mb-0" title="Toggle employee portal access">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                id="employeeActiveToggle"
+                                {% if user_profile.is_employee_active %}checked{% endif %}
+                                onchange="toggleEmployeeActive({{ user_profile.id }}, this.checked)">
+                        </div>
+                    </div>
+                    <small class="text-body-quaternary d-block mt-1" style="font-size:.7rem;">
+                        Toggle to block/allow CRM access
+                    </small>
+                </div>
+                {% endif %}
+                {% endif %}
             </div>
         </div>
     </div>
@@ -510,5 +531,44 @@
             });
         }
     });
+</script>
+
+<script>
+function toggleEmployeeActive(userId, isActive) {
+    const toggle = document.getElementById('employeeActiveToggle');
+    const label = document.getElementById('active-status-label');
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+    fetch(`/core/users/${userId}/toggle-active/`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: formData,
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            label.textContent = data.is_active ? 'Active' : 'Inactive';
+            label.className = data.is_active
+                ? 'badge badge-phoenix badge-phoenix-success fs-10'
+                : 'badge badge-phoenix badge-phoenix-danger fs-10';
+            toggle.checked = data.is_active;
+            // Show a tiny toast
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:9999;background:rgba(16,185,129,0.9);color:#fff;padding:.7rem 1.2rem;border-radius:10px;font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:opacity .5s;';
+            toast.textContent = data.message;
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 2500);
+        } else {
+            toggle.checked = !isActive; // revert
+            alert(data.message || 'An error occurred.');
+        }
+    })
+    .catch(() => {
+        toggle.checked = !isActive;
+        alert('Network error. Please try again.');
+    });
+}
 </script>
 {% endblock %}

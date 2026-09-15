@@ -23,11 +23,13 @@
                     <thead>
                         <tr class="bg-body-tertiary">
                             <th class="ps-4 py-3">Attendance Date</th>
+                            <th class="py-3">Status</th>
                             <th class="py-3">Punched In</th>
                             <th class="py-3">Punched Out</th>
-                            <th class="py-3">Breaks Taken Count</th>
-                            <th class="py-3">Total Break Duration</th>
-                            <th class="text-end pe-4 py-3">Total Working Hours</th>
+                            <th class="py-3">Breaks</th>
+                            <th class="py-3">Break Duration</th>
+                            <th class="py-3">Working Hours</th>
+                            <th class="text-end pe-4 py-3">Remarks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -36,6 +38,20 @@
                             <!-- Date -->
                             <td class="ps-4 py-3 fw-bold text-dark">
                                 {{ att.date|date:"l, d M Y" }}
+                            </td>
+                            <!-- Status -->
+                            <td>
+                                {% if att.status == 'present' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Present</span>
+                                {% elif att.status == 'half_day' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Half Day</span>
+                                {% elif att.status == 'on_leave' %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle">On Leave</span>
+                                {% elif att.status == 'absent' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Absent</span>
+                                {% else %}
+                                <span class="badge bg-light text-secondary">—</span>
+                                {% endif %}
                             </td>
                             <!-- Punch In -->
                             <td>
@@ -59,22 +75,35 @@
                             <td class="text-body-secondary">
                                 {% if att.total_break_duration %}
                                 {{ att.total_break_duration }}
-                                {% else %}
-                                -
-                                {% endif %}
+                                {% else %}-{% endif %}
                             </td>
                             <!-- Total Working Hours -->
-                            <td class="text-end pe-4">
+                            <td>
                                 {% if att.total_working_hours %}
                                 <strong class="text-primary">{{ att.total_working_hours }}</strong>
                                 {% else %}
                                 <span class="text-body-quaternary fs-10">-</span>
                                 {% endif %}
                             </td>
+                            <!-- Remarks -->
+                            <td class="text-end pe-4">
+                                <div class="d-flex gap-1 justify-content-end flex-wrap">
+                                    {% if att.is_late %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle" title="Late punch-in">Late</span>
+                                    {% endif %}
+                                    {% if att.early_out_approval_status == 'pending' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Early Out (Pending)</span>
+                                    {% elif att.early_out_approval_status == 'approved' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Early Out (Approved)</span>
+                                    {% elif att.early_out_approval_status == 'rejected' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle" title="{{ att.early_out_rejection_reason }}">Early Out (Rejected)</span>
+                                    {% endif %}
+                                </div>
+                            </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-5 text-body-tertiary">
+                            <td colspan="8" class="text-center py-5 text-body-tertiary">
                                 <i class="fas fa-clock d-block fs-2 mb-3"></i>No attendance logs recorded yet.
                             </td>
                         </tr>

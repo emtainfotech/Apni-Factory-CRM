@@ -1,0 +1,166 @@
+﻿{% extends "employee_portal/base.html" %}
+{% load static %}
+
+{% block title %}Missed Punch-Out — Action Required{% endblock %}
+
+{% block content %}
+<style>
+  .missed-punchout-overlay {
+    min-height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, rgba(255,165,0,0.08) 0%, transparent 70%);
+  }
+  .mpo-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border: 1px solid rgba(255,165,0,0.3);
+    border-radius: 20px;
+    padding: 2.5rem;
+    max-width: 520px;
+    width: 100%;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,165,0,0.15);
+    animation: cardPop 0.5s cubic-bezier(.17,.67,.83,.67);
+  }
+  @keyframes cardPop {
+    0% { opacity:0; transform: scale(0.92) translateY(20px); }
+    100% { opacity:1; transform: scale(1) translateY(0); }
+  }
+  .mpo-icon {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.25rem;
+    box-shadow: 0 0 30px rgba(245,158,11,0.4);
+    font-size: 2rem;
+  }
+  .mpo-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    margin-bottom: .5rem;
+  }
+  .mpo-subtitle {
+    color: rgba(255,255,255,0.65);
+    text-align: center;
+    font-size: .9rem;
+    margin-bottom: 1.75rem;
+  }
+  .mpo-date-badge {
+    background: rgba(245,158,11,0.15);
+    border: 1px solid rgba(245,158,11,0.4);
+    border-radius: 10px;
+    padding: .6rem 1rem;
+    text-align: center;
+    color: #f59e0b;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+  }
+  .form-label-custom {
+    color: rgba(255,255,255,0.8);
+    font-size: .85rem;
+    font-weight: 500;
+    margin-bottom: .4rem;
+    display: block;
+  }
+  .form-control-custom {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    color: #fff;
+    padding: .7rem 1rem;
+    width: 100%;
+    font-size: .95rem;
+    transition: all .2s;
+    outline: none;
+  }
+  .form-control-custom:focus {
+    border-color: #f59e0b;
+    background: rgba(245,158,11,0.08);
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.15);
+  }
+  .form-control-custom::placeholder { color: rgba(255,255,255,0.35); }
+  textarea.form-control-custom { resize: vertical; min-height: 90px; }
+  .btn-submit-mpo {
+    width: 100%;
+    background: linear-gradient(135deg, #f59e0b, #ef4444);
+    border: none;
+    border-radius: 12px;
+    padding: .85rem;
+    color: #fff;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all .3s;
+    margin-top: 1.25rem;
+    box-shadow: 0 4px 20px rgba(245,158,11,0.3);
+  }
+  .btn-submit-mpo:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(245,158,11,0.4);
+  }
+  .info-note {
+    background: rgba(59,130,246,0.1);
+    border-left: 3px solid #3b82f6;
+    border-radius: 6px;
+    padding: .65rem .9rem;
+    color: rgba(255,255,255,0.7);
+    font-size: .8rem;
+    margin-top: 1rem;
+    line-height: 1.5;
+  }
+</style>
+
+<div class="missed-punchout-overlay">
+  <div class="mpo-card">
+    <div class="mpo-icon">&#9888;</div>
+    <h1 class="mpo-title">Missed Punch-Out Detected</h1>
+    <p class="mpo-subtitle">
+      You did not punch out on the date below. Please provide your exit time and reason to continue.
+    </p>
+
+    <div class="mpo-date-badge">
+      &#128197; &nbsp;{{ missed_date|date:"l, d F Y" }}
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:8px;padding:.7rem 1rem;color:#fca5a5;font-size:.85rem;margin-bottom:1rem;">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" action="{% url 'employee_portal:missed_punchout_form' %}">
+      {% csrf_token %}
+
+      <div style="margin-bottom: 1rem;">
+        <label class="form-label-custom" for="exit_time">What time did you leave? <span style="color:#ef4444">*</span></label>
+        <input type="time" name="exit_time" id="exit_time" class="form-control-custom" required>
+      </div>
+
+      <div style="margin-bottom: 1rem;">
+        <label class="form-label-custom" for="reason">Reason for missing punch-out <span style="color:#ef4444">*</span></label>
+        <textarea name="reason" id="reason" class="form-control-custom"
+          placeholder="e.g. Internet connection issue, left in a hurry, forgot..." required></textarea>
+      </div>
+
+      <button type="submit" class="btn-submit-mpo">
+        Submit &amp; Continue to Punch-In
+      </button>
+    </form>
+
+    <div class="info-note">
+      This record will be sent to your admin for review. Your attendance for
+      <strong>{{ missed_date|date:"d M Y" }}</strong> will be updated with the time you enter above.
+    </div>
+  </div>
+</div>
+{% endblock %}

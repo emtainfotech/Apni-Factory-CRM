@@ -29,7 +29,7 @@ from hostinger_data.models import (
 )
 
 # Import Invoice Utils & Models
-from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest, EmployeeProfile
+from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest, EmployeeProfile, MissedPunchOutRecord
 from .invoice_utils import calculate_gst_values, get_next_invoice_number
 
 from datetime import datetime, timedelta
@@ -356,6 +356,240 @@ def manager_dashboard(request):
     return render(request, 'core/dashboard_manager.html')
 
 # Legacy employee views removed in favor of namespaced employee_portal app.
+
+
+# ==========================================
+#        ATTENDANCE MANAGEMENT (ADMIN)
+# ==========================================
+
+@login_required
+@user_passes_test(is_admin)
+def admin_attendance_dashboard(request):
+    """
+    Central admin view for attendance management.
+    Shows:
+    - Live today's status per employee
+    - Pending early punch-out approval requests
+    - Pending missed punch-out records needing review
+    - Monthly attendance summary per employee (for salary basis)
+    """
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo('Asia/Kolkata')
+    today = timezone.now().astimezone(kolkata_tz).date()
+
+    # Month/period filter
+    month = request.GET.get('month')
+    year_param = request.GET.get('year')
+    try:
+        report_month = int(month) if month else today.month
+        report_year = int(year_param) if year_param else today.year
+    except (TypeError, ValueError):
+        report_month = today.month
+        report_year = today.year
+
+    from datetime import date as date_cls
+    import calendar
+    first_day = date_cls(report_year, report_month, 1)
+    last_day = date_cls(report_year, report_month, calendar.monthrange(report_year, report_month)[1])
+
+    # All active employees (non-admin)
+    employees = User.objects.filter(
+        is_active=True
+    ).exclude(
+        Q(role='admin') | Q(is_superuser=True)
+    ).order_by('first_name', 'username')
+
+    # --- Today's Live Status ---
+    today_attendances = Attendance.objects.filter(date=today).select_related('user')
+    today_status = {att.user_id: att for att in today_attendances}
+
+    live_status = []
+    for emp in employees:
+        att = today_status.get(emp.id)
+        if att:
+            if att.is_punched_in:
+                state = 'in'
+            elif att.punch_out:
+                state = 'out'
+            else:
+                state = 'partial'
+        else:
+            state = 'absent'
+        live_status.append({
+            'employee': emp,
+            'attendance': att,
+            'state': state,
+        })
+
+    # --- Pending Early Punch-Out Approvals ---
+    pending_early_outs = Attendance.objects.filter(
+        early_out_approval_status='pending'
+    ).select_related('user').order_by('-early_out_requested_at')
+
+    # --- Pending Missed Punch-Out Reviews ---
+    pending_missed = MissedPunchOutRecord.objects.filter(
+        is_reviewed=False
+    ).select_related('user').order_by('-missed_date')
+
+    # --- Monthly Summary per Employee ---
+    all_month_attendances = Attendance.objects.filter(
+        date__gte=first_day,
+        date__lte=last_day
+    ).select_related('user')
+
+    # Working days in the month (Mon–Sat, skip Sundays)
+    total_working_days = sum(
+        1 for d in range(1, last_day.day + 1)
+        if date_cls(report_year, report_month, d).weekday() != 6
+    )
+
+    monthly_summary = []
+    for emp in employees:
+        emp_atts = [a for a in all_month_attendances if a.user_id == emp.id]
+        days_present = sum(1 for a in emp_atts if a.punch_in and a.punch_out)
+        days_half = sum(1 for a in emp_atts if a.status == 'half_day')
+        days_late = sum(1 for a in emp_atts if a.is_late)
+        days_absent = total_working_days - days_present
+
+        total_worked_duration = timedelta()
+        for a in emp_atts:
+            if a.total_working_hours:
+                total_worked_duration += a.total_working_hours
+
+        total_worked_h = total_worked_duration.total_seconds() / 3600
+
+        # Leaves taken this month
+        leaves_taken = LeaveRequest.objects.filter(
+            employee=emp,
+            status='approved',
+            start_date__lte=last_day,
+            end_date__gte=first_day,
+        ).count()
+
+        monthly_summary.append({
+            'employee': emp,
+            'days_present': days_present,
+            'days_half': days_half,
+            'days_late': days_late,
+            'days_absent': max(0, days_absent),
+            'total_worked_h': round(total_worked_h, 1),
+            'leaves_taken': leaves_taken,
+        })
+
+    # Month list for filter dropdown
+    month_choices = [(i, calendar.month_name[i]) for i in range(1, 13)]
+
+    context = {
+        'today': today,
+        'live_status': live_status,
+        'pending_early_outs': pending_early_outs,
+        'pending_missed': pending_missed,
+        'monthly_summary': monthly_summary,
+        'total_working_days': total_working_days,
+        'report_month': report_month,
+        'report_year': report_year,
+        'report_month_name': calendar.month_name[report_month],
+        'month_choices': month_choices,
+        'employees_count': employees.count(),
+        'active_now_count': sum(1 for s in live_status if s['state'] == 'in'),
+        'absent_today_count': sum(1 for s in live_status if s['state'] == 'absent'),
+    }
+    return render(request, 'core/attendance_dashboard.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_early_punchout(request, pk):
+    """Admin approves an early punch-out request. Finalises punch-out if employee already waiting."""
+    attendance = get_object_or_404(Attendance, pk=pk, early_out_approval_status='pending')
+    attendance.early_out_approval_status = 'approved'
+    attendance.early_out_approved_by = request.user
+    attendance.save()
+
+    # Notify employee
+    Notification.objects.create(
+        recipient=attendance.user,
+        message="✅ Your early punch-out request has been approved. You may punch out now.",
+    )
+    messages.success(request, f"Early punch-out approved for {attendance.user.get_display_name()}.")
+    return redirect('admin_attendance_dashboard')
+
+
+@login_required
+@user_passes_test(is_admin)
+def reject_early_punchout(request, pk):
+    """Admin rejects an early punch-out request with a reason."""
+    attendance = get_object_or_404(Attendance, pk=pk, early_out_approval_status='pending')
+    if request.method == 'POST':
+        rejection_reason = request.POST.get('rejection_reason', '').strip()
+        attendance.early_out_approval_status = 'rejected'
+        attendance.early_out_rejection_reason = rejection_reason
+        attendance.save()
+        Notification.objects.create(
+            recipient=attendance.user,
+            message=f"❌ Early punch-out request rejected. Reason: {rejection_reason or 'No reason given.'}",
+        )
+        messages.warning(request, f"Early punch-out rejected for {attendance.user.get_display_name()}.")
+    return redirect('admin_attendance_dashboard')
+
+
+@login_required
+@user_passes_test(is_admin)
+def review_missed_punchout(request, pk):
+    """Admin marks a missed punch-out record as reviewed."""
+    record = get_object_or_404(MissedPunchOutRecord, pk=pk)
+    record.is_reviewed = True
+    record.reviewed_by = request.user
+    record.save()
+    messages.success(request, f"Missed punch-out for {record.user.get_display_name()} on {record.missed_date} marked as reviewed.")
+    return redirect('admin_attendance_dashboard')
+
+
+@login_required
+@user_passes_test(is_admin)
+def toggle_employee_active(request, user_id):
+    """Toggle the is_employee_active flag for an employee. Returns JSON for AJAX calls."""
+    from django.http import JsonResponse
+    employee = get_object_or_404(User, id=user_id)
+
+    # Protect against deactivating admins
+    if employee.is_superuser or employee.role == 'admin':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'error', 'message': 'Cannot deactivate admin users.'}, status=403)
+        messages.error(request, "Cannot deactivate admin users.")
+        return redirect('user_detail', user_id=user_id)
+
+    new_state = not employee.is_employee_active
+    employee.is_employee_active = new_state
+    employee.save()
+
+    state_label = "activated" if new_state else "deactivated"
+    msg = f"Employee {employee.get_display_name()} has been {state_label}."
+
+    if not new_state:
+        # Force logout: flush all sessions for this user
+        from django.contrib.sessions.models import Session
+        import json as _json
+        for session in Session.objects.all():
+            try:
+                data = session.get_decoded()
+                if str(data.get('_auth_user_id')) == str(employee.pk):
+                    session.delete()
+            except Exception:
+                pass
+
+        Notification.objects.create(
+            recipient=employee,
+            message="⛔ Your CRM portal account has been deactivated by admin.",
+        )
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': msg, 'is_active': new_state})
+
+    messages.success(request, msg)
+    return redirect('user_detail', user_id=user_id)
+
+
 
 
 @login_required
