@@ -3828,21 +3828,14 @@ def whatsapp_inbox(request):
     active_cust_id = request.GET.get('customer_id', '').strip()
     party_type = request.GET.get('party_type', '').lower()
 
-    failed_wamids = list(WhatsAppMessageStatus.objects.filter(status='failed').values_list('wamid', flat=True))
-    failed_phones = list(WhatsAppMessageStatus.objects.filter(status='failed').values_list('recipient_id', flat=True))
-
-    failed_chat_filter = (
-        Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid__isnull=True) |
-        Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid='') |
-        (Q(whatsapp_chats__direction='outgoing', whatsapp_chats__wamid__in=failed_wamids) if failed_wamids else Q(pk__in=[])) |
-        (Q(phone__in=failed_phones) | Q(whatsapp_number__in=failed_phones) if failed_phones else Q(pk__in=[]))
-    )
+    from core.utils import get_failed_whatsapp_customer_ids
+    failed_cust_ids = get_failed_whatsapp_customer_ids()
 
     base_filter = Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
     total_count = Customer.objects.filter(base_filter).distinct().count()
     buyers_count = Customer.objects.filter(base_filter, customer_type='buyer').distinct().count()
     sellers_count = Customer.objects.filter(base_filter, customer_type='seller').distinct().count()
-    failed_count = Customer.objects.filter(base_filter).filter(failed_chat_filter).distinct().count()
+    failed_count = Customer.objects.filter(base_filter, id__in=failed_cust_ids).distinct().count()
 
     customers_with_chats = Customer.objects.filter(
         base_filter | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
@@ -3853,7 +3846,7 @@ def whatsapp_inbox(request):
     if party_type in ('buyer', 'seller'):
         customers_with_chats = customers_with_chats.filter(customer_type=party_type)
     elif party_type in ('failed', 'unsent'):
-        customers_with_chats = customers_with_chats.filter(failed_chat_filter)
+        customers_with_chats = customers_with_chats.filter(id__in=failed_cust_ids)
 
     if query:
         customers_with_chats = customers_with_chats.filter(
@@ -3868,12 +3861,8 @@ def whatsapp_inbox(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    page_cust_ids = [c.id for c in page_obj]
-    failed_cust_ids_in_page = set(
-        Customer.objects.filter(id__in=page_cust_ids).filter(failed_chat_filter).values_list('id', flat=True)
-    )
     for c in page_obj:
-        c.has_failed_message = c.id in failed_cust_ids_in_page
+        c.has_failed_message = c.id in failed_cust_ids
     
     return render(request, 'core/whatsapp_inbox.html', {
         'page_obj': page_obj,
@@ -4189,7 +4178,8 @@ def send_whatsapp_message_ajax(request, customer_id):
                 'timestamp_iso': chat_ist.isoformat(),
             },
             'dispatched': api_dispatched,
-            'api_error': api_error
+            'api_error': api_error,
+            'has_failed_message': False if api_dispatched else True
         })
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'})
 
@@ -4210,11 +4200,14 @@ def delete_whatsapp_message_ajax(request, chat_id):
             except Exception:
                 pass
         chat.delete()
+        from core.utils import get_failed_whatsapp_customer_ids
+        has_failed = customer_id in get_failed_whatsapp_customer_ids([customer_id])
         return JsonResponse({
             'status': 'success',
             'message': 'Message deleted successfully.',
             'chat_id': chat_id,
-            'customer_id': customer_id
+            'customer_id': customer_id,
+            'has_failed_message': has_failed
         })
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
 

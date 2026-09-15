@@ -135,7 +135,7 @@
                     </a>
                     <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=failed" 
                        class="btn btn-xs flex-grow-1 {% if current_party_type == 'failed' %}btn-danger text-white{% else %}btn-phoenix-danger{% endif %}" title="Filter chats with unsent or delivery failed messages">
-                        <i class="fas fa-exclamation-triangle me-1"></i>Failed ({{ failed_count }})
+                        <i class="fas fa-exclamation-triangle me-1"></i>Failed (<span id="emp-failed-count-badge">{{ failed_count }}</span>)
                     </a>
                 </div>
             </div>
@@ -154,7 +154,7 @@
                                 <span class="fs-11 text-muted text-nowrap me-1">{{ c.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
                                 {% endif %}
                                 {% if c.has_failed_message %}
-                                <span class="badge badge-phoenix badge-phoenix-danger fs-10" title="Contains unsent or failed messages"><i class="fas fa-exclamation-circle me-1"></i>Failed</span>
+                                <span class="badge badge-phoenix badge-phoenix-danger fs-10 failed-tag" title="Contains unsent or failed messages"><i class="fas fa-exclamation-circle me-1"></i>Failed</span>
                                 {% endif %}
                                 {% if c.customer_type == 'seller' %}
                                 <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
@@ -719,6 +719,9 @@ window.deleteEmployeeMessage = function(chatId) {
                 bubble.style.transform = 'scale(0.85)';
                 setTimeout(() => bubble.remove(), 250);
             }
+            if (data.customer_id && typeof window.updateContactFailedBadge === 'function') {
+                window.updateContactFailedBadge(data.customer_id, data.has_failed_message || false);
+            }
         } else {
             alert(data.message || "Failed to delete message.");
         }
@@ -727,6 +730,44 @@ window.deleteEmployeeMessage = function(chatId) {
         console.error("Error deleting message:", err);
         alert("Error deleting message.");
     });
+};
+
+window.updateContactFailedBadge = function(customerId, hasFailed) {
+    if (!customerId) return;
+    const contactEl = document.getElementById(`contact-${customerId}`) || document.querySelector(`.contact-item[data-id="${customerId}"]`);
+    const countBadge = document.getElementById('emp-failed-count-badge') || document.getElementById('core-failed-count-badge');
+
+    if (contactEl) {
+        const failedBadge = contactEl.querySelector('.failed-tag, .badge-phoenix-danger');
+        if (!hasFailed) {
+            if (failedBadge) {
+                failedBadge.remove();
+                if (countBadge) {
+                    const currentCount = parseInt(countBadge.textContent, 10);
+                    if (!isNaN(currentCount) && currentCount > 0) {
+                        countBadge.textContent = currentCount - 1;
+                    }
+                }
+            }
+        } else {
+            if (!failedBadge) {
+                const targetContainer = contactEl.querySelector('.d-flex.align-items-center.gap-1');
+                if (targetContainer) {
+                    const newBadge = document.createElement('span');
+                    newBadge.className = 'badge badge-phoenix badge-phoenix-danger fs-10 failed-tag';
+                    newBadge.title = 'Contains unsent or failed messages';
+                    newBadge.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i>Failed';
+                    targetContainer.insertBefore(newBadge, targetContainer.lastElementChild);
+                    if (countBadge) {
+                        const currentCount = parseInt(countBadge.textContent, 10);
+                        if (!isNaN(currentCount)) {
+                            countBadge.textContent = currentCount + 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
 };
 
 window.quickSendSellerTemplate = function() {
@@ -1199,6 +1240,9 @@ function submitMessage(e) {
             removeEmployeeCustomAttachment();
             hideKeywordSuggestions();
             fetchChatMessages(currentCustomerId, true);
+            if (typeof window.updateContactFailedBadge === 'function') {
+                window.updateContactFailedBadge(currentCustomerId, data.has_failed_message || false);
+            }
         } else {
             alert(data.message || "Failed to send message.");
         }

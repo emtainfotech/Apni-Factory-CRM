@@ -529,3 +529,61 @@ def download_whatsapp_media(media_id):
     except Exception as e:
         print(f"Error downloading media: {e}")
         return None, None
+
+
+def get_failed_whatsapp_customer_ids(customer_ids=None):
+    """
+    Returns a set of customer IDs that currently have an unresolved failed WhatsApp message.
+    If any message was sent successfully after a failure (or if the latest outgoing message
+    succeeded, or the customer replied), the failed tag is removed.
+    """
+    from core.models import WhatsAppChat, WhatsAppMessageStatus
+    from django.db.models import Max, Q
+
+    failed_wamids = set(
+        WhatsAppMessageStatus.objects.filter(status='failed').values_list('wamid', flat=True)
+    )
+    success_wamids = set(
+        WhatsAppMessageStatus.objects.filter(status__in=['sent', 'delivered', 'read']).values_list('wamid', flat=True)
+    )
+    unresolved_failed_wamids = failed_wamids - success_wamids
+
+    outgoing_qs = WhatsAppChat.objects.filter(direction='outgoing')
+    if customer_ids is not None:
+        outgoing_qs = outgoing_qs.filter(customer_id__in=customer_ids)
+
+    # 1. Latest outgoing message ID per customer
+    latest_outgoing_per_customer = (
+        outgoing_qs
+        .values('customer_id')
+        .annotate(max_id=Max('id'))
+    )
+    if not latest_outgoing_per_customer:
+        return set()
+
+    latest_chat_map = {item['customer_id']: item['max_id'] for item in latest_outgoing_per_customer}
+    latest_chat_ids = list(latest_chat_map.values())
+
+    # 2. Check which of these latest outgoing messages failed
+    failed_latest_chats = dict(
+        WhatsAppChat.objects.filter(id__in=latest_chat_ids)
+        .filter(
+            Q(wamid__isnull=True) | Q(wamid='') | Q(wamid__in=unresolved_failed_wamids)
+        )
+        .values_list('customer_id', 'id')
+    )
+
+    # 3. If customer replied with an incoming message AFTER that failed outgoing chat,
+    # then communication succeeded and 24h window re-opened; exclude them.
+    final_failed_cust_ids = set()
+    for cust_id, chat_id in failed_latest_chats.items():
+        has_subsequent_incoming = WhatsAppChat.objects.filter(
+            customer_id=cust_id,
+            direction='incoming',
+            id__gt=chat_id
+        ).exists()
+        if not has_subsequent_incoming:
+            final_failed_cust_ids.add(cust_id)
+
+    return final_failed_cust_ids
+

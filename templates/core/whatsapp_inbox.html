@@ -41,7 +41,7 @@
                             Sellers ({{ sellers_count }})
                         </a>
                         <a href="{% url 'whatsapp_inbox' %}?party_type=failed" class="btn btn-xs flex-grow-1 {% if current_party_type == 'failed' %}btn-danger text-white{% else %}btn-phoenix-danger{% endif %}" title="Filter chats with unsent or delivery failed messages">
-                            <i class="fas fa-exclamation-triangle me-1"></i>Failed ({{ failed_count }})
+                            <i class="fas fa-exclamation-triangle me-1"></i>Failed (<span id="core-failed-count-badge">{{ failed_count }}</span>)
                         </a>
                     </div>
 
@@ -63,7 +63,7 @@
                                     <span class="fs-11 text-muted text-nowrap ms-2">{{ customer.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
                                     {% endif %}
                                     {% if customer.has_failed_message %}
-                                    <span class="badge badge-phoenix badge-phoenix-danger fs-10" title="Contains unsent or failed messages"><i class="fas fa-exclamation-circle me-1"></i>Failed</span>
+                                    <span class="badge badge-phoenix badge-phoenix-danger fs-10 failed-tag" title="Contains unsent or failed messages"><i class="fas fa-exclamation-circle me-1"></i>Failed</span>
                                     {% endif %}
                                     {% if customer.customer_type == 'seller' %}
                                     <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller</span>
