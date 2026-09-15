@@ -103,9 +103,90 @@ def send_text_message(to_number, text, return_details=False):
         print(f"Meta API Dispatch Exception: {e}")
         return (False, None, str(e)) if return_details else False
 
-def send_document_message(to_number, document_url, filename, caption=None, return_details=False):
+def upload_media_to_meta(file_content, filename, mime_type):
     """
-    Sends a WhatsApp document (e.g. PDF) via Meta Cloud API.
+    Uploads a media file directly to Meta WhatsApp Media endpoint.
+    Returns: (success: bool, media_id: str, error_msg: str)
+    """
+    meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
+    # Extract base graph URL up to phone number ID: e.g. https://graph.facebook.com/v17.0/960010463853608/media
+    media_url = meta_url.rstrip('/').rsplit('/', 1)[0] + '/media'
+    meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
+
+    headers = {
+        "Authorization": f"Bearer {meta_token}",
+    }
+    files = {
+        'file': (filename, file_content, mime_type),
+    }
+    data = {
+        'messaging_product': 'whatsapp',
+        'type': mime_type,
+    }
+    try:
+        response = requests.post(media_url, headers=headers, files=files, data=data, timeout=25)
+        resp_data = response.json() if response.text else {}
+        if response.status_code == 200 and resp_data.get('id'):
+            return (True, resp_data.get('id'), None)
+        else:
+            err_msg = resp_data.get('error', {}).get('message') or response.text
+            print(f"Meta API Media Upload Error ({response.status_code}): {err_msg}")
+            return (False, None, err_msg)
+    except Exception as e:
+        print(f"Meta API Media Upload Exception: {e}")
+        return (False, None, str(e))
+
+def send_image_message(to_number, image_url=None, media_id=None, caption=None, return_details=False):
+    """
+    Sends a WhatsApp image via Meta Cloud API using either public link or media_id.
+    """
+    clean_number = format_whatsapp_phone(to_number)
+    if not clean_number:
+        return (False, None, "Invalid phone number") if return_details else False
+
+    meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
+    meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
+
+    img_obj = {}
+    if media_id:
+        img_obj["id"] = media_id
+    elif image_url:
+        img_obj["link"] = image_url
+    else:
+        return (False, None, "Neither image_url nor media_id provided") if return_details else False
+
+    if caption:
+        img_obj["caption"] = caption[:1024]
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_number,
+        "type": "image",
+        "image": img_obj
+    }
+    try:
+        headers = {
+            "Authorization": f"Bearer {meta_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(meta_url, headers=headers, json=payload, timeout=12)
+        resp_data = response.json() if response.text else {}
+        if response.status_code == 200:
+            messages = resp_data.get('messages', [])
+            wamid = messages[0].get('id') if messages else None
+            return (True, wamid, None) if return_details else True
+        else:
+            err_msg = resp_data.get('error', {}).get('message') or response.text
+            print(f"Meta API Image Error ({response.status_code}): {err_msg}")
+            return (False, None, err_msg) if return_details else False
+    except Exception as e:
+        print(f"Meta API Image Exception: {e}")
+        return (False, None, str(e)) if return_details else False
+
+def send_document_message(to_number, document_url=None, filename=None, caption=None, media_id=None, return_details=False):
+    """
+    Sends a WhatsApp document (e.g. PDF, Word, Excel) via Meta Cloud API using either public link or media_id.
     If return_details=True: returns (success: bool, wamid: str, error_msg: str)
     If return_details=False: returns success: bool
     """
@@ -121,10 +202,16 @@ def send_document_message(to_number, document_url, filename, caption=None, retur
     if caption:
         truncated_caption = caption[:1024]
 
-    doc_obj = {
-        "link": document_url,
-        "filename": filename,
-    }
+    doc_obj = {}
+    if media_id:
+        doc_obj["id"] = media_id
+    elif document_url:
+        doc_obj["link"] = document_url
+    else:
+        return (False, None, "Neither document_url nor media_id provided") if return_details else False
+
+    if filename:
+        doc_obj["filename"] = filename
     if truncated_caption:
         doc_obj["caption"] = truncated_caption
 

@@ -14,21 +14,47 @@
     </div>
 </div>
 
-<!-- Chat Messages Area -->
-<div class="flex-1 overflow-auto p-4 {% if not start_active %}d-none{% endif %}" id="chat-messages" style="background: #efeae2; min-height: 400px; max-height: 600px;">
-    <!-- Messages will be injected here -->
+<!-- Chat Messages Area Container with Drag-and-Drop Overlay -->
+<div class="position-relative flex-1 d-flex flex-column" id="coreChatContainer" style="min-height: 400px;">
+    <!-- Drag & Drop Visual Overlay -->
+    <div id="coreDragDropOverlay" class="d-none position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center border border-3 border-primary border-dashed rounded-2" style="z-index: 1060; background: rgba(59, 130, 246, 0.08); backdrop-filter: blur(2px); pointer-events: none;">
+        <div class="p-4 bg-white rounded-4 shadow-lg text-center border">
+            <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-2"></i>
+            <h5 class="text-primary mb-1">Drop file to attach</h5>
+            <p class="text-muted fs-10 mb-0">Attach image, PDF, or document to send via WhatsApp</p>
+        </div>
+    </div>
+
+    <!-- Scrollable Messages Stream -->
+    <div class="flex-1 overflow-auto p-4 {% if not start_active %}d-none{% endif %}" id="chat-messages" style="background: #efeae2; min-height: 400px; max-height: 600px;">
+        <!-- Messages will be injected here -->
+    </div>
 </div>
 
 <!-- Chat Input Form -->
 <div class="p-3 bg-white border-top border-300 position-relative {% if not start_active %}d-none{% endif %}" id="chat-input-area">
-    <!-- Quick Action Bar -->
+    <!-- Quick Action Bar & Emoji Toolbar -->
     <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
         <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="insertCoreSellerTemplate()" title="Load Seller Onboarding Template (Shortcut: type /seller)">
             <i class="fas fa-bolt text-warning me-1"></i> <span>Seller Onboarding</span> <span class="badge bg-secondary-subtle text-secondary ms-1">/seller</span>
         </button>
         <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" id="coreBtnTogglePdf" onclick="toggleCorePdfAttachment()">
-            <i class="fas fa-paperclip me-1"></i> <span id="corePdfToggleText">Attach Seller Guide PDF</span>
+            <i class="fas fa-file-pdf me-1"></i> <span id="corePdfToggleText">Attach Seller Guide PDF</span>
         </button>
+
+        <!-- Quick Business Emojis -->
+        <div class="d-inline-flex align-items-center gap-1 ms-1 p-1 bg-body-tertiary rounded-pill border" title="Click to insert emoji">
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('👍')" title="Thumbs Up">👍</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('🙏')" title="Namaste">🙏</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('✅')" title="Verified">✅</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('📦')" title="Order/Parcel">📦</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('🤝')" title="Deal">🤝</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('📞')" title="Call">📞</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('📄')" title="Document">📄</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('😀')" title="Smile">😀</button>
+            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('🚀')" title="Rocket">🚀</button>
+        </div>
+
         <div class="ms-auto d-flex align-items-center gap-1">
             <a href="#" id="coreWaWebSendDirectBtn" target="_blank" class="btn btn-xs btn-phoenix-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Open in WhatsApp Web with current message & PDF link (No 24h Meta limit)">
                 <i class="fab fa-whatsapp me-1"></i> <span>Send via WhatsApp Web</span>
@@ -36,7 +62,7 @@
         </div>
     </div>
 
-    <!-- Attached PDF Preview Chip -->
+    <!-- Attached Seller Guide PDF Chip -->
     <div id="coreAttachedPdfChip" class="d-none alert alert-primary py-1 px-2 mb-2 fs-10 d-flex align-items-center">
         <i class="fas fa-file-pdf text-danger fs-8 me-2"></i>
         <div class="flex-grow-1 text-truncate">
@@ -45,6 +71,24 @@
         </div>
         <a href="https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf" target="_blank" class="btn btn-xs btn-link text-primary text-decoration-none p-0 me-2"><i class="fas fa-eye me-1"></i>View</a>
         <button type="button" class="btn-close fs-11" onclick="toggleCorePdfAttachment(false)"></button>
+    </div>
+
+    <!-- Custom File Attachment Tray (Images, Documents, Copy-Paste, Drag-Drop) -->
+    <div id="coreCustomAttachmentTray" class="d-none alert alert-secondary py-2 px-3 mb-2 fs-10 d-flex align-items-center gap-3 border shadow-sm rounded-3">
+        <div id="coreCustomAttachmentPreview" class="d-flex align-items-center justify-content-center bg-white rounded border overflow-hidden" style="width: 48px; height: 48px; min-width: 48px;">
+            <!-- Dynamic Image thumbnail or Document icon -->
+        </div>
+        <div class="flex-grow-1 min-w-0">
+            <div class="fw-bold text-body-emphasis text-truncate" id="coreCustomAttachmentName">filename.pdf</div>
+            <div class="text-body-tertiary fs-11 d-flex align-items-center gap-2 flex-wrap">
+                <span id="coreCustomAttachmentSize">0 KB</span>
+                <span class="badge badge-phoenix badge-phoenix-primary fs-11" id="coreCustomAttachmentTypeBadge">Document</span>
+                <span class="text-success"><i class="fas fa-check-circle me-1"></i>Ready to send</span>
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-phoenix-danger p-1 rounded-circle ms-auto" onclick="removeCoreCustomAttachment()" title="Remove attachment">
+            <i class="fas fa-times"></i>
+        </button>
     </div>
 
     <!-- Keyword Dropdown Suggestions Box -->
@@ -65,16 +109,38 @@
     <form id="chat-form" class="w-100">
         <input type="hidden" id="active-customer-id" value="{{ initial_customer_id|default:'' }}">
         <input type="hidden" id="coreAttachSellerGuideInput" value="false">
+        <input type="file" id="coreAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onchange="handleCoreFileInputChange(this.files)">
+
         <div class="input-group">
-            <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message or /seller for onboarding template..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
+            <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach Document or Image (or Drag & Drop / Paste Ctrl+V)">
+                <i class="fas fa-paperclip fs-9 text-primary"></i>
+            </button>
+            <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message, /seller, or paste (Ctrl+V) / drag image or document..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
             <button type="submit" class="btn btn-primary px-4 d-flex align-items-center justify-content-center" id="coreSendMsgBtn">
                 <i class="fas fa-paper-plane me-1"></i> <span id="coreSendMsgBtnText">Send</span>
             </button>
         </div>
         <div class="d-flex align-items-center justify-content-between mt-1 text-muted fs-11">
-            <span>Tip: Type <code class="text-primary">/seller</code> to load template & PDF guide. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
+            <span>Tip: <kbd>Ctrl+V</kbd> to paste screenshot/file. Drag & drop files onto chat. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
         </div>
     </form>
+</div>
+
+<!-- Lightbox Modal for Image Previews -->
+<div class="modal fade" id="coreImageLightboxModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content bg-transparent border-0 shadow-none">
+      <div class="modal-body p-0 position-relative text-center">
+        <button type="button" class="btn btn-sm btn-dark rounded-circle position-absolute top-0 end-0 m-2 z-index-1" data-bs-dismiss="modal" style="background: rgba(0,0,0,0.6);"><i class="fas fa-times text-white"></i></button>
+        <img id="coreLightboxImg" src="" class="img-fluid rounded-3 shadow-lg" style="max-height: 85vh; object-fit: contain;" alt="Enlarged preview">
+        <div class="mt-2">
+            <a id="coreLightboxDownloadBtn" href="" download class="btn btn-sm btn-primary rounded-pill px-3 shadow">
+                <i class="fas fa-download me-1"></i> Download Image
+            </a>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -107,6 +173,7 @@ H Bose E-Commerce Pvt. Ltd.
 
 let isCorePdfAttached = false;
 let currentCustomerPhone = '';
+let coreCustomFile = null;
 
 function insertCoreSellerTemplate() {
     const input = document.getElementById('chat-input');
@@ -118,6 +185,18 @@ function insertCoreSellerTemplate() {
     }
     toggleCorePdfAttachment(true);
     hideCoreKeywordSuggestions();
+    updateCoreWaWebDirectLink();
+}
+
+function insertCoreEmoji(emoji) {
+    const input = document.getElementById('chat-input');
+    if (!input) return;
+    const start = input.selectionStart || input.value.length;
+    const end = input.selectionEnd || input.value.length;
+    const current = input.value;
+    input.value = current.substring(0, start) + emoji + current.substring(end);
+    input.selectionStart = input.selectionEnd = start + emoji.length;
+    input.focus();
     updateCoreWaWebDirectLink();
 }
 
@@ -166,6 +245,83 @@ function updateCoreWaWebDirectLink() {
     if (bannerBtn) bannerBtn.href = waUrl;
 }
 
+// Custom file attachment handler (Pick, Drop, Paste)
+function handleCoreFileInputChange(files) {
+    if (files && files.length > 0) {
+        setCoreCustomAttachment(files[0]);
+    }
+}
+
+function setCoreCustomAttachment(file) {
+    if (!file) return;
+
+    // Validate size limit (25MB)
+    const MAX_SIZE = 25 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+        alert("File size exceeds 25MB limit. Please select a smaller file.");
+        return;
+    }
+
+    coreCustomFile = file;
+    const tray = document.getElementById('coreCustomAttachmentTray');
+    const nameEl = document.getElementById('coreCustomAttachmentName');
+    const sizeEl = document.getElementById('coreCustomAttachmentSize');
+    const badgeEl = document.getElementById('coreCustomAttachmentTypeBadge');
+    const previewEl = document.getElementById('coreCustomAttachmentPreview');
+
+    if (nameEl) nameEl.textContent = file.name;
+    if (sizeEl) {
+        const sz = file.size;
+        if (sz < 1024) sizeEl.textContent = `${sz} B`;
+        else if (sz < 1024 * 1024) sizeEl.textContent = `${(sz / 1024).toFixed(1)} KB`;
+        else sizeEl.textContent = `${(sz / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    const isImg = file.type.startsWith('image/');
+    if (badgeEl) badgeEl.textContent = isImg ? 'Image' : 'Document';
+
+    if (previewEl) {
+        if (isImg) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewEl.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;" alt="preview">`;
+            };
+            reader.readAsDataURL(file);
+        } else if (file.name.toLowerCase().endsWith('.pdf')) {
+            previewEl.innerHTML = `<i class="fas fa-file-pdf text-danger fs-5"></i>`;
+        } else if (/\.(doc|docx)$/i.test(file.name)) {
+            previewEl.innerHTML = `<i class="fas fa-file-word text-primary fs-5"></i>`;
+        } else if (/\.(xls|xlsx|csv)$/i.test(file.name)) {
+            previewEl.innerHTML = `<i class="fas fa-file-excel text-success fs-5"></i>`;
+        } else {
+            previewEl.innerHTML = `<i class="fas fa-file-alt text-secondary fs-5"></i>`;
+        }
+    }
+
+    if (tray) tray.classList.remove('d-none');
+    const input = document.getElementById('chat-input');
+    if (input) input.focus();
+}
+
+function removeCoreCustomAttachment() {
+    coreCustomFile = null;
+    const tray = document.getElementById('coreCustomAttachmentTray');
+    if (tray) tray.classList.add('d-none');
+    const fileInput = document.getElementById('coreAttachmentFileInput');
+    if (fileInput) fileInput.value = '';
+}
+
+function openCoreLightbox(imgUrl) {
+    const modalEl = document.getElementById('coreImageLightboxModal');
+    const imgEl = document.getElementById('coreLightboxImg');
+    const dlBtn = document.getElementById('coreLightboxDownloadBtn');
+    if (!modalEl || !imgEl) return;
+    imgEl.src = imgUrl;
+    if (dlBtn) dlBtn.href = imgUrl;
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     let currentCustomerId = document.getElementById('active-customer-id').value;
     let pollInterval = null;
@@ -176,7 +332,86 @@ document.addEventListener('DOMContentLoaded', function() {
     const chatForm = document.getElementById('chat-form');
     const chatInput = document.getElementById('chat-input');
     const activeCustomerIdInput = document.getElementById('active-customer-id');
-    
+    const dropOverlay = document.getElementById('coreDragDropOverlay');
+
+    // Clipboard Paste Listener (Ctrl+V for images / screenshots / files)
+    document.addEventListener('paste', function(e) {
+        if (!chatInputArea || chatInputArea.classList.contains('d-none')) return;
+
+        const isChatFocused = document.activeElement === chatInput ||
+                              chatInputArea.contains(document.activeElement) ||
+                              (chatMessages && chatMessages.contains(document.activeElement));
+        if (!isChatFocused) return;
+
+        if (!e.clipboardData) return;
+
+        // 1. Check if files in clipboard
+        if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+            const file = e.clipboardData.files[0];
+            e.preventDefault();
+            setCoreCustomAttachment(file);
+            return;
+        }
+
+        // 2. Check items for image blobs (e.g. Snipping Tool screenshots)
+        if (e.clipboardData.items) {
+            for (let i = 0; i < e.clipboardData.items.length; i++) {
+                const item = e.clipboardData.items[i];
+                if (item.type && item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        const timeStr = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+                        const file = new File([blob], `screenshot_${timeStr}.png`, { type: blob.type || 'image/png' });
+                        setCoreCustomAttachment(file);
+                        return;
+                    }
+                }
+            }
+        }
+    });
+
+    // Drag & Drop Listeners
+    const chatContainer = document.getElementById('coreChatContainer');
+    if (chatContainer) {
+        let dragCounter = 0;
+
+        chatContainer.addEventListener('dragenter', function(e) {
+            if (!chatInputArea || chatInputArea.classList.contains('d-none')) return;
+            e.preventDefault();
+            dragCounter++;
+            if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+                if (dropOverlay) dropOverlay.classList.remove('d-none');
+            }
+        });
+
+        chatContainer.addEventListener('dragover', function(e) {
+            if (!chatInputArea || chatInputArea.classList.contains('d-none')) return;
+            e.preventDefault();
+            if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        });
+
+        chatContainer.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                if (dropOverlay) dropOverlay.classList.add('d-none');
+            }
+        });
+
+        chatContainer.addEventListener('drop', function(e) {
+            e.preventDefault();
+            dragCounter = 0;
+            if (dropOverlay) dropOverlay.classList.add('d-none');
+            if (!chatInputArea || chatInputArea.classList.contains('d-none')) return;
+
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                setCoreCustomAttachment(e.dataTransfer.files[0]);
+            }
+        });
+    }
+
     // Keyword suggestions listener
     if (chatInput) {
         chatInput.addEventListener('input', function(e) {
@@ -202,9 +437,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            if (e.key === 'Escape' && isOpen) {
-                suggestionsBox.classList.add('d-none');
-                return;
+            if (e.key === 'Escape') {
+                if (isOpen) {
+                    suggestionsBox.classList.add('d-none');
+                    return;
+                }
+                if (coreCustomFile) {
+                    removeCoreCustomAttachment();
+                    return;
+                }
             }
 
             if (e.key === 'Enter' && e.ctrlKey) {
@@ -217,16 +458,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Globally exposed for external callers (like contact lists)
     window.loadChat = function(customerId) {
         currentCustomerId = customerId;
-        
+
         chatMessages.classList.remove('d-none');
         chatInputArea.classList.remove('d-none');
         activeCustomerIdInput.value = customerId;
-        
-        lastRenderedCount = 0; // reset for new chat
+
+        lastRenderedCount = 0;
         chatMessages.innerHTML = '';
         fetchMessages(customerId, true);
-        
-        // Start polling
+
         if(pollInterval) clearInterval(pollInterval);
         pollInterval = setInterval(() => {
             const isScrolledToBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 50;
@@ -234,7 +474,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 4000);
     };
 
-    // Auto-load if initial ID was provided
     if(currentCustomerId) {
         window.loadChat(currentCustomerId);
     }
@@ -250,28 +489,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update 24-hr window banner
                     const warningBanner = document.getElementById('core-meta-window-warning');
                     const warningText = document.getElementById('coreMetaWindowWarningText');
-                    if (warningBanner) {
-                        warningBanner.classList.remove('d-none');
+                    if (warningBanner && warningText) {
                         if (data.window_is_open) {
-                            warningBanner.className = 'alert alert-success py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-flex align-items-center justify-content-between';
-                            if (warningText) {
-                                warningText.innerHTML = `<i class="fas fa-check-circle text-success me-1"></i> <strong>24h Service Window Active:</strong> ${data.window_remaining_str} (Free-form / Low-Cost Session)`;
-                            }
+                            warningBanner.className = 'alert alert-phoenix-success py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-flex align-items-center justify-content-between';
+                            warningText.innerHTML = `<i class="fas fa-clock text-success me-1"></i> <span class="fw-bold">24-Hour Session Active:</span> ${data.window_remaining_str} (${data.phone})`;
                         } else {
-                            warningBanner.className = 'alert alert-warning py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-flex align-items-center justify-content-between';
-                            if (warningText) {
-                                warningText.innerHTML = `<i class="fas fa-clock text-warning me-1"></i> <strong>24h Window Closed:</strong> Freeform restricted. Sending Onboarding Guide will auto-deliver via Meta Template <code>seller_onboarding_details_template</code>.`;
-                            }
+                            warningBanner.className = 'alert alert-phoenix-warning py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-flex align-items-center justify-content-between';
+                            warningText.innerHTML = `<i class="fas fa-exclamation-triangle text-warning me-1"></i> <span class="fw-bold">24-Hour Session Expired:</span> Meta free-form window closed. Use approved seller template or WhatsApp Web.`;
                         }
                     }
 
-                    if (data.chats.length !== lastRenderedCount) {
-                        renderMessages(data.chats, scrollToBottom, currentCustomerPhone);
+                    if(data.chats.length !== lastRenderedCount) {
+                        renderMessages(data.chats, scrollToBottom, data.phone);
                         lastRenderedCount = data.chats.length;
                     }
                 }
             })
-            .catch(err => console.error("Error fetching chats", err));
+            .catch(err => console.error("Error fetching messages", err));
     }
 
     function formatWhatsAppTime(chat) {
@@ -280,21 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
             try {
                 const d = new Date(chat.timestamp_iso);
                 if (!isNaN(d.getTime())) {
-                    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
-                }
-            } catch (e) {}
-        }
-        if (chat.timestamp && typeof chat.timestamp === 'string') {
-            if (chat.timestamp.includes('|')) {
-                return chat.timestamp.split('|')[0].trim();
-            }
-            if (chat.timestamp.includes(':') && (chat.timestamp.toLowerCase().includes('am') || chat.timestamp.toLowerCase().includes('pm'))) {
-                return chat.timestamp;
-            }
-            try {
-                const d = new Date(chat.timestamp);
-                if (!isNaN(d.getTime())) {
-                    return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    return d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
                 }
             } catch (e) {}
         }
@@ -365,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isOutgoing = chat.direction === 'outgoing';
             const align = isOutgoing ? 'justify-content-end' : 'justify-content-start';
             const bgClass = isOutgoing ? 'bg-success-subtle text-dark' : 'bg-white text-dark';
-            
+
             const timeStr = formatWhatsAppTime(chat);
             const dateKey = getWhatsAppDateGroupKey(chat);
 
@@ -383,25 +603,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
             let attachmentHtml = '';
             if (chat.attachment_url) {
-                if (chat.attachment_url.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'))) {
+                const attachUrl = chat.attachment_url;
+                const attachName = chat.attachment_name || attachUrl.split('/').pop();
+                const attachSize = chat.attachment_size || '';
+                const isPdf = attachUrl.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'));
+                const isImg = (chat.attachment_type && chat.attachment_type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|gif)$/i.test(attachUrl);
+
+                if (isPdf) {
                     attachmentHtml = `
                         <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm">
                             <i class="fas fa-file-pdf text-danger fs-5"></i>
-                            <div class="flex-grow-1 text-truncate" style="max-width: 210px;">
-                                <div class="fw-bold fs-10 text-truncate">Seller Onboarding Guide</div>
-                                <div class="fs-11 text-muted">PDF Document (120 KB)</div>
+                            <div class="flex-grow-1 text-truncate" style="max-width: 240px;">
+                                <div class="fw-bold fs-10 text-truncate" title="${escapeHTML(attachName)}">${escapeHTML(attachName)}</div>
+                                <div class="fs-11 text-muted">PDF Document ${attachSize ? '• ' + attachSize : ''}</div>
                             </div>
-                            <a href="${chat.attachment_url}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Open</a>
+                            <a href="${attachUrl}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Open</a>
                         </div>
                     `;
-                } else if (chat.attachment_type && chat.attachment_type.startsWith('image/') && !(chat.message && chat.message.toLowerCase().includes('document'))) {
-                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank"><img src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" alt="Image Attachment"></a></div>`;
+                } else if (isImg && !(chat.message && chat.message.toLowerCase().includes('document'))) {
+                    attachmentHtml = `
+                        <div class="mb-2 position-relative">
+                            <img src="${attachUrl}" class="img-fluid rounded border shadow-sm" style="max-height: 250px; cursor: pointer;" alt="Image Attachment" onclick="openCoreLightbox('${attachUrl}')" title="Click to view full size">
+                            <div class="fs-11 text-muted mt-1 d-flex align-items-center justify-content-between">
+                                <span class="text-truncate" style="max-width: 180px;">${escapeHTML(attachName)}</span>
+                                ${attachSize ? `<span class="badge bg-light text-secondary ms-1">${attachSize}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
                 } else if (chat.attachment_type && chat.attachment_type.startsWith('video/')) {
-                    attachmentHtml = `<div class="mb-2"><video src="${chat.attachment_url}" class="img-fluid rounded" style="max-height: 250px;" controls></video></div>`;
+                    attachmentHtml = `<div class="mb-2"><video src="${attachUrl}" class="img-fluid rounded" style="max-height: 250px;" controls></video></div>`;
                 } else if (chat.attachment_type && chat.attachment_type.startsWith('audio/')) {
-                    attachmentHtml = `<div class="mb-2"><audio src="${chat.attachment_url}" controls></audio></div>`;
+                    attachmentHtml = `<div class="mb-2"><audio src="${attachUrl}" controls></audio></div>`;
                 } else {
-                    attachmentHtml = `<div class="mb-2"><a href="${chat.attachment_url}" target="_blank" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center"><i class="fas fa-file-download me-2"></i>Download / View Document</a></div>`;
+                    attachmentHtml = `
+                        <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm">
+                            <i class="fas fa-file-alt text-primary fs-5"></i>
+                            <div class="flex-grow-1 text-truncate" style="max-width: 240px;">
+                                <div class="fw-bold fs-10 text-truncate" title="${escapeHTML(attachName)}">${escapeHTML(attachName)}</div>
+                                <div class="fs-11 text-muted">Document ${attachSize ? '• ' + attachSize : ''}</div>
+                            </div>
+                            <a href="${attachUrl}" target="_blank" download class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Download</a>
+                        </div>
+                    `;
                 }
             }
 
@@ -464,9 +707,9 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         const customerId = activeCustomerIdInput.value;
         const msg = chatInput.value.trim();
-        if(!msg && !isCorePdfAttached) return;
+        if(!msg && !isCorePdfAttached && !coreCustomFile) return;
         if(!customerId) return;
-        
+
         const sendBtn = document.getElementById('coreSendMsgBtn');
         const sendBtnText = document.getElementById('coreSendMsgBtnText');
         if (sendBtn) sendBtn.disabled = true;
@@ -475,6 +718,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData();
         formData.append('message', msg);
         formData.append('attach_seller_guide', isCorePdfAttached ? 'true' : 'false');
+        if (coreCustomFile) {
+            formData.append('attachment', coreCustomFile);
+        }
 
         fetch(`/core/whatsapp/send/${customerId}/`, {
             method: 'POST',
@@ -492,10 +738,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 chatInput.value = '';
                 chatInput.style.height = 'auto';
                 toggleCorePdfAttachment(false);
+                removeCoreCustomAttachment();
                 hideCoreKeywordSuggestions();
                 fetchMessages(customerId, true);
             } else {
-                alert("Error sending message: " + data.message);
+                alert("Error sending message: " + (data.message || "Failed to deliver"));
             }
         })
         .catch(err => {

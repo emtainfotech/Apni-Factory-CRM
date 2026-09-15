@@ -1952,12 +1952,29 @@ def get_whatsapp_chat(request, customer_id):
         else:
             chat_ist = timezone.make_aware(chat.timestamp, timezone.utc).astimezone(ist_tz)
 
+        attach_name = None
+        attach_size = None
+        if chat.attachment:
+            try:
+                attach_name = os.path.basename(chat.attachment.name)
+                sz = chat.attachment.size
+                if sz < 1024:
+                    attach_size = f"{sz} B"
+                elif sz < 1024 * 1024:
+                    attach_size = f"{sz / 1024:.1f} KB"
+                else:
+                    attach_size = f"{sz / (1024 * 1024):.1f} MB"
+            except Exception:
+                attach_name = os.path.basename(chat.attachment.name) if chat.attachment.name else "attachment"
+
         chat_data.append({
             'id': chat.id,
             'message': chat.message,
             'direction': chat.direction,
             'attachment_url': chat.attachment.url if chat.attachment else None,
             'attachment_type': chat.attachment_type,
+            'attachment_name': attach_name,
+            'attachment_size': attach_size,
             'wamid': chat.wamid,
             'delivery_status': delivery_status,
             'error_code': err_code,
@@ -1992,7 +2009,7 @@ def send_whatsapp_message(request, customer_id):
     """
     Sends an outgoing WhatsApp message to the customer from employee portal
     and immediately dispatches it to the recipient's phone via Meta Cloud API.
-    Supports auto-attaching Seller Onboarding Guide PDF and logs wamid for delivery tracking.
+    Supports auto-attaching Seller Onboarding Guide PDF, custom documents, and images.
     """
     if request.method != 'POST':
         return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=400)
@@ -2023,6 +2040,8 @@ def send_whatsapp_message(request, customer_id):
     from core.utils import (
         send_text_message,
         send_document_message,
+        send_image_message,
+        upload_media_to_meta,
         send_seller_onboarding_template,
         get_whatsapp_window_status,
         format_india_time,
@@ -2077,7 +2096,73 @@ def send_whatsapp_message(request, customer_id):
             else:
                 api_error = tmpl_err
 
-    # B. Send text message (if seller guide was not attached)
+    # B. Custom Uploaded File (Image or Document)
+    elif attachment_file:
+        fn_lower = attachment_file.name.lower()
+        if not chat_attachment_type:
+            if fn_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                chat_attachment_type = 'image/jpeg'
+            elif fn_lower.endswith('.pdf'):
+                chat_attachment_type = 'application/pdf'
+            elif fn_lower.endswith(('.doc', '.docx')):
+                chat_attachment_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            elif fn_lower.endswith(('.xls', '.xlsx', '.csv')):
+                chat_attachment_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            else:
+                chat_attachment_type = 'application/octet-stream'
+
+        is_image = chat_attachment_type.startswith('image/') or fn_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif'))
+
+        chat = WhatsAppChat.objects.create(
+            customer=customer,
+            message=message_text,
+            direction='outgoing',
+            attachment=attachment_file,
+            attachment_type=chat_attachment_type,
+            timestamp=timezone.now()
+        )
+
+        if is_window_open:
+            up_ok, media_id, up_err = False, None, None
+            try:
+                chat.attachment.open('rb')
+                file_bytes = chat.attachment.read()
+                chat.attachment.close()
+                up_ok, media_id, up_err = upload_media_to_meta(file_bytes, os.path.basename(chat.attachment.name), chat_attachment_type)
+            except Exception as ex:
+                up_err = str(ex)
+
+            file_abs_url = request.build_absolute_uri(chat.attachment.url) if chat.attachment else None
+
+            if is_image:
+                if up_ok and media_id:
+                    img_ok, img_wamid, img_err = send_image_message(target_phone, media_id=media_id, caption=message_text, return_details=True)
+                else:
+                    img_ok, img_wamid, img_err = send_image_message(target_phone, image_url=file_abs_url, caption=message_text, return_details=True)
+                if img_ok:
+                    api_dispatched = True
+                    chosen_wamid = img_wamid
+                else:
+                    api_error = img_err
+            else:
+                doc_filename = os.path.basename(chat.attachment.name)
+                if up_ok and media_id:
+                    doc_ok, doc_wamid, doc_err = send_document_message(target_phone, media_id=media_id, filename=doc_filename, caption=message_text, return_details=True)
+                else:
+                    doc_ok, doc_wamid, doc_err = send_document_message(target_phone, document_url=file_abs_url, filename=doc_filename, caption=message_text, return_details=True)
+                if doc_ok:
+                    api_dispatched = True
+                    chosen_wamid = doc_wamid
+                else:
+                    api_error = doc_err
+        else:
+            api_error = "24-Hour WhatsApp Service Window is closed. Delivery via direct WhatsApp Web link recommended."
+
+        if chosen_wamid:
+            chat.wamid = chosen_wamid
+            chat.save(update_fields=['wamid'])
+
+    # C. Send text message (if neither seller guide nor custom file was attached)
     elif message_text:
         txt_ok, txt_wamid, txt_err = send_text_message(target_phone, message_text, return_details=True)
         if txt_ok:
@@ -2099,16 +2184,17 @@ def send_whatsapp_message(request, customer_id):
         else:
             api_error = txt_err
 
-    # 3. Save to chat history
-    chat = WhatsAppChat.objects.create(
-        customer=customer,
-        direction='outgoing',
-        message=message_text,
-        attachment=chat_attachment,
-        attachment_type=chat_attachment_type,
-        wamid=chosen_wamid,
-        timestamp=timezone.now()
-    )
+    # 3. Save to chat history if not already saved in attachment_file branch
+    if not attachment_file:
+        chat = WhatsAppChat.objects.create(
+            customer=customer,
+            direction='outgoing',
+            message=message_text,
+            attachment=chat_attachment,
+            attachment_type=chat_attachment_type,
+            wamid=chosen_wamid,
+            timestamp=timezone.now()
+        )
 
     # 4. Update WhatsApp lead state for live human agent handoff
     try:
@@ -2125,6 +2211,21 @@ def send_whatsapp_message(request, customer_id):
     ist_tz = ZoneInfo("Asia/Kolkata")
     chat_ist = chat.timestamp.astimezone(ist_tz) if timezone.is_aware(chat.timestamp) else timezone.make_aware(chat.timestamp, timezone.utc).astimezone(ist_tz)
 
+    attach_name = None
+    attach_size = None
+    if chat.attachment:
+        try:
+            attach_name = os.path.basename(chat.attachment.name)
+            sz = chat.attachment.size
+            if sz < 1024:
+                attach_size = f"{sz} B"
+            elif sz < 1024 * 1024:
+                attach_size = f"{sz / 1024:.1f} KB"
+            else:
+                attach_size = f"{sz / (1024 * 1024):.1f} MB"
+        except Exception:
+            attach_name = os.path.basename(chat.attachment.name) if chat.attachment.name else "attachment"
+
     return JsonResponse({
         'status': 'success',
         'message_id': chat.id,
@@ -2134,6 +2235,8 @@ def send_whatsapp_message(request, customer_id):
         'api_error': api_error,
         'attachment_url': chat.attachment.url if chat.attachment else None,
         'attachment_type': chat.attachment_type,
+        'attachment_name': attach_name,
+        'attachment_size': attach_size,
         'time': chat_ist.strftime('%I:%M %p'),
         'date_str': chat_ist.strftime('%Y-%m-%d'),
         'timestamp': chat_ist.strftime('%I:%M %p'),
