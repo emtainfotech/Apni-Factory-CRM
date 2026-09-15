@@ -92,6 +92,7 @@ urlpatterns = [
     path('whatsapp/start-chat/', views.whatsapp_start_new_chat, name='whatsapp_start_new_chat'),
     path('whatsapp/chat/<int:customer_id>/', views.get_whatsapp_chat, name='get_whatsapp_chat'),
     path('whatsapp/send/<int:customer_id>/', views.send_whatsapp_message_ajax, name='send_whatsapp_message_ajax'),
+    path('whatsapp/message/<int:chat_id>/delete/', views.delete_whatsapp_message_ajax, name='delete_whatsapp_message_ajax'),
     path('api/login/', api_views.app_login),
     path('api/check-number/', api_views.check_number),
     path('api/save-log/', api_views.save_call_log),

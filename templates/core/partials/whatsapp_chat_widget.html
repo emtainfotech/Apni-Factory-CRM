@@ -1,3 +1,13 @@
+<style>
+    .delete-chat-btn {
+        opacity: 0.5;
+        transition: opacity 0.15s ease-in-out, transform 0.15s ease-in-out;
+    }
+    .delete-chat-btn:hover {
+        opacity: 1 !important;
+        transform: scale(1.2);
+    }
+</style>
 <!-- 24-Hour Meta Window Status Banner -->
 <div id="core-meta-window-warning" class="alert py-2 px-3 mb-0 rounded-0 border-start-0 border-end-0 border-top-0 fs-10 d-none d-flex align-items-center justify-content-between">
     <div id="coreMetaWindowWarningText">
@@ -682,15 +692,27 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             let displayMsgText = (chat.message === '[Document received]' || chat.message === '[Image received]') && chat.attachment_url ? '' : escapeHTML(chat.message || '');
+            let deleteBtnHtml = '';
+            if (chat.id) {
+                deleteBtnHtml = `
+                    <button type="button" class="btn btn-link p-0 text-danger ms-2 delete-chat-btn" 
+                            onclick="deleteCoreMessage(${chat.id})" 
+                            title="Delete this message" 
+                            style="font-size: 0.68rem; text-decoration: none; border: none; background: none; opacity: 0.55; cursor: pointer; line-height: 1;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+            }
 
             html += `
-                <div class="d-flex ${align} mb-3">
+                <div class="d-flex ${align} mb-3" id="core-chat-row-${chat.id}">
                     <div class="p-2 rounded-3 shadow-sm ${bgClass}" style="max-width: 75%;">
                         ${attachmentHtml}
                         ${displayMsgText ? `<div style="white-space: pre-wrap; word-wrap: break-word;">${displayMsgText}</div>` : ''}
                         <div class="text-end mt-1 d-flex align-items-center justify-content-end gap-1">
                             <small class="text-secondary opacity-75" style="font-size: 0.68rem; letter-spacing: 0.2px;">${timeStr}</small>
                             ${statusHtml}
+                            ${deleteBtnHtml}
                         </div>
                         ${failureCardHtml}
                     </div>
@@ -752,6 +774,36 @@ document.addEventListener('DOMContentLoaded', function() {
             alert("Error sending message.");
         });
     });
+
+    window.deleteCoreMessage = function(chatId) {
+        if (!chatId) return;
+        if (!confirm("Are you sure you want to delete this message?")) return;
+
+        fetch(`/core/whatsapp/message/${chatId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const row = document.getElementById(`core-chat-row-${chatId}`);
+                if (row) {
+                    row.style.transition = 'all 0.25s ease-out';
+                    row.style.opacity = '0';
+                    row.style.transform = 'scale(0.85)';
+                    setTimeout(() => row.remove(), 250);
+                }
+            } else {
+                alert(data.message || "Failed to delete message.");
+            }
+        })
+        .catch(err => {
+            console.error("Error deleting message:", err);
+            alert("Error deleting message.");
+        });
+    };
 
     function escapeHTML(str) {
         return str.replace(/[&<>'"]/g, 

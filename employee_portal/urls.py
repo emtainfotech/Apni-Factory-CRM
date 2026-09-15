@@ -52,4 +52,5 @@ urlpatterns = [
     path('whatsapp/start/', views.start_whatsapp_chat, name='start_whatsapp_chat'),
     path('whatsapp/<int:customer_id>/', views.get_whatsapp_chat, name='get_whatsapp_chat'),
     path('whatsapp/<int:customer_id>/send/', views.send_whatsapp_message, name='send_whatsapp_message'),
+    path('whatsapp/message/<int:chat_id>/delete/', views.delete_whatsapp_message, name='delete_whatsapp_message'),
 ]

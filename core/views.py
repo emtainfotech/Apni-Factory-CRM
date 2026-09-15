@@ -4195,6 +4195,30 @@ def send_whatsapp_message_ajax(request, customer_id):
 
 
 @login_required
+@csrf_exempt
+def delete_whatsapp_message_ajax(request, chat_id):
+    """
+    Deletes a WhatsApp message from chat history (for outgoing sent messages or any message).
+    Safely removes any associated file attachment.
+    """
+    if request.method in ('POST', 'DELETE'):
+        chat = get_object_or_404(WhatsAppChat, id=chat_id)
+        customer_id = chat.customer_id
+        if chat.attachment:
+            try:
+                chat.attachment.delete(save=False)
+            except Exception:
+                pass
+        chat.delete()
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Message deleted successfully.',
+            'chat_id': chat_id,
+            'customer_id': customer_id
+        })
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
+
+
 def whatsapp_search_contacts(request):
     """
     Live AJAX search for WhatsApp contacts by name, company, or phone number.
