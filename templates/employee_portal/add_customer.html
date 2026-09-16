@@ -65,6 +65,31 @@
                             </div>
                         </div>
 
+                        <!-- 1. Company & Location (Starting Fields) -->
+                        <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4">
+                            <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
+                                <i class="fas fa-building me-1 text-primary"></i> 1. Company & City Details
+                            </h6>
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCompanyName">Company / Firm / Shop Name</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                        <input type="text" class="form-control" id="pageCompanyName" name="company_name" value="{{ form.company_name.value|default:'' }}" placeholder="e.g. Apex Hardware & Sanitary Store">
+                                    </div>
+                                    {% if form.company_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.company_name.errors.0 }}</div>{% endif %}
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCity">City / District</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                        <input type="text" class="form-control" id="pageCity" name="city" value="{{ form.city.value|default:'' }}" placeholder="e.g. Surat, Jaipur">
+                                    </div>
+                                    {% if form.city.errors %}<div class="text-danger fs-10 mt-1">{{ form.city.errors.0 }}</div>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- 2. Contact Person Information -->
                         <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4">
                             <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
@@ -135,15 +160,7 @@
                                 <i class="fas fa-briefcase me-1 text-info"></i> 3. Business & Tax Details
                             </h6>
                             <div class="row g-3">
-                                <div class="col-md-7">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCompanyName">Company / Firm / Shop Name</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-building"></i></span>
-                                        <input type="text" class="form-control" id="pageCompanyName" name="company_name" value="{{ form.company_name.value|default:'' }}" placeholder="e.g. Apex Hardware & Sanitary Store">
-                                    </div>
-                                    {% if form.company_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.company_name.errors.0 }}</div>{% endif %}
-                                </div>
-                                <div class="col-md-5">
+                                <div class="col-12">
                                     <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageGSTIN">GSTIN Number</label>
                                     <div class="input-group">
                                         <span class="input-group-text text-uppercase fw-bold fs-11">GST</span>
@@ -185,11 +202,7 @@
                                     <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageAddress">Street Address / Landmark</label>
                                     <textarea class="form-control" id="pageAddress" name="address" rows="2" placeholder="Building Name, Shop No, Street or Industrial Area...">{{ form.address.value|default:'' }}</textarea>
                                 </div>
-                                <div class="col-md-4">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCity">City / District</label>
-                                    <input type="text" class="form-control" id="pageCity" name="city" value="{{ form.city.value|default:'' }}" placeholder="e.g. Surat, Jaipur">
-                                </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageState">State / Region</label>
                                     <input type="text" class="form-control" id="pageState" name="state" value="{{ form.state.value|default:'' }}" placeholder="e.g. Gujarat, Delhi" list="pageStateList">
                                     <datalist id="pageStateList">
@@ -220,7 +233,7 @@
                                         <option value="West Bengal"></option>
                                     </datalist>
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-6">
                                     <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pagePincode">Pin Code</label>
                                     <input type="text" class="form-control font-monospace" id="pagePincode" name="pincode" value="{{ form.pincode.value|default:'' }}" placeholder="e.g. 395003" maxlength="10">
                                 </div>
