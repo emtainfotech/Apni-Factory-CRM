@@ -897,12 +897,246 @@
     <script src="/static/assets/js/phoenix.js"></script>
     <script src="/static/assets/js/pages/crm-analytics.js"></script>
 
-    <!-- Real-Time WhatsApp & CRM Notification Worker -->
+    <!-- Real-Time WhatsApp & CRM Notification Floating Popup (Bottom Right) -->
+    <style>
+        .wa-popup-stack {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 999999;
+            display: flex;
+            flex-direction: column-reverse;
+            gap: 12px;
+            max-width: 390px;
+            width: calc(100vw - 36px);
+            pointer-events: none;
+        }
+        .wa-popup-card {
+            pointer-events: auto;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid rgba(37, 211, 102, 0.45);
+            box-shadow: 0 14px 38px -6px rgba(15, 23, 42, 0.2), 0 4px 14px rgba(37, 211, 102, 0.2);
+            overflow: hidden;
+            transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s ease, opacity 0.25s ease;
+            animation: waPopupSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            position: relative;
+        }
+        [data-bs-theme="dark"] .wa-popup-card {
+            background: #141a24;
+            border-color: rgba(37, 211, 102, 0.4);
+            box-shadow: 0 16px 40px -6px rgba(0, 0, 0, 0.7), 0 4px 16px rgba(37, 211, 102, 0.25);
+            color: #f1f5f9;
+        }
+        @keyframes waPopupSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.92);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .wa-popup-card.wa-closing {
+            opacity: 0 !important;
+            transform: translateX(40px) scale(0.9) !important;
+            transition: all 0.25s ease-in !important;
+        }
+        .wa-popup-card-accent {
+            height: 4px;
+            background: linear-gradient(90deg, #25D366 0%, #128C7E 100%);
+            width: 100%;
+        }
+        .wa-popup-header {
+            display: flex;
+            align-items: center;
+            padding: 10px 14px 6px 14px;
+            gap: 10px;
+        }
+        .wa-avatar-wrap {
+            position: relative;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #25D366, #128C7E);
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 6px rgba(37, 211, 102, 0.35);
+        }
+        .wa-live-dot {
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 11px;
+            height: 11px;
+            border-radius: 50%;
+            background: #25D366;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 0 2px rgba(37, 211, 102, 0.4);
+            animation: waPulseDot 2s infinite;
+        }
+        [data-bs-theme="dark"] .wa-live-dot {
+            border-color: #141a24;
+        }
+        @keyframes waPulseDot {
+            0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.8); }
+            70% { box-shadow: 0 0 0 6px rgba(37, 211, 102, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+        }
+        .wa-popup-meta {
+            flex-grow: 1;
+            min-width: 0;
+        }
+        .wa-popup-name {
+            font-weight: 700;
+            font-size: 13px;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .wa-popup-sub {
+            font-size: 11px;
+            color: #64748b;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+        }
+        [data-bs-theme="dark"] .wa-popup-sub {
+            color: #94a3b8;
+        }
+        .wa-popup-actions-top {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .wa-popup-time {
+            font-size: 10px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+        .wa-popup-close-btn {
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            padding: 2px 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            line-height: 1;
+            font-size: 14px;
+            transition: color 0.15s ease, background-color 0.15s ease;
+        }
+        .wa-popup-close-btn:hover {
+            color: #ef4444;
+            background-color: rgba(239, 68, 68, 0.1);
+        }
+        .wa-popup-clickable-body {
+            padding: 6px 14px 8px 14px;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+        .wa-popup-clickable-body:hover {
+            background-color: rgba(37, 211, 102, 0.05);
+        }
+        .wa-popup-bubble {
+            background: rgba(37, 211, 102, 0.08);
+            border-left: 3px solid #25D366;
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
+            line-height: 1.45;
+            color: #1e293b;
+            word-break: break-word;
+        }
+        [data-bs-theme="dark"] .wa-popup-bubble {
+            background: rgba(37, 211, 102, 0.12);
+            color: #e2e8f0;
+        }
+        .wa-popup-open-hint {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: #128C7E;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+        [data-bs-theme="dark"] .wa-popup-open-hint {
+            color: #25D366;
+        }
+        .wa-popup-reply-area {
+            padding: 8px 14px 12px 14px;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            background: rgba(248, 250, 252, 0.7);
+        }
+        [data-bs-theme="dark"] .wa-popup-reply-area {
+            border-top-color: rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.5);
+        }
+        .wa-popup-reply-input {
+            border-radius: 20px 0 0 20px !important;
+            font-size: 12px !important;
+            padding: 6px 12px !important;
+            border: 1px solid rgba(37, 211, 102, 0.5) !important;
+        }
+        .wa-popup-reply-input:focus {
+            border-color: #25D366 !important;
+            box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.25) !important;
+        }
+        .wa-popup-reply-btn {
+            border-radius: 0 20px 20px 0 !important;
+            background: #25D366 !important;
+            border-color: #25D366 !important;
+            color: #ffffff !important;
+            font-size: 12px !important;
+            padding: 6px 14px !important;
+            font-weight: 600 !important;
+        }
+        .wa-popup-reply-btn:hover {
+            background: #1ebc57 !important;
+            border-color: #1ebc57 !important;
+        }
+    </style>
+
     <script>
     (function() {
         let lastNotificationId = 0;
         const notifIndicator = document.getElementById('notification-indicator');
         const notifContainer = document.getElementById('notification-container');
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const CSRF_TOKEN = '{{ csrf_token }}' || getCookie('csrftoken') || '';
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
 
         // Function to play a professional subtle chime using Web Audio API
         function playNotificationChime() {
@@ -917,49 +1151,202 @@
                 osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
                 osc.frequency.setValueAtTime(880.00, ctx.currentTime + 0.1); // A5
                 
-                gain.gain.setValueAtTime(0.15, ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.18, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.55);
                 
                 osc.start();
-                osc.stop(ctx.currentTime + 0.5);
-            } catch (e) {
-                // Audio ignore if blocked by browser autoplay policy
-            }
+                osc.stop(ctx.currentTime + 0.55);
+            } catch (e) {}
         }
 
-        // Function to show visual Toast popup
-        function showToastNotification(notif) {
-            let toastContainer = document.getElementById('global-toast-container');
-            if (!toastContainer) {
-                toastContainer = document.createElement('div');
-                toastContainer.id = 'global-toast-container';
-                toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
-                toastContainer.style.zIndex = '999999';
-                document.body.appendChild(toastContainer);
+        function getOrCreatePopupStack() {
+            let stack = document.getElementById('whatsapp-popup-stack');
+            if (!stack) {
+                stack = document.createElement('div');
+                stack.id = 'whatsapp-popup-stack';
+                stack.className = 'wa-popup-stack';
+                document.body.appendChild(stack);
             }
-            
-            const toastId = 'toast-notif-' + notif.id;
-            const toastHtml = `
-                <div id="${toastId}" class="toast align-items-center text-bg-success border-0 shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true">
-                    <div class="d-flex p-2">
-                        <div class="toast-body d-flex align-items-center p-0">
-                            <i class="fab fa-whatsapp fs-4 me-2"></i>
-                            <div>
-                                <strong class="d-block">New WhatsApp Message</strong>
-                                <span class="fs-9">${notif.message}</span>
-                            </div>
+            return stack;
+        }
+
+        window.dismissWaPopup = function(id) {
+            const card = document.getElementById('wa-popup-card-' + id);
+            if (card) {
+                card.classList.add('wa-closing');
+                setTimeout(() => {
+                    if (card.parentNode) card.parentNode.removeChild(card);
+                }, 260);
+            }
+        };
+
+        window.openOrLoadChat = function(inboxUrl, customerId, customerName, customerPhone) {
+            if (window.location.pathname.includes('/whatsapp/inbox/') && typeof window.openChatForCustomer === 'function' && customerId) {
+                window.openChatForCustomer(customerId, customerName, customerPhone);
+                const contactEl = document.querySelector(`.contact-item[data-id="${customerId}"]`);
+                if (contactEl) {
+                    document.querySelectorAll('.contact-item').forEach(i => i.classList.remove('bg-200'));
+                    contactEl.classList.add('bg-200');
+                    contactEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('customer_id', customerId);
+                window.history.pushState({}, '', newUrl);
+            } else {
+                window.location.href = inboxUrl;
+            }
+        };
+
+        window.submitWaQuickReply = function(event, notifId, replyUrl, customerId) {
+            event.preventDefault();
+            event.stopPropagation();
+
+            const input = document.getElementById('wa-reply-input-' + notifId);
+            const btn = document.getElementById('wa-reply-btn-' + notifId);
+            const statusDiv = document.getElementById('wa-reply-status-' + notifId);
+
+            if (!input || !input.value.trim()) return;
+            const message = input.value.trim();
+
+            const targetUrl = replyUrl || (customerId ? `/core/whatsapp/send/${customerId}/` : '');
+            if (!targetUrl) {
+                if (statusDiv) {
+                    statusDiv.className = 'alert alert-danger py-1 px-2 mb-0 mt-1 fs-10';
+                    statusDiv.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Cannot reply: Customer chat link missing.';
+                }
+                return;
+            }
+
+            input.disabled = true;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            if (statusDiv) {
+                statusDiv.className = 'd-none';
+                statusDiv.innerHTML = '';
+            }
+
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
+            formData.append('message', message);
+
+            fetch(targetUrl, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': CSRF_TOKEN
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (statusDiv) {
+                        statusDiv.className = 'alert alert-success py-1 px-2 mb-0 mt-1 fs-10 d-flex align-items-center justify-content-between';
+                        statusDiv.innerHTML = '<span><i class="fas fa-check-circle me-1"></i> Reply sent via WhatsApp!</span><i class="fas fa-paper-plane text-success"></i>';
+                    }
+                    btn.innerHTML = '<i class="fas fa-check"></i>';
+                    setTimeout(() => {
+                        window.dismissWaPopup(notifId);
+                    }, 2000);
+                } else {
+                    input.disabled = false;
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                    if (statusDiv) {
+                        statusDiv.className = 'alert alert-warning py-1 px-2 mb-0 mt-1 fs-10';
+                        const errMsg = data.message || data.api_error || 'Delivery failed';
+                        statusDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-1"></i> ${escapeHtml(errMsg)}`;
+                    }
+                }
+            })
+            .catch(err => {
+                input.disabled = false;
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                if (statusDiv) {
+                    statusDiv.className = 'alert alert-danger py-1 px-2 mb-0 mt-1 fs-10';
+                    statusDiv.innerHTML = '<i class="fas fa-times-circle me-1"></i> Network error while sending.';
+                }
+            });
+        };
+
+        function showWhatsAppPopup(notif) {
+            const stack = getOrCreatePopupStack();
+            const cardId = 'wa-popup-card-' + notif.id;
+
+            if (document.getElementById(cardId)) return;
+
+            const name = notif.customer_name || 'Customer';
+            const initial = (name || 'C').charAt(0).toUpperCase();
+            const phone = notif.customer_phone || '';
+            const rawMsg = notif.message || '';
+            const cleanMsg = rawMsg.replace(/^WhatsApp from [^:]+:\s*/i, '');
+            const timeStr = notif.created_at || 'Just now';
+            const inboxUrl = notif.inbox_url || notif.url || '/core/whatsapp/inbox/';
+            const replyUrl = notif.reply_url || (notif.customer_id ? `/core/whatsapp/send/${notif.customer_id}/` : '');
+
+            const card = document.createElement('div');
+            card.id = cardId;
+            card.className = 'wa-popup-card';
+            card.innerHTML = `
+                <div class="wa-popup-card-accent"></div>
+                <div class="wa-popup-header">
+                    <div class="wa-avatar-wrap">
+                        ${escapeHtml(initial)}
+                        <span class="wa-live-dot"></span>
+                    </div>
+                    <div class="wa-popup-meta">
+                        <div class="wa-popup-name">${escapeHtml(name)}</div>
+                        <div class="wa-popup-sub">
+                            <i class="fab fa-whatsapp text-success fs-10"></i>
+                            <span>${phone ? escapeHtml(phone) : 'WhatsApp message'}</span>
                         </div>
-                        <a href="${notif.url || '/core/whatsapp/inbox/'}" class="btn btn-sm btn-light ms-3 me-2 my-auto">Open</a>
-                        <button type="button" class="btn-close btn-close-white me-1 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="wa-popup-actions-top">
+                        <span class="wa-popup-time">${escapeHtml(timeStr)}</span>
+                        <button type="button" class="wa-popup-close-btn" title="Dismiss" onclick="event.stopPropagation(); window.dismissWaPopup(${notif.id});">
+                            <i class="fas fa-times"></i>
+                        </button>
                     </div>
                 </div>
+                <div class="wa-popup-clickable-body" onclick="window.openOrLoadChat('${inboxUrl}', ${notif.customer_id || 'null'}, '${escapeHtml(name)}', '${escapeHtml(phone)}');">
+                    <div class="wa-popup-bubble">
+                        ${escapeHtml(cleanMsg)}
+                    </div>
+                    <div class="wa-popup-open-hint">
+                        <span><i class="fas fa-comments me-1"></i> Open in WhatsApp Inbox</span>
+                        <i class="fas fa-arrow-right fs-11"></i>
+                    </div>
+                </div>
+                <div class="wa-popup-reply-area" onclick="event.stopPropagation();">
+                    <form id="wa-reply-form-${notif.id}" onsubmit="window.submitWaQuickReply(event, ${notif.id}, '${replyUrl}', ${notif.customer_id || 'null'});">
+                        <div class="input-group input-group-sm">
+                            <input type="text" id="wa-reply-input-${notif.id}" class="form-control wa-popup-reply-input" placeholder="Quick reply to ${escapeHtml(name)}..." required autocomplete="off" />
+                            <button class="btn wa-popup-reply-btn" type="submit" id="wa-reply-btn-${notif.id}" title="Send Reply">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <div id="wa-reply-status-${notif.id}" class="d-none mt-1"></div>
+                    </form>
+                </div>
             `;
-            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
-            const toastEl = document.getElementById(toastId);
-            if (window.bootstrap && window.bootstrap.Toast) {
-                const toast = new window.bootstrap.Toast(toastEl, { delay: 6000 });
-                toast.show();
-            }
+
+            stack.appendChild(card);
+
+            let dismissTimeout = setTimeout(() => {
+                window.dismissWaPopup(notif.id);
+            }, 20000);
+
+            card.addEventListener('mouseenter', () => {
+                clearTimeout(dismissTimeout);
+            });
+            card.addEventListener('mouseleave', () => {
+                const input = document.getElementById('wa-reply-input-' + notif.id);
+                if (input && document.activeElement === input) return;
+                dismissTimeout = setTimeout(() => {
+                    window.dismissWaPopup(notif.id);
+                }, 10000);
+            });
         }
 
         function checkNewNotifications() {
@@ -1000,12 +1387,12 @@
                                     });
                                     desktopNotif.onclick = function() {
                                         window.focus();
-                                        if (n.url) window.location.href = n.url;
+                                        window.openOrLoadChat(n.inbox_url || n.url || '/core/whatsapp/inbox/', n.customer_id, n.customer_name, n.customer_phone);
                                     };
                                 }
 
-                                // 3. Show In-App Toast
-                                showToastNotification(n);
+                                // 3. Show Interactive WhatsApp Bottom-Right Popup
+                                showWhatsAppPopup(n);
 
                                 // 4. Live update WhatsApp inbox / chat if open on this page
                                 if (window.location.pathname.includes('/whatsapp/inbox/')) {

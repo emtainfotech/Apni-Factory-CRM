@@ -1196,11 +1196,42 @@ def check_new_notifications(request):
                     cust_id = int(n.url.split('customer_id=')[-1].split('&')[0])
                 except ValueError:
                     pass
+
+            is_whatsapp = 'whatsapp' in (n.url or '').lower() or 'whatsapp' in (n.message or '').lower()
+            customer_name = ''
+            customer_phone = ''
+            if cust_id:
+                cust_obj = Customer.objects.filter(id=cust_id).first()
+                if cust_obj:
+                    name_parts = [cust_obj.first_name or '', cust_obj.last_name or '']
+                    customer_name = " ".join([p for p in name_parts if p]).strip() or cust_obj.company_name or 'Customer'
+                    customer_phone = cust_obj.phone or cust_obj.whatsapp_number or ''
+
+            if not customer_name and is_whatsapp and 'WhatsApp from ' in n.message:
+                try:
+                    after_from = n.message.split('WhatsApp from ')[1]
+                    customer_name = after_from.split(':')[0].strip()
+                except Exception:
+                    pass
+
+            is_emp = getattr(user, 'role', '') == 'employee' and not user.is_superuser
+            if is_emp:
+                reply_url = f"/employee/whatsapp/{cust_id}/send/" if cust_id else ""
+                inbox_url = f"/employee/whatsapp/?customer_id={cust_id}" if cust_id else "/employee/whatsapp/"
+            else:
+                reply_url = f"/core/whatsapp/send/{cust_id}/" if cust_id else ""
+                inbox_url = f"/core/whatsapp/inbox/?customer_id={cust_id}" if cust_id else "/core/whatsapp/inbox/"
+
             new_notifs_data.append({
                 'id': n.id,
                 'message': n.message,
-                'url': n.url or '',
+                'url': n.url or inbox_url,
+                'inbox_url': inbox_url,
                 'customer_id': cust_id,
+                'customer_name': customer_name or 'Customer',
+                'customer_phone': customer_phone,
+                'is_whatsapp': is_whatsapp,
+                'reply_url': reply_url,
                 'created_at': n.created_at.strftime('%H:%M') if n.created_at else ''
             })
 
@@ -2786,20 +2817,63 @@ def whatsapp_webhook(request):
 
                 process_conversation(phone_number, profile_name, text_body, media_id=media_id)
 
-                # --- Create real-time CRM Notification for admin users ---
+                # --- Create real-time CRM Notification for assigned employee, creator & admins ---
                 from authentication.models import Notification
                 from django.contrib.auth import get_user_model
                 User = get_user_model()
-                cust = Customer.objects.filter(Q(phone=phone_number) | Q(whatsapp_number=phone_number)).first()
+
+                clean_phone = phone_number
+                short_phone = clean_phone[2:] if clean_phone.startswith('91') and len(clean_phone) == 12 else clean_phone
+                cust = Customer.objects.filter(
+                    Q(phone=clean_phone) | Q(phone=short_phone) |
+                    Q(whatsapp_number=clean_phone) | Q(whatsapp_number=short_phone) |
+                    Q(phone='+' + clean_phone) | Q(whatsapp_number='+' + clean_phone) |
+                    Q(phone__endswith=short_phone) | Q(whatsapp_number__endswith=short_phone)
+                ).first()
+
                 cust_id = cust.id if cust else ''
-                msg_preview = text_body or f"[{msg_data['type'].capitalize()} received]"
-                for admin_user in User.objects.filter(Q(is_superuser=True) | Q(role='admin')):
+                cust_display = ''
+                if cust:
+                    name_parts = [cust.first_name or '', cust.last_name or '']
+                    cust_display = " ".join([p for p in name_parts if p]).strip() or cust.company_name or ''
+                if not cust_display:
+                    cust_display = profile_name or short_phone or clean_phone
+
+                msg_preview = (text_body or f"[{msg_data.get('type', 'message').capitalize()} received]").strip()
+                notif_msg = f"WhatsApp from {cust_display}: {msg_preview[:55]}"
+                recipients_notified = set()
+
+                # 1. Notify Assigned Employee
+                if cust and cust.assigned_to:
                     Notification.objects.create(
-                        recipient=admin_user,
-                        message=f"WhatsApp from {profile_name or phone_number}: {msg_preview[:45]}",
-                        url=f"/core/whatsapp/inbox/?customer_id={cust_id}",
+                        recipient=cust.assigned_to,
+                        message=notif_msg,
+                        url=f"/employee/whatsapp/?customer_id={cust_id}",
                         is_read=False
                     )
+                    recipients_notified.add(cust.assigned_to_id)
+
+                # 2. Notify Creator (if employee and not already notified)
+                if cust and cust.created_by and cust.created_by_id not in recipients_notified:
+                    if getattr(cust.created_by, 'role', '') == 'employee' and not cust.created_by.is_superuser:
+                        Notification.objects.create(
+                            recipient=cust.created_by,
+                            message=notif_msg,
+                            url=f"/employee/whatsapp/?customer_id={cust_id}",
+                            is_read=False
+                        )
+                        recipients_notified.add(cust.created_by_id)
+
+                # 3. Notify Admin users (superuser or role='admin')
+                for admin_user in User.objects.filter(Q(is_superuser=True) | Q(role='admin')):
+                    if admin_user.id not in recipients_notified:
+                        Notification.objects.create(
+                            recipient=admin_user,
+                            message=notif_msg,
+                            url=f"/core/whatsapp/inbox/?customer_id={cust_id}",
+                            is_read=False
+                        )
+                        recipients_notified.add(admin_user.id)
 
             # --- NEW: delivery status updates for messages YOU sent ---
             if 'statuses' in value:
