@@ -125,6 +125,10 @@
                        class="btn btn-xs flex-grow-1 {% if not current_party_type %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
                         All ({{ total_count }})
                     </a>
+                    <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=unread" 
+                       class="btn btn-xs flex-grow-1 {% if current_party_type == 'unread' %}btn-success text-white{% else %}btn-phoenix-success{% endif %}" title="Filter chats with unseen incoming messages">
+                        <i class="fas fa-comment-dots me-1"></i>Unread (<span id="emp-unread-count-badge">{{ unread_count|default:0 }}</span>)
+                    </a>
                     <a href="{% url 'employee_portal:whatsapp_inbox' %}?party_type=buyer" 
                        class="btn btn-xs flex-grow-1 {% if current_party_type == 'buyer' %}btn-warning{% else %}btn-phoenix-secondary{% endif %}">
                         Buyers ({{ buyers_count }})
@@ -146,7 +150,7 @@
                     {% for c in customers %}
                     <div class="contact-item {% if c.id|stringformat:'s' == active_customer_id %}active{% endif %}" onclick="loadChat('{{ c.id }}', this)" id="contact-{{ c.id }}" data-name="{{ c.get_full_name|default:c.first_name }}" data-phone="{{ c.whatsapp_number|default:c.phone }}">
                         <div class="d-flex align-items-center justify-content-between mb-1">
-                            <span class="fw-bold text-body-highlight text-truncate" style="max-width: 170px;">
+                            <span class="fw-bold text-body-highlight text-truncate {% if c.unseen_count and c.unseen_count > 0 %}text-black{% endif %}" style="max-width: 170px;">
                                 {{ c.get_full_name|default:c.first_name }}
                             </span>
                             <div class="d-flex align-items-center gap-1">
@@ -165,7 +169,14 @@
                         </div>
                         <div class="d-flex align-items-center justify-content-between fs-10 text-body-tertiary">
                             <span><span class="fas fa-phone me-1"></span>{{ c.whatsapp_number|default:c.phone }}</span>
-                            <span>{{ c.city|default:'' }}</span>
+                            <div class="d-flex align-items-center gap-1">
+                                {% if c.unseen_count and c.unseen_count > 0 %}
+                                <span class="badge rounded-pill bg-success text-white fs-10 unseen-badge px-2 py-1 shadow-sm" title="{{ c.unseen_count }} unseen message{% if c.unseen_count > 1 %}s{% endif %}" data-unseen="{{ c.unseen_count }}">
+                                    {{ c.unseen_count }}
+                                </span>
+                                {% endif %}
+                                <span>{{ c.city|default:'' }}</span>
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
@@ -552,6 +563,20 @@ function loadChat(customerId, element) {
     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
     if (element) {
         element.classList.add('active');
+    }
+
+    // Clear unseen badge for this contact
+    const targetItem = element || document.getElementById('contact-' + customerId);
+    if (targetItem) {
+        const badge = targetItem.querySelector('.unseen-badge');
+        if (badge) {
+            badge.remove();
+            const unreadCounter = document.getElementById('emp-unread-count-badge');
+            if (unreadCounter) {
+                let cur = parseInt(unreadCounter.innerText) || 0;
+                if (cur > 0) unreadCounter.innerText = cur - 1;
+            }
+        }
     }
 
     // Toggle containers

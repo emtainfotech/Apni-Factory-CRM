@@ -1235,10 +1235,20 @@ def check_new_notifications(request):
                 'created_at': n.created_at.strftime('%H:%M') if n.created_at else ''
             })
 
+    if user.is_superuser or user.role == 'admin':
+        wa_unseen_count = WhatsAppChat.objects.filter(direction='incoming', is_read=False).count()
+    else:
+        wa_unseen_count = WhatsAppChat.objects.filter(
+            Q(customer__assigned_to=user) | Q(customer__created_by=user),
+            direction='incoming',
+            is_read=False
+        ).count()
+
     return JsonResponse({
         'status': 'success',
         'has_unread': unread_qs.exists(),
         'unread_count': unread_qs.count(),
+        'wa_unseen_count': wa_unseen_count,
         'latest_id': latest_id,
         'new_notifications': new_notifs_data
     })
@@ -2951,7 +2961,7 @@ def process_conversation(phone, profile_name, message, media_id=None):
         customer.whatsapp_number = clean_phone
         customer.save()
 
-    chat = WhatsAppChat(customer=customer, message=message, direction='incoming')
+    chat = WhatsAppChat(customer=customer, message=message, direction='incoming', is_read=False)
     if media_id:
         content_file, mime_type = download_whatsapp_media(media_id)
         if content_file:
@@ -3905,22 +3915,28 @@ def whatsapp_inbox(request):
     from core.utils import get_failed_whatsapp_customer_ids
     failed_cust_ids = get_failed_whatsapp_customer_ids()
 
+    from django.db.models import Count, Max, Q
+
     base_filter = Q(whatsapp_chats__isnull=False) | Q(whatsapp_state__isnull=False)
     total_count = Customer.objects.filter(base_filter).distinct().count()
     buyers_count = Customer.objects.filter(base_filter, customer_type='buyer').distinct().count()
     sellers_count = Customer.objects.filter(base_filter, customer_type='seller').distinct().count()
     failed_count = Customer.objects.filter(base_filter, id__in=failed_cust_ids).distinct().count()
+    unread_count = Customer.objects.filter(base_filter, whatsapp_chats__direction='incoming', whatsapp_chats__is_read=False).distinct().count()
 
     customers_with_chats = Customer.objects.filter(
         base_filter | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
     ).annotate(
-        last_chat_time=Max('whatsapp_chats__timestamp')
+        last_chat_time=Max('whatsapp_chats__timestamp'),
+        unseen_count=Count('whatsapp_chats', filter=Q(whatsapp_chats__direction='incoming', whatsapp_chats__is_read=False), distinct=True)
     ).distinct().order_by('-last_chat_time', '-updated_at')
 
     if party_type in ('buyer', 'seller'):
         customers_with_chats = customers_with_chats.filter(customer_type=party_type)
     elif party_type in ('failed', 'unsent'):
         customers_with_chats = customers_with_chats.filter(id__in=failed_cust_ids)
+    elif party_type in ('unread', 'unseen'):
+        customers_with_chats = customers_with_chats.filter(whatsapp_chats__direction='incoming', whatsapp_chats__is_read=False)
 
     if query:
         customers_with_chats = customers_with_chats.filter(
@@ -3947,6 +3963,7 @@ def whatsapp_inbox(request):
         'buyers_count': buyers_count,
         'sellers_count': sellers_count,
         'failed_count': failed_count,
+        'unread_count': unread_count,
     })
 
 
@@ -3956,6 +3973,12 @@ def get_whatsapp_chat(request, customer_id):
     from core.utils import format_whatsapp_phone
 
     customer = get_object_or_404(Customer, id=customer_id)
+
+    # Mark incoming messages for this customer as read
+    WhatsAppChat.objects.filter(customer=customer, direction='incoming', is_read=False).update(is_read=True)
+    from authentication.models import Notification
+    Notification.objects.filter(url__contains=f"customer_id={customer.id}", is_read=False).update(is_read=True)
+
     chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
     target_clean_phone = format_whatsapp_phone(customer.whatsapp_number or customer.phone)
 
@@ -4215,6 +4238,9 @@ def send_whatsapp_message_ajax(request, customer_id):
         lead.customer = customer
         lead.needs_human = True
         lead.save()
+
+        # Mark prior incoming messages as read
+        WhatsAppChat.objects.filter(customer=customer, direction='incoming', is_read=False).update(is_read=True)
         
         from zoneinfo import ZoneInfo
         ist_tz = ZoneInfo("Asia/Kolkata")

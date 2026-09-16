@@ -34,6 +34,9 @@
                         <a href="{% url 'whatsapp_inbox' %}" class="btn btn-xs flex-grow-1 {% if not current_party_type %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
                             All ({{ total_count }})
                         </a>
+                        <a href="{% url 'whatsapp_inbox' %}?party_type=unread" class="btn btn-xs flex-grow-1 {% if current_party_type == 'unread' %}btn-success text-white{% else %}btn-phoenix-success{% endif %}" title="Filter chats with unseen incoming messages">
+                            <i class="fas fa-comment-dots me-1"></i>Unread (<span id="core-unread-count-badge">{{ unread_count|default:0 }}</span>)
+                        </a>
                         <a href="{% url 'whatsapp_inbox' %}?party_type=buyer" class="btn btn-xs flex-grow-1 {% if current_party_type == 'buyer' %}btn-warning{% else %}btn-phoenix-secondary{% endif %}">
                             Buyers ({{ buyers_count }})
                         </a>
@@ -57,7 +60,7 @@
                         </div>
                         <div class="flex-1 min-w-0">
                             <div class="d-flex align-items-center justify-content-between mb-1">
-                                <h6 class="mb-0 text-dark text-truncate">{{ customer.get_full_name|default:customer.first_name }}</h6>
+                                <h6 class="mb-0 text-dark text-truncate {% if customer.unseen_count and customer.unseen_count > 0 %}fw-bold text-black{% endif %}">{{ customer.get_full_name|default:customer.first_name }}</h6>
                                 <div class="d-flex align-items-center gap-1">
                                     {% if customer.last_chat_time %}
                                     <span class="fs-11 text-muted text-nowrap ms-2">{{ customer.last_chat_time|timezone:"Asia/Kolkata"|date:"d M" }}</span>
@@ -72,7 +75,14 @@
                                     {% endif %}
                                 </div>
                             </div>
-                            <p class="fs-10 text-body-tertiary mb-0 text-truncate">{{ customer.whatsapp_number|default:customer.phone }}</p>
+                            <div class="d-flex align-items-center justify-content-between">
+                                <p class="fs-10 text-body-tertiary mb-0 text-truncate">{{ customer.whatsapp_number|default:customer.phone }}</p>
+                                {% if customer.unseen_count and customer.unseen_count > 0 %}
+                                <span class="badge rounded-pill bg-success text-white fs-10 unseen-badge px-2 py-1 ms-1 shadow-sm" title="{{ customer.unseen_count }} unseen message{% if customer.unseen_count > 1 %}s{% endif %}" data-unseen="{{ customer.unseen_count }}">
+                                    {{ customer.unseen_count }}
+                                </span>
+                                {% endif %}
+                            </div>
                         </div>
                     </a>
                     {% empty %}
@@ -249,6 +259,20 @@ document.addEventListener('DOMContentLoaded', function() {
         chatHeaderName.innerText = name || 'Customer';
         chatHeaderPhone.innerText = phone || '';
         chatHeaderAvatar.innerText = (name || 'C').charAt(0).toUpperCase();
+
+        // Clear unseen badge on contact item
+        const activeItem = document.querySelector(`.contact-item[data-id="${customerId}"]`);
+        if (activeItem) {
+            const badge = activeItem.querySelector('.unseen-badge');
+            if (badge) {
+                badge.remove();
+                const unreadCounter = document.getElementById('core-unread-count-badge');
+                if (unreadCounter) {
+                    let cur = parseInt(unreadCounter.innerText) || 0;
+                    if (cur > 0) unreadCounter.innerText = cur - 1;
+                }
+            }
+        }
 
         if (viewCustomerProfileBtn) {
             viewCustomerProfileBtn.href = `/core/customers/${customerId}/`;

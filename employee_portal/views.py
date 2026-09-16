@@ -1839,13 +1839,16 @@ def whatsapp_inbox(request):
     qs = Customer.objects.filter(
         Q(assigned_to=request.user) | Q(created_by=request.user) | (Q(id=active_cust_id) if active_cust_id and active_cust_id.isdigit() else Q(pk__in=[]))
     ).annotate(
-        last_chat_time=Max('whatsapp_chats__timestamp')
+        last_chat_time=Max('whatsapp_chats__timestamp'),
+        unseen_count=Count('whatsapp_chats', filter=Q(whatsapp_chats__direction='incoming', whatsapp_chats__is_read=False), distinct=True)
     ).distinct().order_by('-last_chat_time', '-updated_at')
 
     if party_type in ('buyer', 'seller'):
         qs = qs.filter(customer_type=party_type)
     elif party_type in ('failed', 'unsent'):
         qs = qs.filter(id__in=failed_cust_ids)
+    elif party_type in ('unread', 'unseen'):
+        qs = qs.filter(whatsapp_chats__direction='incoming', whatsapp_chats__is_read=False)
 
     if query:
         qs = qs.filter(
@@ -1861,6 +1864,10 @@ def whatsapp_inbox(request):
     my_buyers_count = my_base_qs.filter(customer_type='buyer').count()
     my_sellers_count = my_base_qs.filter(customer_type='seller').count()
     my_failed_count = my_base_qs.filter(id__in=failed_cust_ids).distinct().count()
+    my_unread_count = my_base_qs.filter(
+        whatsapp_chats__direction='incoming',
+        whatsapp_chats__is_read=False
+    ).distinct().count()
 
     paginator = Paginator(qs, 20)
     page_number = request.GET.get('page')
@@ -1876,6 +1883,7 @@ def whatsapp_inbox(request):
         'buyers_count': my_buyers_count,
         'sellers_count': my_sellers_count,
         'failed_count': my_failed_count,
+        'unread_count': my_unread_count,
         'current_party_type': party_type,
         'current_query': query,
         'active_customer_id': active_cust_id,
@@ -1903,6 +1911,11 @@ def get_whatsapp_chat(request, customer_id):
 
     from core.models import WhatsAppMessageStatus
     from core.utils import format_whatsapp_phone
+
+    # Mark incoming unread messages as read
+    WhatsAppChat.objects.filter(customer=customer, direction='incoming', is_read=False).update(is_read=True)
+    from authentication.models import Notification
+    Notification.objects.filter(url__contains=f"customer_id={customer.id}", is_read=False).update(is_read=True)
 
     chats = WhatsAppChat.objects.filter(customer=customer).order_by('timestamp')
     target_clean_phone = format_whatsapp_phone(customer.whatsapp_number or customer.phone)
@@ -2108,8 +2121,10 @@ def send_whatsapp_message(request, customer_id):
             direction='outgoing',
             attachment=attachment_file,
             attachment_type=chat_attachment_type,
+            is_read=True,
             timestamp=timezone.now()
         )
+        WhatsAppChat.objects.filter(customer=customer, direction='incoming', is_read=False).update(is_read=True)
 
         if is_window_open:
             up_ok, media_id, up_err = False, None, None
@@ -2182,8 +2197,10 @@ def send_whatsapp_message(request, customer_id):
             attachment=chat_attachment,
             attachment_type=chat_attachment_type,
             wamid=chosen_wamid,
+            is_read=True,
             timestamp=timezone.now()
         )
+        WhatsAppChat.objects.filter(customer=customer, direction='incoming', is_read=False).update(is_read=True)
 
     # 4. Update WhatsApp lead state for live human agent handoff
     try:

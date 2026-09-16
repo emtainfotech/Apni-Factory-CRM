@@ -131,9 +131,12 @@
                                             <div class="nav-item-wrapper">
                                                 <a class="nav-link {% if 'whatsapp' in request.path %}active{% endif %}"
                                                     href="{% url 'employee_portal:whatsapp_inbox' %}">
-                                                    <div class="d-flex align-items-center">
-                                                        <span class="nav-link-icon"><span class="fab fa-whatsapp" style="color:#25d366;"></span></span>
-                                                        <span class="nav-link-text">WhatsApp Inbox</span>
+                                                    <div class="d-flex align-items-center justify-content-between w-100">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="nav-link-icon"><span class="fab fa-whatsapp" style="color:#25d366;"></span></span>
+                                                            <span class="nav-link-text">WhatsApp Inbox</span>
+                                                        </div>
+                                                        <span class="badge rounded-pill bg-success text-white fs-11 ms-auto d-none" id="empSidebarWaUnreadBadge"></span>
                                                     </div>
                                                 </a>
                                             </div>
@@ -1037,6 +1040,18 @@
                                 notifIndicator.innerHTML = `<span class="d-none"></span>`;
                             }
                         }
+
+                        // Update sidebar WhatsApp unseen count badge
+                        const sidebarWaBadge = document.getElementById('empSidebarWaUnreadBadge');
+                        if (sidebarWaBadge) {
+                            if (data.wa_unseen_count > 0) {
+                                sidebarWaBadge.innerText = data.wa_unseen_count;
+                                sidebarWaBadge.classList.remove('d-none');
+                            } else {
+                                sidebarWaBadge.classList.add('d-none');
+                            }
+                        }
+
                         if (lastNotificationId === 0) {
                             lastNotificationId = data.latest_id;
                             return;
