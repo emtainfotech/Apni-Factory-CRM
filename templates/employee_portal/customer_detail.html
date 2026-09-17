@@ -10,20 +10,38 @@
                 <i class="fas fa-arrow-left me-2"></i>Back to My Customers & Buyers
             </a>
             <h2 class="mb-0">{{ customer.first_name }} {{ customer.last_name }}</h2>
-            <p class="text-body-tertiary mb-0">Assigned {% if customer.customer_type == "seller" %}Seller / Vendor{% else %}Buyer / Contractor{% endif %} profile card.</p>
+            <p class="text-body-tertiary mb-0">{% if is_assigned_to_me %}Assigned {% else %}CRM {% endif %}{% if customer.customer_type == "seller" %}Seller / Vendor{% else %}Buyer / Contractor{% endif %} profile card.</p>
         </div>
         
         <!-- Status Toggles & Conversions -->
         <div class="col-auto d-flex flex-wrap gap-2 align-items-center">
+            <!-- Reassignment Request Action -->
+            {% if not is_assigned_to_me %}
+                {% if pending_reassignment %}
+                <span class="badge badge-phoenix badge-phoenix-warning fs-9 py-2 px-3">
+                    <i class="fas fa-clock me-1"></i>Reassignment Pending
+                </span>
+                {% else %}
+                <button class="btn btn-warning fs-9" data-bs-toggle="modal" data-bs-target="#requestReassignmentModal">
+                    <i class="fas fa-user-tag me-1"></i>Request Reassignment
+                </button>
+                {% endif %}
+            {% else %}
+                <button class="btn btn-phoenix-secondary fs-9" data-bs-toggle="modal" data-bs-target="#requestReassignmentModal" title="Request Reassignment / Transfer to another colleague or admin pool">
+                    <i class="fas fa-exchange-alt me-1"></i>Request Reassign
+                </button>
+            {% endif %}
+
             <!-- Category Switcher Dropdown -->
             <div class="dropdown">
-                <button class="btn btn-phoenix-secondary dropdown-toggle fs-9" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <button class="btn btn-phoenix-secondary dropdown-toggle fs-9" type="button" data-bs-toggle="dropdown" aria-expanded="false" {% if not is_assigned_to_me and not is_admin_user %}disabled title="Assigned to another employee"{% endif %}>
                     {% if customer.customer_type == 'seller' %}
                     <span class="fas fa-industry text-success me-1"></span> Seller / Vendor
                     {% else %}
                     <span class="fas fa-shopping-bag text-warning me-1"></span> Buyer / Contractor
                     {% endif %}
                 </button>
+                {% if is_assigned_to_me or is_admin_user %}
                 <ul class="dropdown-menu shadow-sm">
                     <li>
                         <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post" class="m-0">
@@ -44,16 +62,19 @@
                         </form>
                     </li>
                 </ul>
+                {% endif %}
             </div>
 
             {% if customer.status == 'lead' or customer.status == 'prospect' %}
-            <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post" class="m-0">
-                {% csrf_token %}
-                <input type="hidden" name="target_status" value="customer">
-                <button class="btn btn-success fs-9" type="submit">
-                    <i class="fas fa-check-double me-1"></i>Convert to Active {% if customer.customer_type == 'seller' %}Seller{% else %}Buyer{% endif %}
-                </button>
-            </form>
+                {% if is_assigned_to_me or is_admin_user %}
+                <form action="{% url 'employee_portal:convert_lead' customer.id %}" method="post" class="m-0">
+                    {% csrf_token %}
+                    <input type="hidden" name="target_status" value="customer">
+                    <button class="btn btn-success fs-9" type="submit">
+                        <i class="fas fa-check-double me-1"></i>Convert to Active {% if customer.customer_type == 'seller' %}Seller{% else %}Buyer{% endif %}
+                    </button>
+                </form>
+                {% endif %}
             {% endif %}
 
             <a href="{% url 'employee_portal:start_whatsapp_chat' %}?customer_id={{ customer.id }}" class="btn btn-phoenix-success fs-9">
@@ -64,9 +85,15 @@
                 Status: {{ customer.get_status_display }}
             </span>
 
+            {% if is_assigned_to_me or is_admin_user %}
             <button class="btn btn-phoenix-primary fs-9" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
                 <i class="fas fa-user-edit me-1"></i>Edit Profile
             </button>
+            {% else %}
+            <button class="btn btn-phoenix-secondary fs-9" data-bs-toggle="modal" data-bs-target="#requestReassignmentModal" title="Profile editing is reserved for the assigned owner. Request reassignment to take ownership.">
+                <i class="fas fa-lock me-1"></i>Request to Edit
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -80,6 +107,35 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Assignment Notice Banner -->
+    {% if not is_assigned_to_me %}
+    <div class="alert alert-subtle-{% if customer.assigned_to %}warning border-warning-subtle{% else %}info border-info-subtle{% endif %} d-flex flex-wrap justify-content-between align-items-center mb-4 p-3 rounded-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="fas fa-{% if customer.assigned_to %}user-shield text-warning{% else %}user-plus text-info{% endif %} fs-7"></span>
+            <div>
+                {% if customer.assigned_to %}
+                <span class="fw-bold text-body-emphasis">Assigned to: {{ customer.assigned_to.get_display_name|default:customer.assigned_to.username }}</span>
+                <span class="text-body-tertiary fs-10 ms-1">({{ customer.assigned_to.get_role_display|default:"Employee" }}) &bull; You are currently viewing this record in read-only mode.</span>
+                {% else %}
+                <span class="fw-bold text-body-emphasis">Currently Unassigned</span>
+                <span class="text-body-tertiary fs-10 ms-1">&bull; This lead has no owner assigned yet. You can request Admin to assign it to your pipeline.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="mt-2 mt-md-0">
+            {% if pending_reassignment %}
+            <span class="badge badge-phoenix badge-phoenix-warning fs-10 py-1.5 px-3">
+                <i class="fas fa-hourglass-half me-1"></i>Reassignment Request Pending Review
+            </span>
+            {% else %}
+            <button class="btn btn-sm btn-warning shadow-xs" data-bs-toggle="modal" data-bs-target="#requestReassignmentModal">
+                <i class="fas fa-hand-paper me-1"></i>Request Reassignment to Me
+            </button>
+            {% endif %}
         </div>
     </div>
     {% endif %}
@@ -385,6 +441,44 @@
                     <div class="modal-footer bg-light border-top-0 py-3">
                         <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- REQUEST REASSIGNMENT MODAL -->
+    <div class="modal fade" id="requestReassignmentModal" tabindex="-1" aria-labelledby="requestReassignmentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-warning py-3">
+                    <h5 class="modal-title text-dark fw-bold" id="requestReassignmentModalLabel">
+                        <span class="fas fa-user-tag me-2"></span>Request Lead Reassignment
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="request_reassignment">
+                    <div class="modal-body p-4">
+                        <div class="alert alert-subtle-primary p-3 mb-3 fs-10">
+                            <div class="mb-1"><strong>Customer:</strong> {{ customer.first_name }} {{ customer.last_name }} {% if customer.company_name %}({{ customer.company_name }}){% endif %}</div>
+                            <div class="mb-1"><strong>Phone:</strong> {{ customer.phone }}</div>
+                            <div class="mb-1"><strong>Current Assignee:</strong> {{ customer.assigned_to.get_display_name|default:"Unassigned" }}</div>
+                            <div><strong>Requested Assignee:</strong> {{ request.user.get_display_name }} (You)</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold text-body-highlight fs-10 text-uppercase">Reason for Reassignment Request <span class="text-danger">*</span></label>
+                            <textarea name="reason" rows="3" class="form-control fs-9" placeholder="Explain why this lead should be assigned to you (e.g. Customer contacted me directly, duplicate lead during onboarding, belongs to my assigned territory/category)..." required></textarea>
+                            <div class="form-text fs-11">This request will be submitted to the Admin Dashboard for review and 1-click approval.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light border-top-0 py-3">
+                        <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning btn-sm px-4 fw-bold">
+                            <i class="fas fa-paper-plane me-1"></i>Submit Reassignment Request
+                        </button>
                     </div>
                 </form>
             </div>

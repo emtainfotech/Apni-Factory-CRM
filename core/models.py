@@ -663,6 +663,37 @@ class LoginApprovalRequest(models.Model):
         return f"{self.user.username} from {self.ip_address} - {self.status}"
 
 
+class LeadReassignmentRequest(models.Model):
+    """
+    Tracks lead reassignment requests submitted by employees when discovering duplicate/unassigned leads
+    or requesting client portfolio transfers for Admin approval.
+    """
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    )
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='reassignment_requests')
+    requested_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reassignment_requests_made')
+    current_assignee = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reassignment_requests_received')
+    reason = models.TextField(blank=True, default="", help_text="Reason for reassignment request")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', db_index=True)
+    admin_notes = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='resolved_reassignments')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = "Lead Reassignment Request"
+        verbose_name_plural = "Lead Reassignment Requests"
+
+    def __str__(self):
+        party = self.customer.company_name or f"{self.customer.first_name} {self.customer.last_name}".strip() or self.customer.phone
+        return f"Reassignment: {party} -> {self.requested_by.username} ({self.status})"
+
+
+
 # Add this to your models.py
 
 from django.db import models

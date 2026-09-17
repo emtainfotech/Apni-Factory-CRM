@@ -1,6 +1,7 @@
 import json
 import os
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.template.loader import render_to_string
@@ -311,10 +312,17 @@ def admin_dashboard(request):
     for t in recent_tickets:
         t.user_name = users_map.get(t.user_id, f"User #{t.user_id}")
 
+    from .models import LeadReassignmentRequest
+    pending_reassignments = LeadReassignmentRequest.objects.filter(
+        status='pending'
+    ).select_related('customer', 'requested_by', 'current_assignee').order_by('-created_at')
+
     context.update({
         'recent_invoices': recent_invoices,
         'ad_invoices_count': ad_invoices_count,
         'pending_login_requests': pending_login_requests,
+        'pending_reassignments': pending_reassignments,
+        'pending_reassignments_count': pending_reassignments.count(),
     })
     return render(request, 'core/dashboard_admin.html', context)
 
@@ -348,6 +356,113 @@ def reject_login_request(request, request_id):
         login_request.resolved_by = request.user
         login_request.save()
         messages.warning(request, f"Rejected login from {login_request.user.username}.")
+    return redirect('dashboard_admin')
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_reassignment_request(request, request_id):
+    """
+    Admin approval of a lead reassignment request:
+    Reassigns customer to requested_by, logs activity, sends notification, and marks approved.
+    """
+    from .models import LeadReassignmentRequest, CustomerActivityLog
+    from authentication.models import Notification
+
+    reassign_req = get_object_or_404(LeadReassignmentRequest, id=request_id)
+    if reassign_req.status == 'pending':
+        cust = reassign_req.customer
+        old_assignee = cust.assigned_to
+        new_assignee = reassign_req.requested_by
+
+        # Update customer assignment
+        cust.assigned_to = new_assignee
+        cust.save()
+
+        # Update request record
+        reassign_req.status = 'approved'
+        reassign_req.resolved_at = timezone.now()
+        reassign_req.resolved_by = request.user
+        reassign_req.admin_notes = request.POST.get('admin_notes', '').strip()
+        reassign_req.save()
+
+        party_name = cust.company_name or f"{cust.first_name} {cust.last_name}".strip() or cust.phone
+
+        # Notify requesting employee
+        Notification.objects.create(
+            recipient=new_assignee,
+            message=f"🎉 Reassignment Approved: Customer '{party_name}' has been assigned to you by Admin.",
+            url=reverse('employee_portal:customer_detail', kwargs={'customer_id': cust.id})
+        )
+
+        # Notify old assignee if exists
+        if old_assignee and old_assignee != new_assignee:
+            Notification.objects.create(
+                recipient=old_assignee,
+                message=f"Notice: Customer '{party_name}' has been reassigned to {new_assignee.get_display_name()} by Admin.",
+                url=reverse('employee_portal:customer_list')
+            )
+
+        # Log Activity
+        old_name = old_assignee.get_display_name() if old_assignee else 'Unassigned'
+        new_name = new_assignee.get_display_name()
+        CustomerActivityLog.objects.create(
+            customer=cust,
+            employee=request.user,
+            action="Reassignment Approved",
+            description=f"Lead reassigned from {old_name} to {new_name} by Admin {request.user.username}."
+        )
+
+        messages.success(request, f"Successfully reassigned '{party_name}' to {new_name}.")
+    else:
+        messages.info(request, "This request has already been processed.")
+
+    return redirect('dashboard_admin')
+
+
+@login_required
+@user_passes_test(is_admin)
+def reject_reassignment_request(request, request_id):
+    """
+    Admin rejection of a lead reassignment request.
+    """
+    from .models import LeadReassignmentRequest, CustomerActivityLog
+    from authentication.models import Notification
+
+    reassign_req = get_object_or_404(LeadReassignmentRequest, id=request_id)
+    if reassign_req.status == 'pending':
+        cust = reassign_req.customer
+        reassign_req.status = 'rejected'
+        reassign_req.resolved_at = timezone.now()
+        reassign_req.resolved_by = request.user
+        admin_notes = request.POST.get('admin_notes', '').strip()
+        if admin_notes:
+            reassign_req.admin_notes = admin_notes
+        reassign_req.save()
+
+        party_name = cust.company_name or f"{cust.first_name} {cust.last_name}".strip() or cust.phone
+
+        # Notify requesting employee
+        reject_msg = f"Reassignment Request Rejected: Your request for '{party_name}' was not approved."
+        if admin_notes:
+            reject_msg += f" Note: {admin_notes}"
+        Notification.objects.create(
+            recipient=reassign_req.requested_by,
+            message=reject_msg,
+            url=reverse('employee_portal:customer_detail', kwargs={'customer_id': cust.id})
+        )
+
+        CustomerActivityLog.objects.create(
+            customer=cust,
+            employee=request.user,
+            action="Reassignment Rejected",
+            description=f"Reassignment request by {reassign_req.requested_by.get_display_name()} was rejected by Admin {request.user.username}."
+        )
+
+        messages.warning(request, f"Reassignment request for '{party_name}' has been rejected.")
+    else:
+        messages.info(request, "This request has already been processed.")
+
     return redirect('dashboard_admin')
 
 

@@ -458,6 +458,130 @@
         </div>
     </div>
     {% endif %}
+
+    <!-- Pending Lead Reassignment Requests -->
+    {% if pending_reassignments %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0 border-top border-4 border-warning">
+                <div class="card-header bg-warning-subtle d-flex justify-content-between align-items-center py-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fas fa-people-arrows text-warning fs-8"></span>
+                        <div>
+                            <h5 class="mb-0 fw-bold text-warning-emphasis">Pending Lead Reassignment Requests</h5>
+                            <span class="text-body-tertiary fs-10">Employees requesting lead reassignment from duplicate checks or portfolio transfers</span>
+                        </div>
+                    </div>
+                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">
+                        <i class="fas fa-bell me-1"></i>{{ pending_reassignments_count }} Request{{ pending_reassignments_count|pluralize }}
+                    </span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-3 py-2">Customer / Company</th>
+                                    <th class="py-2">Type</th>
+                                    <th class="py-2">Requested By</th>
+                                    <th class="py-2">Current Assignee</th>
+                                    <th class="py-2">Reason for Request</th>
+                                    <th class="py-2">Requested Time</th>
+                                    <th class="pe-3 py-2 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for req in pending_reassignments %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <a href="{% url 'customer_detail' req.customer.id %}" class="fw-bold text-primary text-decoration-none" title="Open full customer profile in CRM">
+                                            {% if req.customer.company_name %}
+                                                {{ req.customer.company_name }}
+                                                <div class="fs-10 text-body-tertiary fw-normal">{{ req.customer.first_name }} {{ req.customer.last_name }}</div>
+                                            {% else %}
+                                                {{ req.customer.first_name }} {{ req.customer.last_name }}
+                                            {% endif %}
+                                        </a>
+                                        <div class="fs-10 text-body-secondary"><i class="fas fa-phone-alt me-1 text-success"></i>{{ req.customer.phone }}</div>
+                                    </td>
+                                    <td>
+                                        {% if req.customer.customer_type == 'seller' %}
+                                        <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-industry me-1"></i>Seller</span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-warning fs-11"><i class="fas fa-shopping-bag me-1"></i>Buyer</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-body-highlight">{{ req.requested_by.get_display_name }}</div>
+                                        <div class="fs-10 text-body-tertiary">@{{ req.requested_by.username }} &bull; {{ req.requested_by.get_role_display|default:req.requested_by.role|title }}</div>
+                                    </td>
+                                    <td>
+                                        {% if req.current_assignee %}
+                                        <span class="badge badge-phoenix badge-phoenix-secondary fs-10">
+                                            <i class="fas fa-user-tag me-1"></i>{{ req.current_assignee.get_display_name }}
+                                        </span>
+                                        {% else %}
+                                        <span class="badge badge-phoenix badge-phoenix-info fs-10">
+                                            <i class="fas fa-inbox me-1"></i>Unassigned Lead
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="p-2 bg-body-tertiary rounded-2 border border-translucent fs-10 text-body-secondary text-wrap" style="max-width: 300px;">
+                                            <i class="fas fa-quote-left text-tertiary me-1 fs-11"></i>{{ req.reason|default:"No reason provided" }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fs-10 text-body-secondary">{{ req.created_at|date:"d M Y, h:i A" }}</span>
+                                    </td>
+                                    <td class="pe-3 text-end text-nowrap">
+                                        <form method="post" action="{% url 'approve_reassignment_request' req.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success btn-xs" title="Approve and assign lead to {{ req.requested_by.get_display_name }}">
+                                                <span class="fas fa-check me-1"></span>Approve
+                                            </button>
+                                        </form>
+                                        <button type="button" class="btn btn-phoenix-danger btn-xs ms-1" data-bs-toggle="modal" data-bs-target="#rejectReassignmentModal{{ req.id }}" title="Reject Request">
+                                            <span class="fas fa-times me-1"></span>Reject
+                                        </button>
+
+                                        <!-- Reject Modal -->
+                                        <div class="modal fade" id="rejectReassignmentModal{{ req.id }}" tabindex="-1" aria-hidden="true">
+                                            <div class="modal-dialog modal-dialog-centered modal-sm">
+                                                <div class="modal-content border-0 shadow-lg">
+                                                    <div class="modal-header bg-danger-subtle py-2">
+                                                        <h6 class="modal-title text-danger fw-bold"><span class="fas fa-times-circle me-1"></span>Reject Reassignment</h6>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                    </div>
+                                                    <form method="post" action="{% url 'reject_reassignment_request' req.id %}">
+                                                        {% csrf_token %}
+                                                        <div class="modal-body text-start p-3">
+                                                            <p class="fs-10 text-body-secondary mb-2">
+                                                                Reject request by <strong>{{ req.requested_by.get_display_name }}</strong> for <strong>{{ req.customer.company_name|default:req.customer.first_name }}</strong>?
+                                                            </p>
+                                                            <label class="form-label fs-10 text-body-tertiary fw-semibold">Note / Reason for Rejection (Optional):</label>
+                                                            <textarea name="admin_notes" class="form-control fs-10" rows="2" placeholder="e.g. Lead already in active follow-up..."></textarea>
+                                                        </div>
+                                                        <div class="modal-footer py-2 bg-light border-top-0">
+                                                            <button type="button" class="btn btn-phoenix-secondary btn-xs" data-bs-dismiss="modal">Cancel</button>
+                                                            <button type="submit" class="btn btn-danger btn-xs fw-bold">Confirm Reject</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Pending Login Approvals -->
     {% if pending_login_requests %}
     <div class="row mb-4">

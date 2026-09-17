@@ -1118,27 +1118,75 @@ def territory_directory(request):
 @employee_required
 @attendance_required
 def customer_detail(request, customer_id):
-    """Comprehensive 360 view of a customer assigned to the employee."""
-    customer = get_object_or_404(Customer, id=customer_id, assigned_to=request.user)
+    """Comprehensive 360 view of a customer with reassignment request capability."""
+    from core.models import LeadReassignmentRequest
+    from authentication.models import Notification
     from core.forms import CustomerEditForm
+
+    customer = get_object_or_404(Customer, id=customer_id)
+    is_assigned_to_me = (customer.assigned_to_id == request.user.id)
+    is_admin_user = (request.user.is_superuser or request.user.role == 'admin')
+
+    # Check for pending reassignment request by this user
+    pending_reassignment = LeadReassignmentRequest.objects.filter(
+        customer=customer, requested_by=request.user, status='pending'
+    ).first()
     
-    if request.method == 'POST' and request.POST.get('action') == 'edit_customer':
-        edit_form = CustomerEditForm(request.POST, instance=customer)
-        if edit_form.is_valid():
-            updated_cust = edit_form.save()
-            party_lbl = updated_cust.get_customer_type_display()
-            CustomerActivityLog.objects.create(
-                customer=updated_cust,
-                employee=request.user,
-                action="Profile Updated",
-                description=f"{party_lbl} profile details updated by {request.user.username}."
-            )
-            messages.success(request, f"{party_lbl} profile updated successfully.")
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'request_reassignment':
+            reason = request.POST.get('reason', '').strip()
+            if pending_reassignment:
+                messages.warning(request, "You already have a pending reassignment request for this customer.")
+            else:
+                req_obj = LeadReassignmentRequest.objects.create(
+                    customer=customer,
+                    requested_by=request.user,
+                    current_assignee=customer.assigned_to,
+                    reason=reason,
+                    status='pending',
+                )
+                party_name = customer.company_name or f"{customer.first_name} {customer.last_name}".strip() or customer.phone
+                
+                # Notify Admins
+                admin_users = User.objects.filter(Q(role='admin') | Q(is_superuser=True), is_active=True)
+                for admin_u in admin_users:
+                    Notification.objects.create(
+                        recipient=admin_u,
+                        message=f"Lead Reassignment Request: {request.user.get_display_name()} requested '{party_name}'",
+                        url=reverse('dashboard_admin')
+                    )
+                CustomerActivityLog.objects.create(
+                    customer=customer,
+                    employee=request.user,
+                    action="Reassignment Requested",
+                    description=f"{request.user.get_display_name()} requested lead reassignment. Reason: {reason or 'Not specified'}"
+                )
+                messages.success(request, "Reassignment request submitted successfully! It has been sent to the Admin Dashboard for approval.")
             return redirect('employee_portal:customer_detail', customer_id=customer.id)
-        else:
-            messages.error(request, "Failed to update buyer profile. Please check the errors.")
-    else:
-        edit_form = CustomerEditForm(instance=customer)
+
+        elif action == 'edit_customer':
+            if not is_assigned_to_me and not is_admin_user:
+                messages.error(request, "You cannot edit this profile because it is not assigned to you. Please request reassignment first.")
+                return redirect('employee_portal:customer_detail', customer_id=customer.id)
+
+            edit_form = CustomerEditForm(request.POST, instance=customer)
+            if edit_form.is_valid():
+                updated_cust = edit_form.save()
+                party_lbl = updated_cust.get_customer_type_display()
+                CustomerActivityLog.objects.create(
+                    customer=updated_cust,
+                    employee=request.user,
+                    action="Profile Updated",
+                    description=f"{party_lbl} profile details updated by {request.user.username}."
+                )
+                messages.success(request, f"{party_lbl} profile updated successfully.")
+                return redirect('employee_portal:customer_detail', customer_id=customer.id)
+            else:
+                messages.error(request, "Failed to update profile. Please check the errors.")
+        
+    edit_form = CustomerEditForm(instance=customer)
         
     # Fetch local records
     invoices = customer.invoices.all().order_by('-created_at')
@@ -1159,6 +1207,9 @@ def customer_detail(request, customer_id):
         'orders': remote_orders,
         'total_spent': total_spent,
         'edit_form': edit_form,
+        'is_assigned_to_me': is_assigned_to_me,
+        'is_admin_user': is_admin_user,
+        'pending_reassignment': pending_reassignment,
     }
     return render(request, 'employee_portal/customer_detail.html', context)
 
@@ -1167,8 +1218,8 @@ def customer_detail(request, customer_id):
 @employee_required
 @attendance_required
 def log_call(request, customer_id):
-    """Enables employees to log calls for their assigned customers."""
-    customer = get_object_or_404(Customer, id=customer_id, assigned_to=request.user)
+    """Enables employees to log calls for customers."""
+    customer = get_object_or_404(Customer, id=customer_id)
     
     if request.method == 'POST':
         call_status = request.POST.get('call_status')
