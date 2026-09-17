@@ -7,9 +7,12 @@
             </div>
             <div>
                 <a class="fw-bold text-body-emphasis text-decoration-none d-block" href="{% url 'app_user_detail' h_user.id %}">
-                    {{ h_user.name }}
+                    {% if h_user.company_name %}{{ h_user.company_name }}{% else %}{{ h_user.name }}{% endif %}
                 </a>
-                <small class="text-body-quaternary fs-10">DB ID: #{{ h_user.id }}</small>
+                <div class="text-body-quaternary fs-10">
+                    {% if h_user.company_name %}<span class="me-1"><i class="fas fa-user-circle me-1"></i>{{ h_user.name }}</span>&bull; {% endif %}
+                    <span>DB ID: #{{ h_user.id }}</span>
+                </div>
             </div>
         </div>
     </td>
@@ -22,14 +25,61 @@
         {% if h_user.computed_role == 'Admin' %}
         <span class="badge badge-phoenix badge-phoenix-danger fs-11"><i class="fas fa-user-shield me-1"></i>Admin</span>
         {% else %}
-        <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-store me-1"></i>Seller</span>
+        <span class="badge badge-phoenix badge-phoenix-secondary fs-11"><i class="fas fa-store me-1"></i>Seller</span>
         {% endif %}
     </td>
     <td>
-        {% if h_user.email_verified_at %}
-        <span class="badge badge-phoenix badge-phoenix-success fs-11" title="{{ h_user.email_verified_at }}"><i class="fas fa-check-circle me-1"></i>Verified</span>
+        {% if h_user.computed_role == 'Seller' %}
+            {% if h_user.onboarding_status == 'onboarded' %}
+            <span class="badge badge-phoenix badge-phoenix-success fs-11">
+                <i class="fas fa-check-double me-1"></i>Onboarded
+            </span>
+            {% elif h_user.onboarding_status == 'approved' %}
+            <span class="badge badge-phoenix badge-phoenix-primary fs-11">
+                <i class="fas fa-user-check me-1"></i>Approved
+            </span>
+            {% elif h_user.onboarding_status == 'documents_verified' %}
+            <span class="badge badge-phoenix badge-phoenix-info fs-11">
+                <i class="fas fa-file-invoice me-1"></i>Docs Verified
+            </span>
+            {% else %}
+            <span class="badge badge-phoenix badge-phoenix-secondary fs-11">
+                <i class="fas fa-user-clock me-1"></i>Registered
+            </span>
+            {% endif %}
+
+            <!-- Communication Status Icons -->
+            <div class="mt-1 d-flex gap-1">
+                {% if h_user.welcome_whatsapp_sent %}
+                <span class="badge bg-success-subtle text-success p-1 fs-11" title="Welcome WhatsApp Dispatched">
+                    <i class="fab fa-whatsapp"></i>
+                </span>
+                {% endif %}
+                {% if h_user.welcome_email_sent %}
+                <span class="badge bg-primary-subtle text-primary p-1 fs-11" title="Welcome Email Dispatched">
+                    <i class="fas fa-envelope"></i>
+                </span>
+                {% endif %}
+            </div>
         {% else %}
-        <span class="badge badge-phoenix badge-phoenix-secondary fs-11"><i class="fas fa-exclamation-circle me-1"></i>Not Verified</span>
+            <span class="text-body-quaternary fs-10">-</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if h_user.computed_role == 'Seller' %}
+            {% if h_user.catalogue_status == 'live' %}
+            <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-bolt me-1"></i>Live</span>
+            {% elif h_user.catalogue_status == 'seller_confirmation' %}
+            <span class="badge badge-phoenix badge-phoenix-primary fs-11">Seller Confirmation</span>
+            {% elif h_user.catalogue_status == 'data_entry' %}
+            <span class="badge badge-phoenix badge-phoenix-warning fs-11">Data Entry</span>
+            {% elif h_user.catalogue_status == 'data_collection' %}
+            <span class="badge badge-phoenix badge-phoenix-info fs-11">Data Collection</span>
+            {% else %}
+            <span class="badge badge-phoenix badge-phoenix-secondary fs-11">Pending</span>
+            {% endif %}
+        {% else %}
+            <span class="text-body-quaternary fs-10">-</span>
         {% endif %}
     </td>
     <td>
@@ -55,9 +105,10 @@
 </tr>
 {% empty %}
 <tr>
-    <td colspan="6" class="text-center py-5 text-body-tertiary">
+    <td colspan="8" class="text-center py-5 text-body-tertiary">
         <span class="fas fa-user-slash fa-3x mb-3 text-body-quaternary d-block"></span>
         <p class="mb-0 fs-9">No external sellers found matching criteria.</p>
     </td>
 </tr>
 {% endfor %}
+

@@ -44,15 +44,15 @@
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div class="p-4 border-bottom border-translucent">
-                <form class="row g-3 align-items-center" id="seller-filter-form">
-                    <div class="col-12 col-md-6">
+                <form class="row g-3 align-items-end" id="seller-filter-form">
+                    <div class="col-12 col-lg-4">
                         <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Search Sellers</label>
                         <div class="search-box position-relative">
                             <input class="form-control rounded-pill ps-5" 
                                    type="search" 
                                    name="q" 
                                    value="{{ query|default:'' }}"
-                                   placeholder="Search by name or email address..."
+                                   placeholder="Search by name, company, or email..."
                                    hx-get="{% url 'app_user_list' %}"
                                    hx-trigger="keyup changed delay:500ms"
                                    hx-target="#app-user-table-wrapper"
@@ -61,7 +61,7 @@
                             <span class="fas fa-search search-box-icon position-absolute top-50 translate-middle-y ms-3 text-body-tertiary"></span>
                         </div>
                     </div>
-                    <div class="col-12 col-md-4">
+                    <div class="col-6 col-md-4 col-lg-2">
                         <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Role</label>
                         <select class="form-select rounded-pill" name="role"
                                 hx-get="{% url 'app_user_list' %}"
@@ -74,7 +74,35 @@
                             <option value="admin" {% if selected_role == 'admin' %}selected{% endif %}>Admin</option>
                         </select>
                     </div>
-                    <div class="col-12 col-md-2 d-flex align-items-end justify-content-center pb-2">
+                    <div class="col-6 col-md-4 col-lg-3">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Onboarding Status</label>
+                        <select class="form-select rounded-pill" name="onboarding_status"
+                                hx-get="{% url 'app_user_list' %}"
+                                hx-trigger="change"
+                                hx-target="#app-user-table-wrapper"
+                                hx-include="#seller-filter-form"
+                                hx-indicator="#app-spinner">
+                            <option value="">All Onboarding</option>
+                            {% for code, label in onboarding_choices %}
+                            <option value="{{ code }}" {% if selected_onboarding == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-3 col-lg-2">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-tertiary">Catalogue</label>
+                        <select class="form-select rounded-pill" name="catalogue_status"
+                                hx-get="{% url 'app_user_list' %}"
+                                hx-trigger="change"
+                                hx-target="#app-user-table-wrapper"
+                                hx-include="#seller-filter-form"
+                                hx-indicator="#app-spinner">
+                            <option value="">All Catalogue</option>
+                            {% for code, label in catalogue_choices %}
+                            <option value="{{ code }}" {% if selected_catalogue == code %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-auto pb-2">
                         <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status" id="app-spinner"></div>
                     </div>
                 </form>

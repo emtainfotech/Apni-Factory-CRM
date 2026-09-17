@@ -2,10 +2,11 @@
     <table class="table table-hover fs-9 mb-0">
         <thead class="bg-body-tertiary">
             <tr>
-                <th class="ps-4 py-3" style="width: 250px;">Name</th>
+                <th class="ps-4 py-3" style="width: 240px;">Name / Company</th>
                 <th class="py-3">Email Address</th>
                 <th class="py-3">Role</th>
-                <th class="py-3">Verified Status</th>
+                <th class="py-3">Onboarding Status</th>
+                <th class="py-3">Catalogue</th>
                 <th class="py-3">GST Status</th>
                 <th class="py-3">Created Date</th>
                 <th class="text-end pe-4 py-3">Actions</th>
@@ -27,16 +28,17 @@
         <ul class="pagination pagination-sm mb-0">
             {% if page_obj.has_previous %}
             <li class="page-item">
-                <button class="page-link" hx-get="{% url 'app_user_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}" hx-target="#app-user-table-wrapper" hx-indicator="#app-spinner">Previous</button>
+                <button class="page-link" hx-get="{% url 'app_user_list' %}?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_onboarding %}&onboarding_status={{ selected_onboarding }}{% endif %}{% if selected_catalogue %}&catalogue_status={{ selected_catalogue }}{% endif %}" hx-target="#app-user-table-wrapper" hx-indicator="#app-spinner">Previous</button>
             </li>
             {% endif %}
             <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
             {% if page_obj.has_next %}
             <li class="page-item">
-                <button class="page-link" hx-get="{% url 'app_user_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}" hx-target="#app-user-table-wrapper" hx-indicator="#app-spinner">Next</button>
+                <button class="page-link" hx-get="{% url 'app_user_list' %}?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if selected_role %}&role={{ selected_role }}{% endif %}{% if selected_onboarding %}&onboarding_status={{ selected_onboarding }}{% endif %}{% if selected_catalogue %}&catalogue_status={{ selected_catalogue }}{% endif %}" hx-target="#app-user-table-wrapper" hx-indicator="#app-spinner">Next</button>
             </li>
             {% endif %}
         </ul>
     </nav>
 </div>
 {% endif %}
+

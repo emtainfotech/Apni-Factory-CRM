@@ -826,3 +826,71 @@ class OnboardingSubmission(models.Model):
 
     def __str__(self):
         return f"Submission: {self.candidate.candidate_name}"
+
+
+# --- 13. SELLER ONBOARDING & CATALOGUE TRACKER ---
+class SellerOnboardingTracker(models.Model):
+    """
+    Tracks the two-track lifecycle status and welcome communications for external
+    sellers registered in the Hostinger application database.
+    """
+    ONBOARDING_STATUS_CHOICES = (
+        ('registered', 'Registered'),
+        ('documents_verified', 'Documents Verified'),
+        ('approved', 'Approved'),
+        ('onboarded', 'Onboarded'),
+    )
+
+    CATALOGUE_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('data_collection', 'Data Collection'),
+        ('data_entry', 'Data Entry'),
+        ('seller_confirmation', 'Seller Confirmation'),
+        ('live', 'Live'),
+    )
+
+    hostinger_user_id = models.IntegerField(unique=True, db_index=True, help_text="Hostinger User ID (users.id)")
+    
+    # Track 1: Seller Onboarding
+    onboarding_status = models.CharField(
+        max_length=30,
+        choices=ONBOARDING_STATUS_CHOICES,
+        default='registered',
+        db_index=True,
+        help_text="Seller onboarding lifecycle status"
+    )
+
+    # Track 2: Catalogue Lifecycle
+    catalogue_status = models.CharField(
+        max_length=30,
+        choices=CATALOGUE_STATUS_CHOICES,
+        default='pending',
+        db_index=True,
+        help_text="Catalogue onboarding lifecycle status"
+    )
+
+    # Communication tracking
+    welcome_whatsapp_sent = models.BooleanField(default=False)
+    welcome_whatsapp_sent_at = models.DateTimeField(null=True, blank=True)
+    welcome_whatsapp_error = models.TextField(blank=True, null=True)
+
+    welcome_email_sent = models.BooleanField(default=False)
+    welcome_email_sent_at = models.DateTimeField(null=True, blank=True)
+    welcome_email_error = models.TextField(blank=True, null=True)
+
+    # Management
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="managed_sellers"
+    )
+    notes = models.TextField(blank=True, null=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Seller Onboarding Tracker"
+        verbose_name_plural = "Seller Onboarding Trackers"
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Seller #{self.hostinger_user_id} [Onboarding: {self.get_onboarding_status_display()} | Catalogue: {self.get_catalogue_status_display()}]"

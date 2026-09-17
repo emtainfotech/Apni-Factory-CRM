@@ -1935,12 +1935,15 @@ def process_import(data, request, filename="Uploaded File"):
 @user_passes_test(is_admin)
 def app_user_list(request):
     """
-    Lists users from the App database.
+    Lists users from the App database with dual onboarding & catalogue lifecycle tracking.
     """
+    from .models import SellerOnboardingTracker, VerifiedGST
+    from .seller_communications import get_seller_contact_details
+
     users_qs = HostingerUser.objects.all().order_by('-created_at')
     
     # Search logic
-    query = request.GET.get('q', '')
+    query = request.GET.get('q', '').strip()
     if query:
         users_qs = users_qs.filter(
             Q(name__icontains=query) | 
@@ -1948,11 +1951,31 @@ def app_user_list(request):
         )
 
     # Role filter logic
-    role_filter = request.GET.get('role', '')
+    role_filter = request.GET.get('role', '').strip()
     if role_filter == 'admin':
         users_qs = users_qs.filter(Q(name__icontains='admin') | Q(email__icontains='admin'))
     elif role_filter == 'seller':
         users_qs = users_qs.exclude(Q(name__icontains='admin') | Q(email__icontains='admin'))
+
+    # Onboarding Status filter logic
+    onboarding_filter = request.GET.get('onboarding_status', '').strip()
+    if onboarding_filter == 'registered':
+        # Registered includes those explicitly set to registered OR with no tracker record yet
+        other_status_ids = SellerOnboardingTracker.objects.exclude(onboarding_status='registered').values_list('hostinger_user_id', flat=True)
+        users_qs = users_qs.exclude(id__in=other_status_ids)
+    elif onboarding_filter:
+        matching_ids = SellerOnboardingTracker.objects.filter(onboarding_status=onboarding_filter).values_list('hostinger_user_id', flat=True)
+        users_qs = users_qs.filter(id__in=matching_ids)
+
+    # Catalogue Status filter logic
+    catalogue_filter = request.GET.get('catalogue_status', '').strip()
+    if catalogue_filter == 'pending':
+        # Pending includes those explicitly set to pending OR with no tracker record yet
+        other_cat_ids = SellerOnboardingTracker.objects.exclude(catalogue_status='pending').values_list('hostinger_user_id', flat=True)
+        users_qs = users_qs.exclude(id__in=other_cat_ids)
+    elif catalogue_filter:
+        matching_cat_ids = SellerOnboardingTracker.objects.filter(catalogue_status=catalogue_filter).values_list('hostinger_user_id', flat=True)
+        users_qs = users_qs.filter(id__in=matching_cat_ids)
 
     # Include Admin details if requested
     hostinger_admins = HostingerAdmin.objects.all()
@@ -1961,26 +1984,59 @@ def app_user_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Compute computed_role and GST verification status for the current page
-    from .models import VerifiedGST
+    # Pre-fetch tracker records and GST data for the current page
+    page_user_ids = [u.id for u in page_obj]
+    trackers = {
+        t.hostinger_user_id: t
+        for t in SellerOnboardingTracker.objects.filter(hostinger_user_id__in=page_user_ids)
+    }
+
+    # Fetch companies for sellers on this page in one query
+    companies_by_user = {}
+    for comp in Companies.objects.filter(user_id__in=page_user_ids):
+        companies_by_user.setdefault(comp.user_id, []).append(comp)
+
+    all_page_gsts = []
+    for u_id, c_list in companies_by_user.items():
+        for c in c_list:
+            if c.gst:
+                all_page_gsts.append(c.gst.strip().upper())
+    verified_gst_set = set(
+        VerifiedGST.objects.filter(gst_number__in=all_page_gsts).values_list('gst_number', flat=True)
+    )
+
     for h_user in page_obj:
         if 'admin' in h_user.name.lower() or 'admin' in h_user.email.lower():
             h_user.computed_role = 'Admin'
             h_user.gst_verified = False
         else:
             h_user.computed_role = 'Seller'
-            company_gsts = list(Companies.objects.filter(user_id=h_user.id).exclude(gst='').exclude(gst__isnull=True).values_list('gst', flat=True))
-            if company_gsts:
-                normalized_gsts = [g.strip().upper() for g in company_gsts if g]
-                h_user.gst_verified = VerifiedGST.objects.filter(gst_number__in=normalized_gsts).exists()
-            else:
-                h_user.gst_verified = False
+            user_gsts = [c.gst.strip().upper() for c in companies_by_user.get(h_user.id, []) if c.gst]
+            h_user.gst_verified = any(g in verified_gst_set for g in user_gsts)
+
+        # Attach tracker and status attributes
+        tracker = trackers.get(h_user.id)
+        h_user.tracker = tracker
+        h_user.onboarding_status = tracker.onboarding_status if tracker else 'registered'
+        h_user.onboarding_status_display = tracker.get_onboarding_status_display() if tracker else 'Registered'
+        h_user.catalogue_status = tracker.catalogue_status if tracker else 'pending'
+        h_user.catalogue_status_display = tracker.get_catalogue_status_display() if tracker else 'Pending'
+        h_user.welcome_whatsapp_sent = tracker.welcome_whatsapp_sent if tracker else False
+        h_user.welcome_email_sent = tracker.welcome_email_sent if tracker else False
+
+        # Primary company name for display
+        comp_list = companies_by_user.get(h_user.id, [])
+        h_user.company_name = comp_list[0].name if comp_list else ""
 
     context = {
         'page_obj': page_obj,
         'hostinger_admins': hostinger_admins,
         'query': query,
         'selected_role': role_filter,
+        'selected_onboarding': onboarding_filter,
+        'selected_catalogue': catalogue_filter,
+        'onboarding_choices': SellerOnboardingTracker.ONBOARDING_STATUS_CHOICES,
+        'catalogue_choices': SellerOnboardingTracker.CATALOGUE_STATUS_CHOICES,
     }
 
     if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'hostinger-user-table-wrapper':
@@ -2138,6 +2194,73 @@ def app_user_detail(request, user_id):
             bank.save()
             messages.success(request, "Bank details updated successfully.")
             return redirect('app_user_detail', user_id=user_id)
+
+        elif action == 'update_onboarding_status':
+            from .models import SellerOnboardingTracker
+            from .seller_communications import send_seller_welcome_communications
+            
+            new_status = request.POST.get('onboarding_status', '').strip()
+            valid_statuses = dict(SellerOnboardingTracker.ONBOARDING_STATUS_CHOICES)
+            if new_status in valid_statuses:
+                tracker, _ = SellerOnboardingTracker.objects.get_or_create(hostinger_user_id=user_id)
+                tracker.onboarding_status = new_status
+                tracker.save()
+
+                if new_status == 'onboarded':
+                    # Auto-fire welcome WhatsApp + Email communications
+                    res = send_seller_welcome_communications(h_user, send_whatsapp=True, send_email=True)
+                    feedback = [f"Seller Onboarding status updated to <strong>Onboarded</strong>."]
+                    if res['whatsapp_success']:
+                        feedback.append("🎉 Welcome WhatsApp sent successfully.")
+                    elif res['whatsapp_error']:
+                        feedback.append(f"⚠️ WhatsApp: {res['whatsapp_error']}")
+
+                    if res['email_success']:
+                        feedback.append("✉️ Welcome Email sent successfully.")
+                    elif res['email_error']:
+                        feedback.append(f"⚠️ Email: {res['email_error']}")
+
+                    messages.success(request, " ".join(feedback))
+                else:
+                    messages.success(request, f"Seller Onboarding status updated to {tracker.get_onboarding_status_display()}.")
+            else:
+                messages.error(request, "Invalid onboarding status selected.")
+            return redirect('app_user_detail', user_id=user_id)
+
+        elif action == 'update_catalogue_status':
+            from .models import SellerOnboardingTracker
+            new_status = request.POST.get('catalogue_status', '').strip()
+            valid_statuses = dict(SellerOnboardingTracker.CATALOGUE_STATUS_CHOICES)
+            if new_status in valid_statuses:
+                tracker, _ = SellerOnboardingTracker.objects.get_or_create(hostinger_user_id=user_id)
+                tracker.catalogue_status = new_status
+                tracker.save()
+                messages.success(request, f"Catalogue status updated to {tracker.get_catalogue_status_display()}.")
+            else:
+                messages.error(request, "Invalid catalogue status selected.")
+            return redirect('app_user_detail', user_id=user_id)
+
+        elif action == 'send_welcome_communications':
+            from .seller_communications import send_seller_welcome_communications
+            send_wa = request.POST.get('send_whatsapp') == '1'
+            send_em = request.POST.get('send_email') == '1'
+            force = request.POST.get('force') == '1'
+
+            if not send_wa and not send_em:
+                messages.warning(request, "Please select at least one channel (WhatsApp or Email) to send.")
+            else:
+                res = send_seller_welcome_communications(h_user, send_whatsapp=send_wa, send_email=send_em, force=force)
+                if send_wa:
+                    if res['whatsapp_success']:
+                        messages.success(request, "🎉 Welcome WhatsApp sent successfully.")
+                    else:
+                        messages.warning(request, f"WhatsApp dispatch issue: {res['whatsapp_error']}")
+                if send_em:
+                    if res['email_success']:
+                        messages.success(request, "✉️ Welcome Email sent successfully.")
+                    else:
+                        messages.warning(request, f"Email dispatch issue: {res['email_error']}")
+            return redirect('app_user_detail', user_id=user_id)
             
     # Get related data from all identified tables
     companies = Companies.objects.filter(user_id=user_id)
@@ -2146,6 +2269,20 @@ def app_user_detail(request, user_id):
     company_mobiles = [c.mobile for c in companies if c.mobile]
     if company_mobiles:
         crm_customer = Customer.objects.filter(phone__in=company_mobiles).first()
+
+    # Seller Onboarding & Catalogue Lifecycle Tracker
+    from .models import SellerOnboardingTracker
+    from .seller_communications import (
+        get_seller_contact_details,
+        build_welcome_whatsapp_message,
+        build_welcome_email_content,
+        generate_whatsapp_web_url,
+    )
+    tracker, _ = SellerOnboardingTracker.objects.get_or_create(hostinger_user_id=user_id)
+    seller_details = get_seller_contact_details(h_user)
+    welcome_wa_message = build_welcome_whatsapp_message(seller_details)
+    welcome_email_data = build_welcome_email_content(seller_details)
+    whatsapp_web_url = generate_whatsapp_web_url(seller_details['phone'], welcome_wa_message)
 
     context = {
         'h_user': h_user,
@@ -2162,6 +2299,13 @@ def app_user_detail(request, user_id):
         'advertisements': Advertisements.objects.filter(user_id=user_id),
         'bank_details': BankDetails.objects.filter(user_id=user_id),
         'crm_customer': crm_customer,
+        'tracker': tracker,
+        'seller_details': seller_details,
+        'welcome_wa_message': welcome_wa_message,
+        'welcome_email_data': welcome_email_data,
+        'whatsapp_web_url': whatsapp_web_url,
+        'onboarding_choices': SellerOnboardingTracker.ONBOARDING_STATUS_CHOICES,
+        'catalogue_choices': SellerOnboardingTracker.CATALOGUE_STATUS_CHOICES,
     }
     
     return render(request, 'core/app_user_detail.html', context)
