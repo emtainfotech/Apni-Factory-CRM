@@ -924,4 +924,118 @@ class SellerOnboardingTracker(models.Model):
         ordering = ['-updated_at']
 
     def __str__(self):
-        return f"Seller #{self.hostinger_user_id} [Onboarding: {self.get_onboarding_status_display()} | Catalogue: {self.get_catalogue_status_display()}]"
+        return f"Seller #{self.hostinger_user_id} [Onboarding: {self.get_onboarding_status_display()} | Catalogue: {self.get_catalogue_status_display()}]"
+
+
+# --- 16. WHATSAPP QUICK REPLIES & KEYWORD TEMPLATES ---
+
+class WhatsAppQuickReply(models.Model):
+    """
+    Keyword-triggered quick reply templates for WhatsApp messaging.
+    Supports text, single/multiple images, documents/PDFs, and videos.
+    """
+    CONTENT_TYPE_CHOICES = (
+        ('text', 'Text Only'),
+        ('image', 'Image + Text'),
+        ('multiple_images', 'Multiple Images + Text'),
+        ('document', 'Document + Text'),
+        ('video', 'Video + Text'),
+    )
+
+    title = models.CharField(max_length=150, help_text="Template title e.g. 'Seller Onboarding Welcome'")
+    keyword = models.CharField(
+        max_length=50,
+        unique=True,
+        db_index=True,
+        help_text="Trigger shortcut without spaces e.g. 'seller', 'catalog', 'bank' (type /keyword in chat)"
+    )
+    content_type = models.CharField(max_length=20, choices=CONTENT_TYPE_CHOICES, default='text')
+    message = models.TextField(
+        blank=True,
+        default="",
+        help_text="Formatted message/caption. Supports *bold*, _italic_, ~strike~, code, and placeholders: {{customer_name}}, {{company_name}}, {{phone}}, {{city}}"
+    )
+    is_active = models.BooleanField(default=True, db_index=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='quick_replies_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['keyword']
+        verbose_name = "WhatsApp Quick Reply"
+        verbose_name_plural = "WhatsApp Quick Replies"
+
+    def clean_keyword(self):
+        k = (self.keyword or '').strip().lstrip('/').lower()
+        return k
+
+    def save(self, *args, **kwargs):
+        self.keyword = self.clean_keyword()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"/{self.keyword} - {self.title} ({self.get_content_type_display()})"
+
+    @property
+    def media_count(self):
+        return self.media_files.count()
+
+    @property
+    def first_media(self):
+        return self.media_files.first()
+
+
+class WhatsAppQuickReplyMedia(models.Model):
+    """
+    Media attachments associated with a WhatsApp Quick Reply template.
+    Supports images, documents (PDF, DOCX, XLSX), and videos.
+    """
+    MEDIA_TYPE_CHOICES = (
+        ('image', 'Image'),
+        ('document', 'Document'),
+        ('video', 'Video'),
+    )
+
+    quick_reply = models.ForeignKey(WhatsAppQuickReply, on_delete=models.CASCADE, related_name='media_files')
+    file = models.FileField(upload_to='whatsapp_templates/%Y/%m/')
+    media_type = models.CharField(max_length=20, choices=MEDIA_TYPE_CHOICES, default='image')
+    file_name = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveIntegerField(default=0)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+        verbose_name = "Quick Reply Media"
+        verbose_name_plural = "Quick Reply Media Files"
+
+    def save(self, *args, **kwargs):
+        if self.file:
+            if not self.file_name:
+                self.file_name = os.path.basename(self.file.name)
+            if not self.file_size:
+                try:
+                    self.file_size = self.file.size
+                except Exception:
+                    pass
+        super().save(*args, **kwargs)
+
+    @property
+    def url(self):
+        return self.file.url if self.file else ''
+
+    @property
+    def is_image(self):
+        return self.media_type == 'image'
+
+    @property
+    def formatted_size(self):
+        if not self.file_size:
+            return "0 KB"
+        if self.file_size < 1024 * 1024:
+            return f"{self.file_size / 1024:.1f} KB"
+        return f"{self.file_size / (1024 * 1024):.1f} MB"
+
+    def __str__(self):
+        return f"{self.file_name} ({self.media_type}) for /{self.quick_reply.keyword}"
+

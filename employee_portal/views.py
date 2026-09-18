@@ -2082,8 +2082,9 @@ def send_whatsapp_message(request, customer_id):
     message_text = request.POST.get('message', '').strip()
     attachment_file = request.FILES.get('attachment')
     attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
+    quick_reply_media_ids = request.POST.get('quick_reply_media_ids', '').strip()
 
-    if not message_text and not attachment_file and not attach_seller_guide:
+    if not message_text and not attachment_file and not attach_seller_guide and not quick_reply_media_ids:
         return JsonResponse({'status': 'error', 'message': 'Message or attachment cannot be empty.'}, status=400)
 
     # 1. Target recipient phone number
@@ -2094,6 +2095,7 @@ def send_whatsapp_message(request, customer_id):
         send_text_message,
         send_document_message,
         send_image_message,
+        send_video_message,
         upload_media_to_meta,
         send_seller_onboarding_template,
         get_whatsapp_window_status,
@@ -2106,6 +2108,7 @@ def send_whatsapp_message(request, customer_id):
     api_dispatched = False
     chosen_wamid = None
     api_error = None
+    chat = None
     chat_attachment = attachment_file
     chat_attachment_type = attachment_file.content_type if attachment_file else None
 
@@ -2113,8 +2116,50 @@ def send_whatsapp_message(request, customer_id):
     window_status = get_whatsapp_window_status(customer=customer)
     is_window_open = window_status['is_open']
 
+    # Staged Quick Reply media files (Images, Docs, Video)
+    if quick_reply_media_ids:
+        from core.models import WhatsAppQuickReplyMedia
+        id_list = [int(x.strip()) for x in quick_reply_media_ids.split(',') if x.strip().isdigit()]
+        staged_media = list(WhatsAppQuickReplyMedia.objects.filter(id__in=id_list))
+        staged_media.sort(key=lambda m: id_list.index(m.id) if m.id in id_list else 999)
+
+        for idx, sm in enumerate(staged_media):
+            is_img = sm.is_image
+            is_vid = (sm.media_type == 'video')
+            cap = message_text if idx == 0 else None
+            file_abs_url = request.build_absolute_uri(sm.file.url) if sm.file else None
+            m_type = 'image/jpeg' if is_img else ('video/mp4' if is_vid else 'application/pdf')
+
+            item_chat = WhatsAppChat.objects.create(
+                customer=customer,
+                message=cap or '',
+                direction='outgoing',
+                attachment=sm.file,
+                attachment_type=m_type,
+                timestamp=timezone.now()
+            )
+            chat = item_chat
+
+            if is_window_open:
+                if is_img:
+                    ok, wamid, err = send_image_message(target_phone, image_url=file_abs_url, caption=cap, return_details=True)
+                elif is_vid:
+                    ok, wamid, err = send_video_message(target_phone, video_url=file_abs_url, caption=cap, return_details=True)
+                else:
+                    ok, wamid, err = send_document_message(target_phone, document_url=file_abs_url, filename=sm.file_name, caption=cap, return_details=True)
+
+                if ok:
+                    api_dispatched = True
+                    chosen_wamid = wamid
+                    item_chat.wamid = wamid
+                    item_chat.save(update_fields=['wamid'])
+                else:
+                    api_error = err
+            else:
+                api_error = "24-Hour WhatsApp Service Window is closed. Delivery via direct WhatsApp Web link recommended."
+
     # A. If seller guide PDF should be attached (or onboarding initiated)
-    if attach_seller_guide:
+    elif attach_seller_guide:
         chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
         chat_attachment_type = 'application/pdf'
 
@@ -2239,8 +2284,8 @@ def send_whatsapp_message(request, customer_id):
         else:
             api_error = txt_err
 
-    # 3. Save to chat history if not already saved in attachment_file branch
-    if not attachment_file:
+    # 3. Save to chat history if not already saved in attachment or quick_reply branch
+    if not attachment_file and not quick_reply_media_ids:
         chat = WhatsAppChat.objects.create(
             customer=customer,
             direction='outgoing',

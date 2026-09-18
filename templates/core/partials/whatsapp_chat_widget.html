@@ -45,8 +45,11 @@
 <div class="p-3 bg-white border-top border-300 position-relative {% if not start_active %}d-none{% endif %}" id="chat-input-area">
     <!-- Quick Action Bar & Emoji Toolbar -->
     <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
+        <button type="button" class="btn btn-xs btn-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="openCoreQuickRepliesModal()" title="View all Quick Reply Templates, Keywords & Media">
+            <i class="fas fa-bolt text-warning me-1"></i> <span>⚡ Quick Replies</span>
+        </button>
         <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="insertCoreSellerTemplate()" title="Load Seller Onboarding Template (Shortcut: type /seller)">
-            <i class="fas fa-bolt text-warning me-1"></i> <span>Seller Onboarding</span> <span class="badge bg-secondary-subtle text-secondary ms-1">/seller</span>
+            <i class="fas fa-store text-success me-1"></i> <span>Seller Onboarding</span> <span class="badge bg-secondary-subtle text-secondary ms-1">/seller</span>
         </button>
         <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" id="coreBtnTogglePdf" onclick="toggleCorePdfAttachment()">
             <i class="fas fa-file-pdf me-1"></i> <span id="corePdfToggleText">Attach Seller Guide PDF</span>
@@ -66,6 +69,9 @@
         </div>
 
         <div class="ms-auto d-flex align-items-center gap-1">
+            <a href="{% url 'core:whatsapp_quick_replies' %}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Manage Templates, Keywords & Attachments">
+                <i class="fas fa-cog me-1"></i> <span>Manage</span>
+            </a>
             <a href="#" id="coreWaWebSendDirectBtn" target="_blank" class="btn btn-xs btn-phoenix-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Open in WhatsApp Web with current message & PDF link (No 24h Meta limit)">
                 <i class="fab fa-whatsapp me-1"></i> <span>Send via WhatsApp Web</span>
             </a>
@@ -83,7 +89,7 @@
         <button type="button" class="btn-close fs-11" onclick="toggleCorePdfAttachment(false)"></button>
     </div>
 
-    <!-- Custom File Attachment Tray (Images, Documents, Copy-Paste, Drag-Drop) -->
+    <!-- Custom File Attachment Tray (Images, Documents, Copy-Paste, Drag-Drop, Quick Reply Media) -->
     <div id="coreCustomAttachmentTray" class="d-none alert alert-secondary py-2 px-3 mb-2 fs-10 d-flex align-items-center gap-3 border shadow-sm rounded-3">
         <div id="coreCustomAttachmentPreview" class="d-flex align-items-center justify-content-center bg-white rounded border overflow-hidden" style="width: 48px; height: 48px; min-width: 48px;">
             <!-- Dynamic Image thumbnail or Document icon -->
@@ -102,36 +108,33 @@
     </div>
 
     <!-- Keyword Dropdown Suggestions Box -->
-    <div id="coreKeywordSuggestionsBox" class="dropdown-menu shadow-lg p-1 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 340px; margin-bottom: 8px;">
-        <div class="px-2 py-1 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between">
-            <span><i class="fas fa-magic text-primary me-1"></i> Quick Message Templates</span>
-            <span class="badge bg-light text-secondary">Press Enter or Tab</span>
+    <div id="coreKeywordSuggestionsBox" class="dropdown-menu shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 360px; max-width: 460px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;">
+        <div class="px-3 py-2 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between sticky-top bg-body">
+            <span><i class="fas fa-bolt text-warning me-1"></i> Matching Quick Replies</span>
+            <span class="badge bg-light text-secondary">↑↓ Navigate • Enter to Insert</span>
         </div>
-        <a class="dropdown-item py-2 px-3 d-flex align-items-start gap-2 active-suggestion" href="javascript:void(0)" onclick="insertCoreSellerTemplate()">
-            <span class="badge bg-success-subtle text-success mt-1">/seller</span>
-            <div>
-                <div class="fw-bold text-body-emphasis">🌟 Welcome to Apni Factory! (Seller Onboarding)</div>
-                <div class="text-body-tertiary fs-11">Includes registration link + auto-attaches Seller Guide PDF</div>
-            </div>
-        </a>
+        <div id="coreKeywordSuggestionsItems">
+            <!-- Injected dynamically -->
+        </div>
     </div>
 
     <form id="chat-form" class="w-100">
         <input type="hidden" id="active-customer-id" value="{{ initial_customer_id|default:'' }}">
         <input type="hidden" id="coreAttachSellerGuideInput" value="false">
-        <input type="file" id="coreAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onchange="handleCoreFileInputChange(this.files)">
+        <input type="hidden" id="coreQuickReplyMediaIds" name="quick_reply_media_ids" value="">
+        <input type="file" id="coreAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/*" onchange="handleCoreFileInputChange(this.files)">
 
         <div class="input-group">
-            <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach Document or Image (or Drag & Drop / Paste Ctrl+V)">
+            <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach Document, Image or Video (or Drag & Drop / Paste Ctrl+V)">
                 <i class="fas fa-paperclip fs-9 text-primary"></i>
             </button>
-            <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message, /seller, or paste (Ctrl+V) / drag image or document..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
+            <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message, /keyword (e.g. /seller), or paste (Ctrl+V) / drag image or document..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
             <button type="submit" class="btn btn-primary px-4 d-flex align-items-center justify-content-center" id="coreSendMsgBtn">
                 <i class="fas fa-paper-plane me-1"></i> <span id="coreSendMsgBtnText">Send</span>
             </button>
         </div>
         <div class="d-flex align-items-center justify-content-between mt-1 text-muted fs-11">
-            <span>Tip: <kbd>Ctrl+V</kbd> to paste screenshot/file. Drag & drop files onto chat. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
+            <span>Tip: Type <kbd>/</kbd> for Quick Replies. <kbd>Ctrl+V</kbd> to paste image. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
         </div>
     </form>
 </div>
@@ -151,6 +154,54 @@
       </div>
     </div>
   </div>
+<!-- Modal: Quick Replies & Keywords Selector (Core) -->
+<div class="modal fade" id="coreQuickRepliesModal" tabindex="-1" aria-labelledby="coreQuickRepliesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header border-bottom py-2 px-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-warning-subtle text-warning-emphasis p-2 rounded-circle">
+                        <i class="fas fa-bolt fs-8"></i>
+                    </span>
+                    <div>
+                        <h6 class="modal-title fs-9 fw-bold text-body-highlight mb-0" id="coreQuickRepliesModalLabel">
+                            WhatsApp Quick Replies & Keywords
+                        </h6>
+                        <small class="text-body-tertiary fs-11">Click any template to load formatted message and media directly into chat</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="{% url 'core:whatsapp_quick_replies' %}" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 fs-11" title="Create or edit keywords">
+                        <i class="fas fa-external-link-alt me-1"></i>Manage
+                    </a>
+                    <button type="button" class="btn-close fs-11" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body p-3">
+                <div class="row g-2 mb-3">
+                    <div class="col-sm-7">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-body-tertiary"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control fs-10" id="coreModalTemplateSearch" placeholder="Search by keyword, title, or content..." oninput="filterCoreQuickRepliesModal()">
+                        </div>
+                    </div>
+                    <div class="col-sm-5">
+                        <div class="d-flex gap-1 overflow-x-auto pb-1" id="coreModalFilterPills">
+                            <button type="button" class="btn btn-xs btn-primary rounded-pill px-2 text-nowrap filter-pill active" data-filter="all" onclick="filterCoreQuickRepliesByType('all', this)">All</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 text-nowrap filter-pill" data-filter="text" onclick="filterCoreQuickRepliesByType('text', this)">Text</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 text-nowrap filter-pill" data-filter="image" onclick="filterCoreQuickRepliesByType('image', this)">Images</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 text-nowrap filter-pill" data-filter="doc" onclick="filterCoreQuickRepliesByType('doc', this)">Docs</button>
+                            <button type="button" class="btn btn-xs btn-outline-secondary rounded-pill px-2 text-nowrap filter-pill" data-filter="video" onclick="filterCoreQuickRepliesByType('video', this)">Video</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="coreModalTemplateList" class="d-flex flex-column gap-2" style="min-height: 180px;">
+                    <!-- Injected dynamically via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -185,7 +236,324 @@ let isCorePdfAttached = false;
 let currentCustomerPhone = '';
 let coreCustomFile = null;
 
+// Core Quick Reply & Keyword Shortcuts System
+window.coreQuickReplyTemplates = [];
+window.coreCurrentCustomerMeta = { id: null, name: '', company: '', phone: '', city: '' };
+let coreActiveSuggestionIndex = 0;
+let coreCurrentModalFilterType = 'all';
+
+function fetchCoreQuickReplyTemplates() {
+    fetch('/core/whatsapp/templates/api/')
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.coreQuickReplyTemplates = data.templates || [];
+            }
+        })
+        .catch(err => console.error("Error loading core quick replies:", err));
+}
+
+function replaceCoreTemplateVariables(templateStr) {
+    if (!templateStr) return '';
+    const name = window.coreCurrentCustomerMeta.name || 'Customer';
+    const company = window.coreCurrentCustomerMeta.company || name;
+    const phone = window.coreCurrentCustomerMeta.phone || '';
+    const city = window.coreCurrentCustomerMeta.city || '';
+
+    return templateStr
+        .replace(/\{\{\s*customer_name\s*\}\}/gi, name)
+        .replace(/\{\{\s*company_name\s*\}\}/gi, company)
+        .replace(/\{\{\s*phone\s*\}\}/gi, phone)
+        .replace(/\{\{\s*city\s*\}\}/gi, city);
+}
+
+function openCoreQuickRepliesModal() {
+    const modalEl = document.getElementById('coreQuickRepliesModal');
+    if (!modalEl) return;
+    filterCoreQuickRepliesModal();
+    const modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+    modal.show();
+}
+
+function filterCoreQuickRepliesByType(type, btn) {
+    coreCurrentModalFilterType = type;
+    const pills = document.querySelectorAll('#coreModalFilterPills .filter-pill');
+    pills.forEach(p => {
+        p.classList.remove('btn-primary', 'active');
+        p.classList.add('btn-outline-secondary');
+    });
+    if (btn) {
+        btn.classList.remove('btn-outline-secondary');
+        btn.classList.add('btn-primary', 'active');
+    }
+    filterCoreQuickRepliesModal();
+}
+
+function filterCoreQuickRepliesModal() {
+    const searchVal = (document.getElementById('coreModalTemplateSearch')?.value || '').trim().toLowerCase();
+    let filtered = window.coreQuickReplyTemplates || [];
+
+    if (coreCurrentModalFilterType !== 'all') {
+        filtered = filtered.filter(t => {
+            const ct = t.content_type || '';
+            if (coreCurrentModalFilterType === 'text') return ct === 'text';
+            if (coreCurrentModalFilterType === 'image') return ct.includes('image');
+            if (coreCurrentModalFilterType === 'doc') return ct.includes('doc');
+            if (coreCurrentModalFilterType === 'video') return ct.includes('video');
+            return true;
+        });
+    }
+
+    if (searchVal) {
+        filtered = filtered.filter(t => 
+            t.keyword.toLowerCase().includes(searchVal) ||
+            t.title.toLowerCase().includes(searchVal) ||
+            (t.message && t.message.toLowerCase().includes(searchVal))
+        );
+    }
+
+    renderCoreQuickRepliesModalList(filtered);
+}
+
+function renderCoreQuickRepliesModalList(templates) {
+    const listEl = document.getElementById('coreModalTemplateList');
+    if (!listEl) return;
+
+    if (!templates || templates.length === 0) {
+        listEl.innerHTML = `
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-bolt fa-2x mb-2 opacity-50"></i>
+                <p class="fs-9 mb-1">No matching quick reply templates found.</p>
+                <a href="/core/whatsapp/templates/" target="_blank" class="btn btn-xs btn-outline-primary rounded-pill px-3 py-1 fs-10 mt-1">
+                    <i class="fas fa-plus me-1"></i> Create New Template
+                </a>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    templates.forEach(t => {
+        let typeBadgeClass = 'badge-phoenix-secondary';
+        let typeIcon = 'fa-comment-alt';
+        if (t.content_type.includes('image')) {
+            typeBadgeClass = 'badge-phoenix-info';
+            typeIcon = 'fa-images';
+        } else if (t.content_type.includes('doc')) {
+            typeBadgeClass = 'badge-phoenix-danger';
+            typeIcon = 'fa-file-pdf';
+        } else if (t.content_type.includes('video')) {
+            typeBadgeClass = 'badge-phoenix-warning';
+            typeIcon = 'fa-video';
+        }
+
+        let mediaHtml = '';
+        if (t.media && t.media.length > 0) {
+            mediaHtml = '<div class="d-flex align-items-center gap-2 mt-2 flex-wrap">';
+            t.media.forEach(m => {
+                if (m.is_image) {
+                    mediaHtml += `<div class="border rounded overflow-hidden shadow-xs" style="width: 36px; height: 36px;" title="${escapeHTML(m.name)}"><img src="${m.url}" style="width: 100%; height: 100%; object-fit: cover;" alt=""></div>`;
+                } else if (m.type === 'video') {
+                    mediaHtml += `<span class="badge bg-warning-subtle text-warning-emphasis fs-11 py-1 px-2"><i class="fas fa-video me-1"></i>${escapeHTML(m.name)}</span>`;
+                } else {
+                    mediaHtml += `<span class="badge bg-danger-subtle text-danger-emphasis fs-11 py-1 px-2"><i class="fas fa-file-alt me-1"></i>${escapeHTML(m.name)}</span>`;
+                }
+            });
+            mediaHtml += '</div>';
+        }
+
+        const previewMsg = escapeHTML((t.message || '').slice(0, 160)) + ((t.message && t.message.length > 160) ? '...' : '');
+
+        html += `
+            <div class="card border rounded-3 p-3 shadow-none bg-body-tertiary-hover transition-base" style="cursor: pointer;" onclick="applyCoreQuickReplyTemplate(${t.id})">
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-success-subtle text-success fs-10 font-monospace px-2 py-1">/${escapeHTML(t.keyword)}</span>
+                        <h6 class="mb-0 fw-bold fs-9 text-body-emphasis">${escapeHTML(t.title)}</h6>
+                    </div>
+                    <span class="badge badge-phoenix ${typeBadgeClass} fs-11">
+                        <i class="fas ${typeIcon} me-1"></i>${escapeHTML(t.content_type_display)}
+                    </span>
+                </div>
+                <div class="text-body-secondary fs-10" style="white-space: pre-wrap;">${previewMsg}</div>
+                ${mediaHtml}
+                <div class="d-flex align-items-center justify-content-end mt-2 pt-1 border-top">
+                    <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fs-10" onclick="event.stopPropagation(); applyCoreQuickReplyTemplate(${t.id})">
+                        <i class="fas fa-arrow-down me-1"></i> Insert into Chat
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+function applyCoreQuickReplyTemplate(templateId) {
+    const t = (window.coreQuickReplyTemplates || []).find(x => x.id === templateId);
+    if (!t) return;
+
+    const input = document.getElementById('chat-input');
+    const mediaIdsInput = document.getElementById('coreQuickReplyMediaIds');
+
+    // 1. Fill substituted message
+    const formattedMsg = replaceCoreTemplateVariables(t.message || '');
+    if (input) {
+        input.value = formattedMsg;
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 180) + 'px';
+        input.focus();
+    }
+
+    // 2. Stage media attachments
+    if (t.media && t.media.length > 0) {
+        if (mediaIdsInput) mediaIdsInput.value = t.media.map(m => m.id).join(',');
+        coreCustomFile = null; // Staged server files take precedence
+
+        const tray = document.getElementById('coreCustomAttachmentTray');
+        const nameEl = document.getElementById('coreCustomAttachmentName');
+        const sizeEl = document.getElementById('coreCustomAttachmentSize');
+        const badgeEl = document.getElementById('coreCustomAttachmentTypeBadge');
+        const previewEl = document.getElementById('coreCustomAttachmentPreview');
+
+        if (t.media.length === 1) {
+            const m = t.media[0];
+            if (nameEl) nameEl.textContent = m.name;
+            if (sizeEl) sizeEl.textContent = m.size || '';
+            if (badgeEl) badgeEl.textContent = t.content_type_display || 'Template Media';
+            if (previewEl) {
+                if (m.is_image) {
+                    previewEl.innerHTML = `<img src="${m.url}" style="width: 100%; height: 100%; object-fit: cover;" alt="preview">`;
+                } else if (m.type === 'video') {
+                    previewEl.innerHTML = `<i class="fas fa-file-video text-warning fs-5"></i>`;
+                } else {
+                    previewEl.innerHTML = `<i class="fas fa-file-pdf text-danger fs-5"></i>`;
+                }
+            }
+        } else {
+            // Multiple images / files
+            if (nameEl) nameEl.textContent = `${t.media.length} files: ${t.media.map(m => m.name).join(', ')}`;
+            if (sizeEl) sizeEl.textContent = `${t.media.length} files attached`;
+            if (badgeEl) badgeEl.textContent = t.content_type_display || 'Multiple Media';
+            if (previewEl) {
+                const firstImg = t.media.find(m => m.is_image);
+                if (firstImg) {
+                    previewEl.innerHTML = `<img src="${firstImg.url}" style="width: 100%; height: 100%; object-fit: cover;" alt="preview">`;
+                } else {
+                    previewEl.innerHTML = `<i class="fas fa-copy text-primary fs-5"></i>`;
+                }
+            }
+        }
+
+        if (tray) tray.classList.remove('d-none');
+    } else {
+        if (mediaIdsInput) mediaIdsInput.value = '';
+        if (!coreCustomFile) {
+            const tray = document.getElementById('coreCustomAttachmentTray');
+            if (tray) tray.classList.add('d-none');
+        }
+    }
+
+    if (t.keyword === 'seller') {
+        toggleCorePdfAttachment(true);
+    } else {
+        toggleCorePdfAttachment(false);
+    }
+
+    hideCoreKeywordSuggestions();
+
+    const modalEl = document.getElementById('coreQuickRepliesModal');
+    if (modalEl && window.bootstrap) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+
+    updateCoreWaWebDirectLink();
+}
+
+function handleCoreKeywordAutocomplete(val) {
+    const suggestionsBox = document.getElementById('coreKeywordSuggestionsBox');
+    const itemsContainer = document.getElementById('coreKeywordSuggestionsItems');
+    if (!suggestionsBox || !itemsContainer) return;
+
+    const trimmed = (val || '').trim().toLowerCase();
+    if (!trimmed) {
+        suggestionsBox.classList.add('d-none');
+        return;
+    }
+
+    let query = null;
+    if (trimmed.startsWith('/')) {
+        query = trimmed.slice(1);
+    } else {
+        const exactMatch = (window.coreQuickReplyTemplates || []).some(t => t.keyword.toLowerCase().startsWith(trimmed));
+        if (exactMatch && trimmed.length >= 2) {
+            query = trimmed;
+        }
+    }
+
+    if (query === null) {
+        suggestionsBox.classList.add('d-none');
+        return;
+    }
+
+    const matches = (window.coreQuickReplyTemplates || []).filter(t => {
+        if (!query) return true;
+        return t.keyword.toLowerCase().includes(query) || t.title.toLowerCase().includes(query);
+    });
+
+    if (matches.length === 0) {
+        suggestionsBox.classList.add('d-none');
+        return;
+    }
+
+    coreActiveSuggestionIndex = 0;
+    let html = '';
+    matches.forEach((t, idx) => {
+        let mediaTag = '';
+        if (t.media && t.media.length > 0) {
+            mediaTag = `<span class="badge bg-secondary-subtle text-secondary ms-1 fs-11">${t.media.length} 📎</span>`;
+        }
+
+        html += `
+            <a class="dropdown-item py-2 px-3 d-flex align-items-start gap-2 core-template-suggestion-item ${idx === 0 ? 'active' : ''}" 
+               href="javascript:void(0)" 
+               data-template-id="${t.id}" 
+               onclick="applyCoreQuickReplyTemplate(${t.id})">
+                <span class="badge bg-success-subtle text-success mt-1 font-monospace">/${escapeHTML(t.keyword)}</span>
+                <div class="flex-grow-1 min-w-0">
+                    <div class="fw-bold text-body-emphasis text-truncate d-flex align-items-center justify-content-between">
+                        <span>${escapeHTML(t.title)}</span>
+                        ${mediaTag}
+                    </div>
+                    <div class="text-body-tertiary fs-11 text-truncate">${escapeHTML((t.message || '').slice(0, 80))}</div>
+                </div>
+            </a>
+        `;
+    });
+
+    itemsContainer.innerHTML = html;
+    suggestionsBox.classList.remove('d-none');
+}
+
+function updateCoreActiveSuggestion() {
+    const items = document.querySelectorAll('#coreKeywordSuggestionsItems .core-template-suggestion-item');
+    items.forEach((item, idx) => {
+        if (idx === coreActiveSuggestionIndex) {
+            item.classList.add('active');
+            item.scrollIntoView({ block: 'nearest' });
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
 function insertCoreSellerTemplate() {
+    const sellerTpl = (window.coreQuickReplyTemplates || []).find(t => t.keyword.toLowerCase() === 'seller');
+    if (sellerTpl) {
+        applyCoreQuickReplyTemplate(sellerTpl.id);
+        return;
+    }
     const input = document.getElementById('chat-input');
     if (input) {
         input.value = CORE_SELLER_ONBOARDING_TEMPLATE;
@@ -255,72 +623,6 @@ function updateCoreWaWebDirectLink() {
     if (bannerBtn) bannerBtn.href = waUrl;
 }
 
-// Custom file attachment handler (Pick, Drop, Paste)
-function handleCoreFileInputChange(files) {
-    if (files && files.length > 0) {
-        setCoreCustomAttachment(files[0]);
-    }
-}
-
-function setCoreCustomAttachment(file) {
-    if (!file) return;
-
-    // Validate size limit (25MB)
-    const MAX_SIZE = 25 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-        alert("File size exceeds 25MB limit. Please select a smaller file.");
-        return;
-    }
-
-    coreCustomFile = file;
-    const tray = document.getElementById('coreCustomAttachmentTray');
-    const nameEl = document.getElementById('coreCustomAttachmentName');
-    const sizeEl = document.getElementById('coreCustomAttachmentSize');
-    const badgeEl = document.getElementById('coreCustomAttachmentTypeBadge');
-    const previewEl = document.getElementById('coreCustomAttachmentPreview');
-
-    if (nameEl) nameEl.textContent = file.name;
-    if (sizeEl) {
-        const sz = file.size;
-        if (sz < 1024) sizeEl.textContent = `${sz} B`;
-        else if (sz < 1024 * 1024) sizeEl.textContent = `${(sz / 1024).toFixed(1)} KB`;
-        else sizeEl.textContent = `${(sz / (1024 * 1024)).toFixed(1)} MB`;
-    }
-
-    const isImg = file.type.startsWith('image/');
-    if (badgeEl) badgeEl.textContent = isImg ? 'Image' : 'Document';
-
-    if (previewEl) {
-        if (isImg) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewEl.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;" alt="preview">`;
-            };
-            reader.readAsDataURL(file);
-        } else if (file.name.toLowerCase().endsWith('.pdf')) {
-            previewEl.innerHTML = `<i class="fas fa-file-pdf text-danger fs-5"></i>`;
-        } else if (/\.(doc|docx)$/i.test(file.name)) {
-            previewEl.innerHTML = `<i class="fas fa-file-word text-primary fs-5"></i>`;
-        } else if (/\.(xls|xlsx|csv)$/i.test(file.name)) {
-            previewEl.innerHTML = `<i class="fas fa-file-excel text-success fs-5"></i>`;
-        } else {
-            previewEl.innerHTML = `<i class="fas fa-file-alt text-secondary fs-5"></i>`;
-        }
-    }
-
-    if (tray) tray.classList.remove('d-none');
-    const input = document.getElementById('chat-input');
-    if (input) input.focus();
-}
-
-function removeCoreCustomAttachment() {
-    coreCustomFile = null;
-    const tray = document.getElementById('coreCustomAttachmentTray');
-    if (tray) tray.classList.add('d-none');
-    const fileInput = document.getElementById('coreAttachmentFileInput');
-    if (fileInput) fileInput.value = '';
-}
-
 function openCoreLightbox(imgUrl) {
     const modalEl = document.getElementById('coreImageLightboxModal');
     const imgEl = document.getElementById('coreLightboxImg');
@@ -333,6 +635,7 @@ function openCoreLightbox(imgUrl) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    fetchCoreQuickReplyTemplates();
     let currentCustomerId = document.getElementById('active-customer-id').value;
     let pollInterval = null;
     let lastRenderedCount = 0;
@@ -426,33 +729,49 @@ document.addEventListener('DOMContentLoaded', function() {
     if (chatInput) {
         chatInput.addEventListener('input', function(e) {
             updateCoreWaWebDirectLink();
-            const suggestionsBox = document.getElementById('coreKeywordSuggestionsBox');
-            if (!suggestionsBox) return;
-
-            const trimmed = e.target.value.trim().toLowerCase();
-            if (trimmed === '/' || trimmed === '/s' || trimmed === '/seller' || trimmed === '/onboard' || trimmed === '/onboarding' || trimmed === '/guide' || trimmed === '/welcome') {
-                suggestionsBox.classList.remove('d-none');
-            } else {
-                suggestionsBox.classList.add('d-none');
-            }
+            handleCoreKeywordAutocomplete(e.target.value);
         });
 
         chatInput.addEventListener('keydown', function(e) {
             const suggestionsBox = document.getElementById('coreKeywordSuggestionsBox');
             const isOpen = suggestionsBox && !suggestionsBox.classList.contains('d-none');
 
-            if (isOpen && (e.key === 'Enter' || e.key === 'Tab')) {
-                e.preventDefault();
-                insertCoreSellerTemplate();
-                return;
-            }
-
-            if (e.key === 'Escape') {
-                if (isOpen) {
+            if (isOpen) {
+                const items = document.querySelectorAll('#coreKeywordSuggestionsItems .core-template-suggestion-item');
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    if (items.length > 0) {
+                        coreActiveSuggestionIndex = (coreActiveSuggestionIndex + 1) % items.length;
+                        updateCoreActiveSuggestion();
+                    }
+                    return;
+                }
+                if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (items.length > 0) {
+                        coreActiveSuggestionIndex = (coreActiveSuggestionIndex - 1 + items.length) % items.length;
+                        updateCoreActiveSuggestion();
+                    }
+                    return;
+                }
+                if ((e.key === 'Enter' || e.key === 'Tab') && !e.ctrlKey) {
+                    e.preventDefault();
+                    if (items.length > 0 && items[coreActiveSuggestionIndex]) {
+                        const templateId = parseInt(items[coreActiveSuggestionIndex].dataset.templateId, 10);
+                        applyCoreQuickReplyTemplate(templateId);
+                    }
+                    return;
+                }
+                if (e.key === 'Escape') {
+                    e.preventDefault();
                     suggestionsBox.classList.add('d-none');
                     return;
                 }
-                if (coreCustomFile) {
+            }
+
+            if (e.key === 'Escape') {
+                const qrMediaVal = document.getElementById('coreQuickReplyMediaIds')?.value;
+                if (coreCustomFile || qrMediaVal) {
                     removeCoreCustomAttachment();
                     return;
                 }
@@ -494,6 +813,13 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 if(data.status === 'success') {
                     currentCustomerPhone = data.phone || '';
+                    window.coreCurrentCustomerMeta = {
+                        id: customerId,
+                        name: data.customer_name || '',
+                        company: data.company_name || data.customer_name || '',
+                        phone: data.phone || '',
+                        city: data.city || ''
+                    };
                     updateCoreWaWebDirectLink();
 
                     // Update 24-hr window banner
@@ -729,7 +1055,8 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         const customerId = activeCustomerIdInput.value;
         const msg = chatInput.value.trim();
-        if(!msg && !isCorePdfAttached && !coreCustomFile) return;
+        const qrMediaIds = (document.getElementById('coreQuickReplyMediaIds')?.value || '').trim();
+        if(!msg && !isCorePdfAttached && !coreCustomFile && !qrMediaIds) return;
         if(!customerId) return;
 
         const sendBtn = document.getElementById('coreSendMsgBtn');
@@ -742,6 +1069,9 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('attach_seller_guide', isCorePdfAttached ? 'true' : 'false');
         if (coreCustomFile) {
             formData.append('attachment', coreCustomFile);
+        }
+        if (qrMediaIds) {
+            formData.append('quick_reply_media_ids', qrMediaIds);
         }
 
         fetch(`/core/whatsapp/send/${customerId}/`, {

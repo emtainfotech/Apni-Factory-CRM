@@ -241,6 +241,56 @@ def send_document_message(to_number, document_url=None, filename=None, caption=N
         print(f"Meta API Document Exception: {e}")
         return (False, None, str(e)) if return_details else False
 
+def send_video_message(to_number, video_url=None, caption=None, media_id=None, return_details=False):
+    """
+    Sends a WhatsApp video (e.g. MP4) via Meta Cloud API using either public link or media_id.
+    If return_details=True: returns (success: bool, wamid: str, error_msg: str)
+    If return_details=False: returns success: bool
+    """
+    clean_number = format_whatsapp_phone(to_number)
+    if not clean_number:
+        return (False, None, "Invalid phone number") if return_details else False
+
+    meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
+    meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
+
+    video_obj = {}
+    if media_id:
+        video_obj["id"] = media_id
+    elif video_url:
+        video_obj["link"] = video_url
+    else:
+        return (False, None, "Neither video_url nor media_id provided") if return_details else False
+
+    if caption:
+        video_obj["caption"] = caption[:1024]
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": clean_number,
+        "type": "video",
+        "video": video_obj
+    }
+    try:
+        headers = {
+            "Authorization": f"Bearer {meta_token}",
+            "Content-Type": "application/json",
+        }
+        response = requests.post(meta_url, headers=headers, json=payload, timeout=18)
+        resp_data = response.json() if response.text else {}
+        if response.status_code == 200:
+            messages = resp_data.get('messages', [])
+            wamid = messages[0].get('id') if messages else None
+            return (True, wamid, None) if return_details else True
+        else:
+            err_msg = resp_data.get('error', {}).get('message') or response.text
+            print(f"Meta API Video Error ({response.status_code}): {err_msg}")
+            return (False, None, err_msg) if return_details else False
+    except Exception as e:
+        print(f"Meta API Video Exception: {e}")
+        return (False, None, str(e)) if return_details else False
+
 def send_template_message(to_number, template_name, language_code='en', components=None, return_details=False):
     """
     Sends an approved Meta WhatsApp template message via Meta Cloud API.

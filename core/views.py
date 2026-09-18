@@ -4312,7 +4312,9 @@ def get_whatsapp_chat(request, customer_id):
         'status': 'success',
         'chats': chat_data,
         'customer_name': customer.get_full_name() if hasattr(customer, 'get_full_name') and customer.get_full_name() else (customer.first_name or customer.company_name or customer.phone),
+        'company_name': customer.company_name or '',
         'phone': customer.whatsapp_number or customer.phone,
+        'city': customer.city or '',
         'customer_id': customer.id,
         'window_24h_expired': window_24h_expired,
         'window_is_open': window_status['is_open'],
@@ -4329,8 +4331,9 @@ def send_whatsapp_message_ajax(request, customer_id):
         message_text = request.POST.get('message', '').strip()
         attachment_file = request.FILES.get('attachment')
         attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
+        quick_reply_media_ids = request.POST.get('quick_reply_media_ids', '').strip()
         
-        if not message_text and not attachment_file and not attach_seller_guide:
+        if not message_text and not attachment_file and not attach_seller_guide and not quick_reply_media_ids:
             return JsonResponse({'status': 'error', 'message': 'Message or attachment cannot be empty.'})
             
         target_phone = customer.whatsapp_number or customer.phone
@@ -4339,6 +4342,7 @@ def send_whatsapp_message_ajax(request, customer_id):
             send_text_message,
             send_document_message,
             send_image_message,
+            send_video_message,
             upload_media_to_meta,
             send_seller_onboarding_template,
             get_whatsapp_window_status,
@@ -4352,13 +4356,55 @@ def send_whatsapp_message_ajax(request, customer_id):
         api_dispatched = False
         chosen_wamid = None
         api_error = None
+        chat = None
         chat_attachment = attachment_file
         chat_attachment_type = attachment_file.content_type if attachment_file else None
 
         window_status = get_whatsapp_window_status(customer=customer)
         is_window_open = window_status['is_open']
 
-        if attach_seller_guide:
+        if quick_reply_media_ids:
+            from .models import WhatsAppQuickReplyMedia
+            id_list = [int(x.strip()) for x in quick_reply_media_ids.split(',') if x.strip().isdigit()]
+            staged_media = list(WhatsAppQuickReplyMedia.objects.filter(id__in=id_list))
+            staged_media.sort(key=lambda m: id_list.index(m.id) if m.id in id_list else 999)
+
+            for idx, sm in enumerate(staged_media):
+                is_img = sm.is_image
+                is_vid = (sm.media_type == 'video')
+                cap = message_text if idx == 0 else None
+                file_abs_url = request.build_absolute_uri(sm.file.url) if sm.file else None
+                m_type = 'image/jpeg' if is_img else ('video/mp4' if is_vid else 'application/pdf')
+
+                item_chat = WhatsAppChat.objects.create(
+                    customer=customer,
+                    message=cap or '',
+                    direction='outgoing',
+                    attachment=sm.file,
+                    attachment_type=m_type,
+                    timestamp=timezone.now()
+                )
+                chat = item_chat
+
+                if is_window_open:
+                    if is_img:
+                        ok, wamid, err = send_image_message(target_phone, image_url=file_abs_url, caption=cap, return_details=True)
+                    elif is_vid:
+                        ok, wamid, err = send_video_message(target_phone, video_url=file_abs_url, caption=cap, return_details=True)
+                    else:
+                        ok, wamid, err = send_document_message(target_phone, document_url=file_abs_url, filename=sm.file_name, caption=cap, return_details=True)
+                    
+                    if ok:
+                        api_dispatched = True
+                        chosen_wamid = wamid
+                        item_chat.wamid = wamid
+                        item_chat.save(update_fields=['wamid'])
+                    else:
+                        api_error = err
+                else:
+                    api_error = "24-Hour WhatsApp Service Window is closed. Delivery via direct WhatsApp Web link recommended."
+
+        elif attach_seller_guide:
             chat_attachment = DEFAULT_SELLER_GUIDE_PDF_PATH
             chat_attachment_type = 'application/pdf'
 
@@ -4480,8 +4526,8 @@ def send_whatsapp_message_ajax(request, customer_id):
             else:
                 api_error = txt_err
 
-        # If not created in attachment_file branch, create now
-        if not attachment_file:
+        # If not created in attachment or quick_reply branch, create now
+        if not attachment_file and not quick_reply_media_ids:
             chat = WhatsAppChat.objects.create(
                 customer=customer,
                 message=message_text,
@@ -4569,6 +4615,306 @@ def delete_whatsapp_message_ajax(request, chat_id):
             'has_failed_message': has_failed
         })
     return JsonResponse({'status': 'error', 'message': 'Invalid request method.'}, status=405)
+
+
+# --- WHATSAPP QUICK REPLIES & KEYWORD TEMPLATES VIEWS ---
+
+def ensure_default_quick_replies():
+    """Seeds default quick reply templates (e.g. /seller) if none exist."""
+    from .models import WhatsAppQuickReply, WhatsAppQuickReplyMedia
+    if WhatsAppQuickReply.objects.filter(keyword='seller').exists():
+        return
+    
+    seller_msg = (
+        "🎉 *Welcome to Apni Factory!* 🎉\n\n"
+        "Dear {{customer_name}},\n\n"
+        "We are pleased to welcome *{{company_name}}* as a Partner on Apni Factory.\n\n"
+        "Your company has been successfully onboarded on our platform.\n\n"
+        "*What happens next?*\n"
+        "Our team will take care of setting up your products and brands on Apni Factory. "
+        "You may simply coordinate with our team for:\n"
+        "• Product & brand information\n"
+        "• Price updates & special deals\n"
+        "• Order fulfillment & dispatch\n\n"
+        "To get started, please complete your partner registration using this link:\n"
+        "👉 https://apnifactory.com/be-a-vendor/\n\n"
+        "📄 We have attached the *Apni Factory Seller Onboarding Guide* for your quick reference.\n\n"
+        "Warm regards,\n"
+        "*Team Apni Factory*\n"
+        "🌐 https://apnifactory.com"
+    )
+    qr = WhatsAppQuickReply.objects.create(
+        title="🌟 Welcome to Apni Factory (Seller Onboarding)",
+        keyword="seller",
+        content_type="document",
+        message=seller_msg,
+        is_active=True
+    )
+    guide_path = os.path.join(settings.MEDIA_ROOT, 'documents', 'Apni_Factory_Seller_Onboarding_Guide_Final.pdf')
+    if os.path.exists(guide_path):
+        try:
+            from django.core.files import File
+            with open(guide_path, 'rb') as f:
+                WhatsAppQuickReplyMedia.objects.create(
+                    quick_reply=qr,
+                    file=File(f, name='Apni_Factory_Seller_Onboarding_Guide_Final.pdf'),
+                    media_type='document',
+                    file_name='Apni_Factory_Seller_Onboarding_Guide_Final.pdf'
+                )
+        except Exception:
+            pass
+
+
+@login_required
+def whatsapp_quick_replies_view(request):
+    """
+    Dedicated management page for WhatsApp Quick Replies / Keywords.
+    Allows viewing, creating, searching, and filtering templates (Text, Image, Multi-image, Doc, Video).
+    """
+    from .models import WhatsAppQuickReply, WhatsAppQuickReplyMedia
+    ensure_default_quick_replies()
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'create')
+        if action == 'create':
+            keyword = request.POST.get('keyword', '').strip().lstrip('/').lower()
+            title = request.POST.get('title', '').strip()
+            content_type = request.POST.get('content_type', 'text')
+            message = request.POST.get('message', '').strip()
+
+            if not keyword:
+                messages.error(request, "Keyword shortcut cannot be empty.")
+                return redirect('whatsapp_quick_replies')
+
+            if WhatsAppQuickReply.objects.filter(keyword=keyword).exists():
+                messages.error(request, f"Keyword '/{keyword}' is already in use! Please pick a unique keyword.")
+                return redirect('whatsapp_quick_replies')
+
+            qr = WhatsAppQuickReply.objects.create(
+                keyword=keyword,
+                title=title or f"/{keyword}",
+                content_type=content_type,
+                message=message,
+                created_by=request.user,
+                is_active=True
+            )
+
+            # Upload media files
+            uploaded_files = request.FILES.getlist('media_files') or request.FILES.getlist('file')
+            for order_idx, f in enumerate(uploaded_files):
+                fn_lower = f.name.lower()
+                m_type = 'document'
+                if fn_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                    m_type = 'image'
+                elif fn_lower.endswith(('.mp4', '.mov', '.avi', '.3gp', '.mkv')):
+                    m_type = 'video'
+                elif content_type in ('image', 'multiple_images'):
+                    m_type = 'image'
+                elif content_type == 'video':
+                    m_type = 'video'
+
+                WhatsAppQuickReplyMedia.objects.create(
+                    quick_reply=qr,
+                    file=f,
+                    media_type=m_type,
+                    file_name=f.name,
+                    order=order_idx
+                )
+
+            messages.success(request, f"Quick Reply '/{keyword}' created successfully!")
+            return redirect('whatsapp_quick_replies')
+
+    # GET handling
+    templates = WhatsAppQuickReply.objects.all().prefetch_related('media_files').order_by('keyword')
+    
+    filter_type = request.GET.get('type', '').strip()
+    if filter_type == 'text':
+        templates = templates.filter(content_type='text')
+    elif filter_type == 'image':
+        templates = templates.filter(content_type__in=['image', 'multiple_images'])
+    elif filter_type == 'document':
+        templates = templates.filter(content_type='document')
+    elif filter_type == 'video':
+        templates = templates.filter(content_type='video')
+
+    q = request.GET.get('q', '').strip()
+    if q:
+        templates = templates.filter(
+            Q(keyword__icontains=q.lstrip('/')) |
+            Q(title__icontains=q) |
+            Q(message__icontains=q)
+        )
+
+    all_templates = WhatsAppQuickReply.objects.all()
+    context = {
+        'templates': templates,
+        'total_count': all_templates.count(),
+        'text_count': all_templates.filter(content_type='text').count(),
+        'image_count': all_templates.filter(content_type__in=['image', 'multiple_images']).count(),
+        'doc_count': all_templates.filter(content_type='document').count(),
+        'video_count': all_templates.filter(content_type='video').count(),
+        'current_filter': filter_type,
+        'search_query': q,
+    }
+    return render(request, 'core/whatsapp_quick_replies.html', context)
+
+
+@login_required
+def whatsapp_quick_reply_edit(request, pk):
+    """
+    Handles editing a WhatsApp Quick Reply template and managing its media files.
+    Supports GET (returns JSON for modal) and POST (saves edits).
+    """
+    from .models import WhatsAppQuickReply, WhatsAppQuickReplyMedia
+    qr = get_object_or_404(WhatsAppQuickReply, pk=pk)
+
+    if request.method == 'GET':
+        media_list = []
+        for m in qr.media_files.all():
+            media_list.append({
+                'id': m.id,
+                'name': m.file_name,
+                'url': m.url,
+                'type': m.media_type,
+                'size': m.formatted_size,
+                'is_image': m.is_image
+            })
+        return JsonResponse({
+            'status': 'success',
+            'template': {
+                'id': qr.id,
+                'keyword': qr.keyword,
+                'title': qr.title,
+                'content_type': qr.content_type,
+                'message': qr.message,
+                'is_active': qr.is_active,
+                'media': media_list
+            }
+        })
+
+    if request.method == 'POST':
+        keyword = request.POST.get('keyword', '').strip().lstrip('/').lower()
+        title = request.POST.get('title', '').strip()
+        content_type = request.POST.get('content_type', qr.content_type)
+        message = request.POST.get('message', '').strip()
+        is_active = request.POST.get('is_active') in ('true', '1', True, 'on')
+
+        if not keyword:
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': "Keyword cannot be empty."}, status=400)
+            messages.error(request, "Keyword cannot be empty.")
+            return redirect('whatsapp_quick_replies')
+
+        if WhatsAppQuickReply.objects.filter(keyword=keyword).exclude(pk=qr.pk).exists():
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                return JsonResponse({'status': 'error', 'message': f"Keyword '/{keyword}' is already taken by another template!"}, status=400)
+            messages.error(request, f"Keyword '/{keyword}' is already taken by another template!")
+            return redirect('whatsapp_quick_replies')
+
+        qr.keyword = keyword
+        qr.title = title or f"/{keyword}"
+        qr.content_type = content_type
+        qr.message = message
+        qr.is_active = is_active
+        qr.save()
+
+        # Delete selected existing media
+        delete_media_ids = request.POST.getlist('delete_media_ids')
+        if delete_media_ids:
+            for m in qr.media_files.filter(id__in=delete_media_ids):
+                if m.file:
+                    try:
+                        m.file.delete(save=False)
+                    except Exception:
+                        pass
+                m.delete()
+
+        # Upload new media files
+        new_files = request.FILES.getlist('media_files') or request.FILES.getlist('file')
+        current_order = qr.media_files.count()
+        for idx, f in enumerate(new_files):
+            fn_lower = f.name.lower()
+            m_type = 'document'
+            if fn_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                m_type = 'image'
+            elif fn_lower.endswith(('.mp4', '.mov', '.avi', '.3gp', '.mkv')):
+                m_type = 'video'
+            elif content_type in ('image', 'multiple_images'):
+                m_type = 'image'
+            elif content_type == 'video':
+                m_type = 'video'
+
+            WhatsAppQuickReplyMedia.objects.create(
+                quick_reply=qr,
+                file=f,
+                media_type=m_type,
+                file_name=f.name,
+                order=current_order + idx
+            )
+
+        messages.success(request, f"Template '/{keyword}' updated successfully.")
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success', 'message': f"Template '/{keyword}' updated successfully."})
+        return redirect('whatsapp_quick_replies')
+
+
+@login_required
+def whatsapp_quick_reply_delete(request, pk):
+    """Deletes a WhatsApp Quick Reply template and its media files."""
+    from .models import WhatsAppQuickReply
+    qr = get_object_or_404(WhatsAppQuickReply, pk=pk)
+    keyword = qr.keyword
+
+    if request.method == 'POST':
+        for m in qr.media_files.all():
+            if m.file:
+                try:
+                    if os.path.isfile(m.file.path):
+                        os.remove(m.file.path)
+                except Exception:
+                    pass
+        qr.delete()
+        messages.success(request, f"Template '/{keyword}' deleted successfully.")
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'status': 'success', 'message': f"Template '/{keyword}' deleted successfully."})
+        return redirect('whatsapp_quick_replies')
+
+    messages.warning(request, "Invalid delete request.")
+    return redirect('whatsapp_quick_replies')
+
+
+@login_required
+def whatsapp_quick_replies_api(request):
+    """
+    Returns active WhatsApp Quick Reply templates as JSON for in-chat autocomplete,
+    instant typing shortcuts, and quick reply picker drawer.
+    """
+    from .models import WhatsAppQuickReply
+    ensure_default_quick_replies()
+    templates = WhatsAppQuickReply.objects.filter(is_active=True).prefetch_related('media_files').order_by('keyword')
+
+    results = []
+    for t in templates:
+        media_list = []
+        for m in t.media_files.all():
+            media_list.append({
+                'id': m.id,
+                'name': m.file_name,
+                'url': m.url,
+                'type': m.media_type,
+                'size': m.formatted_size,
+                'is_image': m.is_image
+            })
+        results.append({
+            'id': t.id,
+            'keyword': t.keyword,
+            'title': t.title,
+            'content_type': t.content_type,
+            'content_type_display': t.get_content_type_display(),
+            'message': t.message,
+            'media': media_list,
+        })
+    return JsonResponse({'status': 'success', 'templates': results})
 
 
 def whatsapp_search_contacts(request):

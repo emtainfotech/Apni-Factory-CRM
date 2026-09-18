@@ -1,0 +1,694 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}WhatsApp Quick Replies & Keywords | CRM{% endblock %}
+
+{% block content %}
+<div class="pb-5">
+    <!-- Breadcrumbs & Header -->
+    <nav class="mb-2" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0 fs-10">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'whatsapp_inbox' %}">WhatsApp Inbox</a></li>
+            <li class="breadcrumb-item active">Quick Replies & Keywords</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+            <h2 class="mb-1 text-body-emphasis fw-bolder">
+                <i class="fab fa-whatsapp text-success me-2"></i>WhatsApp Quick Replies & Keywords
+            </h2>
+            <p class="text-body-tertiary fs-9 mb-0">
+                Define shortcut keywords (e.g. <code>/seller</code>, <code>/catalog</code>, <code>/bank</code>) paired with formatted text, images, multiple photos, PDFs, or videos for instant auto-fill and dispatch in WhatsApp chat.
+            </p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'whatsapp_inbox' %}" class="btn btn-phoenix-secondary btn-sm">
+                <i class="fas fa-inbox me-1"></i>Open Inbox
+            </a>
+            <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#newTemplateModal">
+                <i class="fas fa-plus me-1"></i>Add Keyword Template
+            </button>
+        </div>
+    </div>
+
+    <!-- Metric KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card shadow-none border border-translucent h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Total Templates</span>
+                        <h3 class="mb-0 fw-bolder">{{ total_count }}</h3>
+                    </div>
+                    <div class="avatar avatar-m bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-bolt fs-9"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card shadow-none border border-translucent h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Text Only</span>
+                        <h3 class="mb-0 fw-bolder">{{ text_count }}</h3>
+                    </div>
+                    <div class="avatar avatar-m bg-secondary-subtle text-secondary rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-comment-dots fs-9"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card shadow-none border border-translucent h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Image & Gallery</span>
+                        <h3 class="mb-0 fw-bolder">{{ image_count }}</h3>
+                    </div>
+                    <div class="avatar avatar-m bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-images fs-9"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card shadow-none border border-translucent h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Documents / PDFs</span>
+                        <h3 class="mb-0 fw-bolder">{{ doc_count }}</h3>
+                    </div>
+                    <div class="avatar avatar-m bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-file-pdf fs-9"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-4 col-xl">
+            <div class="card shadow-none border border-translucent h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Video</span>
+                        <h3 class="mb-0 fw-bolder">{{ video_count }}</h3>
+                    </div>
+                    <div class="avatar avatar-m bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-video fs-9"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter & Search Controls -->
+    <div class="card shadow-sm border border-translucent mb-4">
+        <div class="card-body p-3">
+            <div class="row g-3 align-items-center justify-content-between">
+                <div class="col-12 col-md-6">
+                    <form method="GET" action="{% url 'whatsapp_quick_replies' %}" class="input-group input-group-sm">
+                        {% if current_filter %}<input type="hidden" name="type" value="{{ current_filter }}">{% endif %}
+                        <span class="input-group-text bg-body-tertiary border-end-0"><i class="fas fa-search text-body-tertiary"></i></span>
+                        <input type="text" name="q" class="form-control border-start-0 fs-10" placeholder="Search keywords (e.g. /seller), title, or message..." value="{{ search_query }}">
+                        {% if search_query %}
+                        <a href="{% url 'whatsapp_quick_replies' %}{% if current_filter %}?type={{ current_filter }}{% endif %}" class="btn btn-outline-secondary border-start-0"><i class="fas fa-times"></i></a>
+                        {% endif %}
+                        <button class="btn btn-phoenix-primary" type="submit">Search</button>
+                    </form>
+                </div>
+                <div class="col-12 col-md-6">
+                    <div class="d-flex gap-1 flex-wrap justify-content-md-end">
+                        <a href="{% url 'whatsapp_quick_replies' %}{% if search_query %}?q={{ search_query }}{% endif %}" class="btn btn-xs {% if not current_filter %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                            All ({{ total_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_quick_replies' %}?type=text{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-xs {% if current_filter == 'text' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                            <i class="fas fa-comment-alt me-1"></i>Text ({{ text_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_quick_replies' %}?type=image{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-xs {% if current_filter == 'image' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                            <i class="fas fa-image me-1"></i>Images ({{ image_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_quick_replies' %}?type=document{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-xs {% if current_filter == 'document' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                            <i class="fas fa-file-pdf me-1"></i>Docs ({{ doc_count }})
+                        </a>
+                        <a href="{% url 'whatsapp_quick_replies' %}?type=video{% if search_query %}&q={{ search_query }}{% endif %}" class="btn btn-xs {% if current_filter == 'video' %}btn-primary{% else %}btn-phoenix-secondary{% endif %}">
+                            <i class="fas fa-video me-1"></i>Video ({{ video_count }})
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates Table & List -->
+    <div class="card shadow-sm border border-translucent">
+        <div class="card-header bg-body-tertiary py-3 d-flex align-items-center justify-content-between">
+            <h5 class="mb-0 fw-bold text-body-emphasis">
+                <i class="fas fa-list-ul me-2 text-primary"></i>Configured Keyword Templates
+            </h5>
+            <span class="badge badge-phoenix badge-phoenix-primary fs-10">{{ templates|length }} Found</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0 fs-10">
+                    <thead class="bg-body-secondary text-body-secondary text-uppercase fs-11">
+                        <tr>
+                            <th class="ps-3 py-2" style="width: 140px;">Keyword Trigger</th>
+                            <th class="py-2" style="width: 220px;">Title & Type</th>
+                            <th class="py-2">Message Content / Caption</th>
+                            <th class="py-2" style="width: 180px;">Attached Media</th>
+                            <th class="py-2" style="width: 100px;">Status</th>
+                            <th class="pe-3 py-2 text-end" style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in templates %}
+                        <tr>
+                            <td class="ps-3">
+                                <span class="badge badge-phoenix badge-phoenix-success fs-9 fw-bolder py-1 px-2 text-decoration-none d-inline-flex align-items-center gap-1" title="Type /{{ t.keyword }} in chat to insert">
+                                    <i class="fas fa-bolt text-warning"></i> /{{ t.keyword }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="fw-bold text-body-highlight">{{ t.title }}</div>
+                                <div class="mt-1">
+                                    {% if t.content_type == 'text' %}
+                                        <span class="badge badge-phoenix badge-phoenix-secondary fs-11"><i class="fas fa-font me-1"></i>Text Only</span>
+                                    {% elif t.content_type == 'image' %}
+                                        <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-image me-1"></i>Image + Text</span>
+                                    {% elif t.content_type == 'multiple_images' %}
+                                        <span class="badge badge-phoenix badge-phoenix-primary fs-11"><i class="fas fa-images me-1"></i>Multi-Image ({{ t.media_count }})</span>
+                                    {% elif t.content_type == 'document' %}
+                                        <span class="badge badge-phoenix badge-phoenix-danger fs-11"><i class="fas fa-file-pdf me-1"></i>Document + Text</span>
+                                    {% elif t.content_type == 'video' %}
+                                        <span class="badge badge-phoenix badge-phoenix-info fs-11"><i class="fas fa-video me-1"></i>Video + Text</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <div class="p-2 bg-body-tertiary rounded-2 border border-translucent text-body-secondary text-break" style="max-height: 90px; overflow-y: auto; white-space: pre-line; font-size: 0.82rem;">
+                                    {{ t.message|default:"(No text caption)" }}
+                                </div>
+                            </td>
+                            <td>
+                                {% if t.media_files.all %}
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    {% for m in t.media_files.all %}
+                                        {% if m.is_image %}
+                                        <a href="{{ m.url }}" target="_blank" class="d-inline-block border rounded overflow-hidden" title="{{ m.file_name }} ({{ m.formatted_size }})">
+                                            <img src="{{ m.url }}" alt="{{ m.file_name }}" style="width: 36px; height: 36px; object-fit: cover;">
+                                        </a>
+                                        {% elif m.media_type == 'video' %}
+                                        <a href="{{ m.url }}" target="_blank" class="btn btn-xs btn-phoenix-info p-1 px-2 d-inline-flex align-items-center gap-1" title="{{ m.file_name }} ({{ m.formatted_size }})">
+                                            <i class="fas fa-video text-info"></i> <span class="fs-11 text-truncate" style="max-width: 90px;">{{ m.file_name }}</span>
+                                        </a>
+                                        {% else %}
+                                        <a href="{{ m.url }}" target="_blank" class="btn btn-xs btn-phoenix-danger p-1 px-2 d-inline-flex align-items-center gap-1" title="{{ m.file_name }} ({{ m.formatted_size }})">
+                                            <i class="fas fa-file-pdf text-danger"></i> <span class="fs-11 text-truncate" style="max-width: 90px;">{{ m.file_name }}</span>
+                                        </a>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-body-quaternary fs-11">None (Text Only)</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if t.is_active %}
+                                <span class="badge badge-phoenix badge-phoenix-success fs-11"><i class="fas fa-check-circle me-1"></i>Active</span>
+                                {% else %}
+                                <span class="badge badge-phoenix badge-phoenix-secondary fs-11">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-3 text-end text-nowrap">
+                                <button type="button" class="btn btn-phoenix-primary btn-xs" onclick="openEditModal({{ t.id }})" title="Edit Keyword & Content">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-phoenix-danger btn-xs ms-1" data-bs-toggle="modal" data-bs-target="#deleteModal{{ t.id }}" title="Delete Template">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+
+                                <!-- Delete Modal -->
+                                <div class="modal fade" id="deleteModal{{ t.id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered modal-sm">
+                                        <div class="modal-content border-0 shadow-lg text-start">
+                                            <div class="modal-header bg-danger-subtle py-2">
+                                                <h6 class="modal-title text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i>Delete Quick Reply</h6>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <form method="POST" action="{% url 'whatsapp_quick_reply_delete' t.id %}">
+                                                {% csrf_token %}
+                                                <div class="modal-body p-3 fs-10 text-body-secondary">
+                                                    Are you sure you want to permanently delete template <strong>/{{ t.keyword }}</strong> ({{ t.title }})?
+                                                    {% if t.media_count %}
+                                                    <div class="alert alert-subtle-warning p-2 mt-2 mb-0 fs-11">
+                                                        <i class="fas fa-info-circle me-1"></i>{{ t.media_count }} associated media file{{ t.media_count|pluralize }} will also be deleted from storage.
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="modal-footer py-2 bg-light border-top-0">
+                                                    <button type="button" class="btn btn-phoenix-secondary btn-xs" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-danger btn-xs fw-bold">Delete</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center py-5 text-body-tertiary">
+                                <i class="fas fa-bolt fa-3x mb-3 text-secondary opacity-50 d-block"></i>
+                                <h6 class="text-body-emphasis">No Quick Reply Keywords Found</h6>
+                                <p class="fs-10 mb-3">Create your first keyword template to speed up customer conversations in WhatsApp.</p>
+                                <button class="btn btn-success btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#newTemplateModal">
+                                    <i class="fas fa-plus me-1"></i>Add Keyword Template
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- MODAL: ADD NEW KEYWORD TEMPLATE                                 -->
+<!-- ============================================================== -->
+<div class="modal fade" id="newTemplateModal" tabindex="-1" aria-labelledby="newTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-success-subtle py-3 border-bottom">
+                <h5 class="modal-title fw-bold text-success-emphasis" id="newTemplateModalLabel">
+                    <i class="fab fa-whatsapp me-2"></i>Create WhatsApp Keyword Template
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{% url 'whatsapp_quick_replies' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">
+                                Shortcut Keyword <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-body-tertiary fw-bold fs-9 text-success">/</span>
+                                <input type="text" name="keyword" class="form-control fs-9" placeholder="e.g. seller, catalog, bank" required autocomplete="off" oninput="this.value = this.value.replace(/\s+/g, '').toLowerCase()">
+                            </div>
+                            <div class="form-text fs-11">Type this keyword in chat (e.g. <code>/seller</code>) to instantly auto-fill.</div>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">
+                                Title / Label <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="title" class="form-control fs-9" placeholder="e.g. Seller Onboarding Welcome & Guide" required>
+                            <div class="form-text fs-11">Descriptive title shown in search suggestions.</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">Content Type</label>
+                        <div class="row g-2">
+                            <div class="col-6 col-md-4">
+                                <label class="card h-100 border p-2 cursor-pointer text-center content-type-card active border-primary">
+                                    <input type="radio" name="content_type" value="text" class="d-none" checked onchange="handleTypeChange('text', 'new')">
+                                    <i class="fas fa-font text-primary fs-8 mb-1 d-block"></i>
+                                    <div class="fw-bold fs-10">Text Only</div>
+                                </label>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="card h-100 border p-2 cursor-pointer text-center content-type-card">
+                                    <input type="radio" name="content_type" value="image" class="d-none" onchange="handleTypeChange('image', 'new')">
+                                    <i class="fas fa-image text-success fs-8 mb-1 d-block"></i>
+                                    <div class="fw-bold fs-10">Image + Text</div>
+                                </label>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="card h-100 border p-2 cursor-pointer text-center content-type-card">
+                                    <input type="radio" name="content_type" value="multiple_images" class="d-none" onchange="handleTypeChange('multiple_images', 'new')">
+                                    <i class="fas fa-images text-primary fs-8 mb-1 d-block"></i>
+                                    <div class="fw-bold fs-10">Multiple Images</div>
+                                </label>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="card h-100 border p-2 cursor-pointer text-center content-type-card">
+                                    <input type="radio" name="content_type" value="document" class="d-none" onchange="handleTypeChange('document', 'new')">
+                                    <i class="fas fa-file-pdf text-danger fs-8 mb-1 d-block"></i>
+                                    <div class="fw-bold fs-10">Document / PDF</div>
+                                </label>
+                            </div>
+                            <div class="col-6 col-md-4">
+                                <label class="card h-100 border p-2 cursor-pointer text-center content-type-card">
+                                    <input type="radio" name="content_type" value="video" class="d-none" onchange="handleTypeChange('video', 'new')">
+                                    <i class="fas fa-video text-info fs-8 mb-1 d-block"></i>
+                                    <div class="fw-bold fs-10">Video + Text</div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Media Upload Section (Shown when media type is selected) -->
+                    <div id="newMediaUploadSection" class="mb-3 d-none">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight" id="newMediaUploadLabel">
+                            Media Attachments <span class="text-danger">*</span>
+                        </label>
+                        <div class="border border-2 border-dashed rounded-3 p-3 text-center bg-body-tertiary">
+                            <i class="fas fa-cloud-upload-alt fa-2x text-secondary mb-2"></i>
+                            <div class="fs-10 text-body-secondary mb-2" id="newMediaUploadHint">Click or drag & drop files here</div>
+                            <input type="file" name="media_files" id="newMediaInput" class="form-control form-control-sm fs-10" onchange="previewSelectedFiles(this, 'newMediaPreviewContainer')">
+                        </div>
+                        <div id="newMediaPreviewContainer" class="d-flex flex-wrap gap-2 mt-2"></div>
+                    </div>
+
+                    <!-- Message Textarea with WhatsApp Formatting Toolbar -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-1">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight mb-0">
+                                Message Text / Caption
+                            </label>
+                            <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('*', '*', 'newMessageInput')" title="Bold (*text*)"><b>B</b></button>
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('_', '_', 'newMessageInput')" title="Italic (_text_)"><i>I</i></button>
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('~', '~', 'newMessageInput')" title="Strikethrough (~text~)"><s>S</s></button>
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('```', '```', 'newMessageInput')" title="Monospace"><code>&lt;/&gt;</code></button>
+                            </div>
+                        </div>
+
+                        <!-- Variable Chips -->
+                        <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
+                            <span class="fs-11 text-body-tertiary me-1">Insert Dynamic Variable:</span>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{customer_name}}', 'newMessageInput')">+ Customer Name</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{company_name}}', 'newMessageInput')">+ Company Name</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{phone}}', 'newMessageInput')">+ Phone</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{city}}', 'newMessageInput')">+ City</button>
+                        </div>
+
+                        <textarea name="message" id="newMessageInput" rows="5" class="form-control fs-9 font-monospace" placeholder="Type your WhatsApp message template here... Supports *bold*, _italic_, ~strike~, line breaks, and variables."></textarea>
+                        <div class="form-text fs-11">Variables will be dynamically substituted with actual customer data upon insertion into chat.</div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4 fw-bold">
+                        <i class="fas fa-save me-1"></i>Save Keyword Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================== -->
+<!-- MODAL: EDIT KEYWORD TEMPLATE                                    -->
+<!-- ============================================================== -->
+<div class="modal fade" id="editTemplateModal" tabindex="-1" aria-labelledby="editTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary-subtle py-3 border-bottom">
+                <h5 class="modal-title fw-bold text-primary-emphasis" id="editTemplateModalLabel">
+                    <i class="fas fa-edit me-2"></i>Edit Keyword Template
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editTemplateForm" method="POST" action="" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">Shortcut Keyword <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-body-tertiary fw-bold fs-9 text-primary">/</span>
+                                <input type="text" name="keyword" id="editKeyword" class="form-control fs-9" required oninput="this.value = this.value.replace(/\s+/g, '').toLowerCase()">
+                            </div>
+                        </div>
+                        <div class="col-md-7">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">Title / Label <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="editTitle" class="form-control fs-9" required>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3 align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">Content Type</label>
+                            <select name="content_type" id="editContentType" class="form-select fs-9" onchange="handleEditTypeChange(this.value)">
+                                <option value="text">Text Only</option>
+                                <option value="image">Image + Text</option>
+                                <option value="multiple_images">Multiple Images + Text</option>
+                                <option value="document">Document / PDF + Text</option>
+                                <option value="video">Video + Text</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check form-switch mt-3">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive" checked>
+                                <label class="form-check-label fs-10 fw-bold text-body-highlight" for="editIsActive">Active & Available in Chat</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Existing Media Files Section -->
+                    <div id="editExistingMediaSection" class="mb-3 d-none">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight">Current Media Files</label>
+                        <div id="editExistingMediaList" class="d-flex flex-wrap gap-2 p-2 bg-body-tertiary rounded-2 border border-translucent"></div>
+                        <div class="form-text fs-11">Click the red "x" on any item to mark it for deletion upon saving.</div>
+                    </div>
+
+                    <!-- Upload Additional Media -->
+                    <div id="editMediaUploadSection" class="mb-3 d-none">
+                        <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight" id="editMediaUploadLabel">Upload Media Files</label>
+                        <input type="file" name="media_files" id="editMediaInput" class="form-control form-control-sm fs-10" onchange="previewSelectedFiles(this, 'editMediaPreviewContainer')">
+                        <div id="editMediaPreviewContainer" class="d-flex flex-wrap gap-2 mt-2"></div>
+                    </div>
+
+                    <!-- Message Textarea with Variable Chips & Formatting -->
+                    <div class="mb-3">
+                        <div class="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-1">
+                            <label class="form-label fs-10 fw-bold text-uppercase text-body-highlight mb-0">Message Text / Caption</label>
+                            <div class="d-flex align-items-center gap-1">
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('*', '*', 'editMessageInput')"><b>B</b></button>
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('_', '_', 'editMessageInput')"><i>I</i></button>
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('~', '~', 'editMessageInput')"><s>S</s></button>
+                                <button type="button" class="btn btn-xs btn-subtle-secondary py-0 px-1 fs-11" onclick="insertFormat('```', '```', 'editMessageInput')"><code>&lt;/&gt;</code></button>
+                            </div>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
+                            <span class="fs-11 text-body-tertiary me-1">Insert Variable:</span>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{customer_name}}', 'editMessageInput')">+ Customer Name</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{company_name}}', 'editMessageInput')">+ Company Name</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{phone}}', 'editMessageInput')">+ Phone</button>
+                            <button type="button" class="btn btn-xs btn-outline-primary py-0 px-2 rounded-pill fs-11" onclick="insertVariable('{{city}}', 'editMessageInput')">+ City</button>
+                        </div>
+
+                        <textarea name="message" id="editMessageInput" rows="5" class="form-control fs-9 font-monospace"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-2">
+                    <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm px-4 fw-bold">
+                        <i class="fas fa-check me-1"></i>Update Template
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleTypeChange(type, prefix) {
+    // Highlight selected card
+    document.querySelectorAll('.content-type-card').forEach(c => c.classList.remove('active', 'border-primary'));
+    const selectedRadio = document.querySelector(`input[name="content_type"][value="${type}"]`);
+    if (selectedRadio) {
+        selectedRadio.closest('.content-type-card').classList.add('active', 'border-primary');
+    }
+
+    const uploadSec = document.getElementById('newMediaUploadSection');
+    const input = document.getElementById('newMediaInput');
+    const label = document.getElementById('newMediaUploadLabel');
+    const hint = document.getElementById('newMediaUploadHint');
+
+    if (type === 'text') {
+        uploadSec.classList.add('d-none');
+        input.removeAttribute('required');
+        input.removeAttribute('multiple');
+    } else if (type === 'image') {
+        uploadSec.classList.remove('d-none');
+        input.accept = "image/*";
+        input.removeAttribute('multiple');
+        label.innerText = "Select Image (JPG, PNG, WEBP)";
+        hint.innerText = "Upload 1 image to send with caption";
+    } else if (type === 'multiple_images') {
+        uploadSec.classList.remove('d-none');
+        input.accept = "image/*";
+        input.setAttribute('multiple', 'multiple');
+        label.innerText = "Select Multiple Images (Hold Ctrl / Shift to pick multiple)";
+        hint.innerText = "Upload multiple photos/catalogs (Gallery)";
+    } else if (type === 'document') {
+        uploadSec.classList.remove('d-none');
+        input.accept = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
+        input.removeAttribute('multiple');
+        label.innerText = "Select Document (PDF, Word, Excel)";
+        hint.innerText = "Upload 1 document file (e.g. Catalog PDF, Rate list)";
+    } else if (type === 'video') {
+        uploadSec.classList.remove('d-none');
+        input.accept = "video/mp4,video/3gpp,video/quicktime";
+        input.removeAttribute('multiple');
+        label.innerText = "Select Video (MP4, max 16MB)";
+        hint.innerText = "Upload product demonstration or company promo video";
+    }
+}
+
+function handleEditTypeChange(type) {
+    const uploadSec = document.getElementById('editMediaUploadSection');
+    const input = document.getElementById('editMediaInput');
+    if (type === 'text') {
+        uploadSec.classList.add('d-none');
+    } else {
+        uploadSec.classList.remove('d-none');
+        if (type === 'multiple_images') {
+            input.setAttribute('multiple', 'multiple');
+            input.accept = "image/*";
+        } else if (type === 'image') {
+            input.removeAttribute('multiple');
+            input.accept = "image/*";
+        } else if (type === 'video') {
+            input.removeAttribute('multiple');
+            input.accept = "video/mp4,video/3gpp";
+        } else {
+            input.removeAttribute('multiple');
+            input.accept = ".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt";
+        }
+    }
+}
+
+function previewSelectedFiles(input, containerId) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    if (!input.files || input.files.length === 0) return;
+
+    Array.from(input.files).forEach((file, idx) => {
+        const chip = document.createElement('div');
+        chip.className = "badge badge-phoenix badge-phoenix-secondary p-2 d-flex align-items-center gap-1 border";
+        chip.innerHTML = `<i class="fas fa-paperclip me-1 text-primary"></i> <span class="fw-bold">${file.name}</span> <small class="text-muted">(${(file.size / 1024).toFixed(1)} KB)</small>`;
+        container.appendChild(chip);
+    });
+}
+
+function insertVariable(variable, textareaId) {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+    const start = textarea.selectionStart || textarea.value.length;
+    const end = textarea.selectionEnd || textarea.value.length;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + variable + text.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    textarea.focus();
+}
+
+function insertFormat(startTag, endTag, textareaId) {
+    const textarea = document.getElementById(textareaId);
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end) || "text";
+    textarea.value = text.substring(0, start) + startTag + selected + endTag + text.substring(end);
+    textarea.selectionStart = start + startTag.length;
+    textarea.selectionEnd = start + startTag.length + selected.length;
+    textarea.focus();
+}
+
+function openEditModal(templateId) {
+    fetch(`/core/whatsapp/templates/${templateId}/edit/`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success') {
+                const t = data.template;
+                document.getElementById('editTemplateForm').action = `/core/whatsapp/templates/${t.id}/edit/`;
+                document.getElementById('editKeyword').value = t.keyword;
+                document.getElementById('editTitle').value = t.title;
+                document.getElementById('editContentType').value = t.content_type;
+                document.getElementById('editMessageInput').value = t.message;
+                document.getElementById('editIsActive').checked = t.is_active;
+
+                // Handle existing media display
+                const existingSec = document.getElementById('editExistingMediaSection');
+                const existingList = document.getElementById('editExistingMediaList');
+                existingList.innerHTML = '';
+
+                if (t.media && t.media.length > 0) {
+                    existingSec.classList.remove('d-none');
+                    t.media.forEach(m => {
+                        const item = document.createElement('div');
+                        item.className = "d-inline-flex align-items-center gap-2 p-1 px-2 bg-white rounded border fs-11";
+                        item.id = `media-chip-${m.id}`;
+                        
+                        let previewHtml = '';
+                        if (m.is_image) {
+                            previewHtml = `<img src="${m.url}" style="width: 24px; height: 24px; object-fit: cover;" class="rounded">`;
+                        } else {
+                            previewHtml = `<i class="fas fa-file text-danger"></i>`;
+                        }
+
+                        item.innerHTML = `
+                            ${previewHtml}
+                            <span class="text-truncate" style="max-width: 140px;" title="${m.name}">${m.name}</span>
+                            <span class="text-muted fs-12">(${m.size})</span>
+                            <button type="button" class="btn btn-link text-danger p-0 ms-1" onclick="markMediaForDelete(${m.id})" title="Delete this file">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `;
+                        existingList.appendChild(item);
+                    });
+                } else {
+                    existingSec.classList.add('d-none');
+                }
+
+                handleEditTypeChange(t.content_type);
+                const modal = new bootstrap.Modal(document.getElementById('editTemplateModal'));
+                modal.show();
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            alert("Failed to load template data.");
+        });
+}
+
+function markMediaForDelete(mediaId) {
+    const chip = document.getElementById(`media-chip-${mediaId}`);
+    if (chip) {
+        chip.style.textDecoration = 'line-through';
+        chip.style.opacity = '0.5';
+        chip.classList.add('bg-danger-subtle');
+        // Add hidden input to form
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'delete_media_ids';
+        input.value = mediaId;
+        document.getElementById('editTemplateForm').appendChild(input);
+    }
+}
+</script>
+
+<style>
+.content-type-card {
+    transition: all 0.2s ease-in-out;
+    background: #fafafa;
+}
+.content-type-card:hover {
+    border-color: #2563eb !important;
+    background: #f0f7ff;
+    transform: translateY(-2px);
+}
+.content-type-card.active {
+    background: #eef2ff;
+}
+</style>
+{% endblock %}

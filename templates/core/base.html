@@ -234,6 +234,14 @@
                                                 </div>
                                             </a>
                                         </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if 'whatsapp/templates' in request.path %}active{% endif %}" href="{% url 'whatsapp_quick_replies' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><i class="fas fa-bolt text-warning"></i></span>
+                                                    <span class="nav-link-text">Quick Replies & Keywords</span>
+                                                </div>
+                                            </a>
+                                        </li>
 
                                         <li class="nav-item-wrapper py-2">
                                             <span
