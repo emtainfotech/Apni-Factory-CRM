@@ -9,23 +9,35 @@
             </a>
         </div>
         <div class="col">
-            <h2 class="mb-0">{{ customer.first_name }} {{ customer.last_name }}</h2>
-            <div class="d-flex align-items-center gap-2 mt-1">
-                <span class="badge badge-phoenix badge-phoenix-primary">{{ customer.get_status_display }}</span>
-                {% if customer.status == 'lead' %}
-                <form action="{% url 'convert_lead' customer.id %}" method="post" class="d-inline">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-link p-0 fs-10 text-success fw-bold text-decoration-none">
-                        <i class="fas fa-user-check me-1"></i>Convert to Buyer
-                    </button>
-                </form>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <h2 class="mb-0">{{ customer.display_title }}</h2>
+                {% if customer.customer_type == 'seller' %}
+                <span class="badge badge-phoenix badge-phoenix-success fs-9 border border-success-subtle"><i class="fas fa-industry me-1"></i>SELLER</span>
+                {% else %}
+                <span class="badge badge-phoenix badge-phoenix-primary fs-9 border border-primary-subtle"><i class="fas fa-shopping-bag me-1"></i>BUYER</span>
+                {% endif %}
+                <span class="badge badge-phoenix badge-phoenix-secondary fs-10">{{ customer.get_status_display }}</span>
+            </div>
+            {% if customer.display_subtitle %}
+            <div class="text-body-tertiary fs-9 mt-1">
+                {% if customer.customer_type == 'seller' %}
+                <i class="fas fa-user-tie me-1 text-success"></i><span class="fw-semibold">Contact:</span> {{ customer.display_subtitle }}
+                {% else %}
+                <i class="fas fa-building me-1 text-primary"></i><span class="fw-semibold">Firm:</span> {{ customer.display_subtitle }}
                 {% endif %}
             </div>
+            {% endif %}
         </div>
         <div class="col-auto">
-            <button class="btn btn-phoenix-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
-                <i class="fas fa-user-edit me-1"></i>Edit Profile
+            {% if customer.customer_type == 'seller' %}
+            <button class="btn btn-phoenix-success btn-sm" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                <i class="fas fa-industry me-1"></i>Edit Seller Profile
             </button>
+            {% else %}
+            <button class="btn btn-phoenix-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editCustomerModal">
+                <i class="fas fa-user-edit me-1"></i>Edit Buyer Profile
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -135,7 +147,14 @@
                     </div>
                     <div class="mb-3">
                         <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Assigned Employee</label>
-                        <p class="mb-0">{{ customer.assigned_to.username|default:"Unassigned" }}</p>
+                        <p class="mb-0">
+                            {% if customer.assigned_to %}
+                            <span class="fw-semibold text-body-highlight">{{ customer.assigned_to.get_full_name|default:customer.assigned_to.username }}</span>
+                            <span class="badge badge-phoenix badge-phoenix-secondary fs-10 ms-1">{{ customer.assigned_to.username }}</span>
+                            {% else %}
+                            <span class="text-muted fst-italic">Unassigned</span>
+                            {% endif %}
+                        </p>
                     </div>
                     <div class="mb-0">
                         <label class="text-body-tertiary fs-9 fw-bold text-uppercase">Internal Notes</label>
@@ -352,33 +371,275 @@
     <div class="modal fade" id="editCustomerModal" tabindex="-1" aria-labelledby="editCustomerModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg">
-                <div class="modal-header bg-primary py-3">
-                    <h5 class="modal-title text-white fw-bold" id="editCustomerModalLabel"><span class="fas fa-user-edit me-2"></span>Edit Buyer Profile</h5>
+                <div class="modal-header {% if customer.customer_type == 'seller' %}bg-success{% else %}bg-primary{% endif %} text-white py-3" id="editCustomerModalHeader">
+                    <h5 class="modal-title text-white fw-bold" id="editCustomerModalLabel">
+                        {% if customer.customer_type == 'seller' %}
+                        <span class="fas fa-industry me-2"></span>Edit Seller Profile
+                        {% else %}
+                        <span class="fas fa-shopping-bag me-2"></span>Edit Buyer Profile
+                        {% endif %}
+                    </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <form method="POST" action="">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="edit_customer">
-                    <div class="modal-body p-4">
-                        <div class="row g-3">
-                            {% for field in edit_form %}
-                            <div class="col-12 col-md-6">
-                                <label class="form-label fw-semibold text-body-highlight">{{ field.label }}</label>
-                                {{ field }}
-                                {% if field.errors %}
-                                <div class="text-danger fs-10 mt-1">{{ field.errors.0 }}</div>
-                                {% endif %}
+                    
+                    <!-- Top Mode Switcher Pills -->
+                    <div class="px-4 py-2 bg-body-tertiary border-bottom d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="fs-10 fw-bold text-uppercase text-body-secondary">Form Mode:</span>
+                            <div class="btn-group btn-group-sm" role="group" aria-label="Profile Mode">
+                                <button type="button" class="btn {% if customer.customer_type == 'seller' %}btn-success text-white fw-bold active{% else %}btn-outline-success{% endif %}" id="btnEditSellerMode" onclick="setEditProfileMode('seller')">
+                                    <i class="fas fa-industry me-1"></i> 🏭 Seller Form (Company First)
+                                </button>
+                                <button type="button" class="btn {% if customer.customer_type != 'seller' %}btn-primary text-white fw-bold active{% else %}btn-outline-primary{% endif %}" id="btnEditBuyerMode" onclick="setEditProfileMode('buyer')">
+                                    <i class="fas fa-shopping-bag me-1"></i> 🛍️ Buyer Form (Contact First)
+                                </button>
                             </div>
-                            {% endfor %}
+                        </div>
+                        <div>
+                            <span class="badge {% if customer.customer_type == 'seller' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} fs-10 fw-bold" id="editProfileBadge">
+                                {% if customer.customer_type == 'seller' %}🏭 SELLER ACCOUNT{% else %}🛍️ BUYER ACCOUNT{% endif %}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="modal-body p-4">
+                        <div id="editSectionsContainer" class="d-flex flex-column gap-3">
+                            <!-- Section: Company & Business Details -->
+                            <div class="card border border-success-subtle shadow-none" id="secEditCompany">
+                                <div class="card-header bg-success-subtle py-2 px-3 d-flex align-items-center justify-content-between">
+                                    <h6 class="mb-0 text-success fw-bold">
+                                        <i class="fas fa-building me-1"></i> Company & Business Details
+                                    </h6>
+                                    <span class="fs-10 text-success-emphasis fw-medium">Factory, GSTIN & Address</span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-8">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Company / Factory Name</label>
+                                            {{ edit_form.company_name }}
+                                            {% if edit_form.company_name.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.company_name.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">GSTIN</label>
+                                            {{ edit_form.gst_number }}
+                                            {% if edit_form.gst_number.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.gst_number.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <div class="form-check mt-md-4">
+                                                {{ edit_form.is_gst_verified }}
+                                                <label class="form-check-label fs-9 fw-semibold text-body-highlight" for="{{ edit_form.is_gst_verified.id_for_label }}">
+                                                    GST Verified
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">City</label>
+                                            {{ edit_form.city }}
+                                            {% if edit_form.city.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.city.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">State</label>
+                                            {{ edit_form.state }}
+                                            {% if edit_form.state.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.state.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Pincode</label>
+                                            {{ edit_form.pincode }}
+                                            {% if edit_form.pincode.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.pincode.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Country</label>
+                                            {{ edit_form.country }}
+                                            {% if edit_form.country.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.country.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-8">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Office / Factory Address</label>
+                                            {{ edit_form.address }}
+                                            {% if edit_form.address.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.address.errors.0 }}</div>{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: Contact Person Details -->
+                            <div class="card border border-primary-subtle shadow-none" id="secEditContact">
+                                <div class="card-header bg-primary-subtle py-2 px-3 d-flex align-items-center justify-content-between">
+                                    <h6 class="mb-0 text-primary fw-bold">
+                                        <i class="fas fa-user-tie me-1"></i> Contact Person Details
+                                    </h6>
+                                    <span class="fs-10 text-primary-emphasis fw-medium">Direct Phone & WhatsApp</span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Contact First Name</label>
+                                            {{ edit_form.first_name }}
+                                            {% if edit_form.first_name.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.first_name.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Contact Last Name</label>
+                                            {{ edit_form.last_name }}
+                                            {% if edit_form.last_name.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.last_name.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Phone Number <span class="text-danger">*</span></label>
+                                            {{ edit_form.phone }}
+                                            {% if edit_form.phone.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.phone.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">WhatsApp Number</label>
+                                            {{ edit_form.whatsapp_number }}
+                                            {% if edit_form.whatsapp_number.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.whatsapp_number.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Email Address</label>
+                                            {{ edit_form.email }}
+                                            {% if edit_form.email.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.email.errors.0 }}</div>{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: CRM & Pipeline Details -->
+                            <div class="card border border-secondary-subtle shadow-none" id="secEditCRM">
+                                <div class="card-header bg-secondary-subtle py-2 px-3 d-flex align-items-center justify-content-between">
+                                    <h6 class="mb-0 text-secondary-emphasis fw-bold">
+                                        <i class="fas fa-sliders-h me-1"></i> CRM Pipeline & Assignment
+                                    </h6>
+                                    <span class="fs-10 text-body-secondary fw-medium">Ownership & Pipeline Status</span>
+                                </div>
+                                <div class="card-body p-3">
+                                    <div class="row g-3">
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Account Classification</label>
+                                            {{ edit_form.customer_type }}
+                                            {% if edit_form.customer_type.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.customer_type.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Lead Source</label>
+                                            {{ edit_form.lead_source }}
+                                            {% if edit_form.lead_source.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.lead_source.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-4">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Pipeline Status</label>
+                                            {{ edit_form.status }}
+                                            {% if edit_form.status.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.status.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Assigned Executive</label>
+                                            {{ edit_form.assigned_to }}
+                                            {% if edit_form.assigned_to.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.assigned_to.errors.0 }}</div>{% endif %}
+                                        </div>
+                                        <div class="col-12 col-md-6">
+                                            <label class="form-label fs-9 fw-bold text-body-highlight mb-1">Internal Notes</label>
+                                            {{ edit_form.notes }}
+                                            {% if edit_form.notes.errors %}<div class="text-danger fs-10 mt-1">{{ edit_form.notes.errors.0 }}</div>{% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer bg-light border-top-0 py-3">
                         <button type="button" class="btn btn-phoenix-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary btn-sm px-4">Save Changes</button>
+                        <button type="submit" class="btn {% if customer.customer_type == 'seller' %}btn-success{% else %}btn-primary{% endif %} btn-sm px-4" id="editSubmitBtn">
+                            <i class="fas fa-save me-1"></i>Save {% if customer.customer_type == 'seller' %}Seller{% else %}Buyer{% endif %} Profile
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+function setEditProfileMode(mode) {
+    const container = document.getElementById('editSectionsContainer');
+    const secCompany = document.getElementById('secEditCompany');
+    const secContact = document.getElementById('secEditContact');
+    const secCRM = document.getElementById('secEditCRM');
+    const modalHeader = document.getElementById('editCustomerModalHeader');
+    const modalTitle = document.getElementById('editCustomerModalLabel');
+    const btnSeller = document.getElementById('btnEditSellerMode');
+    const btnBuyer = document.getElementById('btnEditBuyerMode');
+    const badge = document.getElementById('editProfileBadge');
+    const submitBtn = document.getElementById('editSubmitBtn');
+    const typeSelect = document.getElementById('id_customer_type');
+
+    if (!container || !secCompany || !secContact) return;
+
+    if (typeSelect && typeSelect.value !== mode) {
+        typeSelect.value = mode;
+    }
+
+    if (mode === 'seller') {
+        container.innerHTML = '';
+        container.appendChild(secCompany);
+        container.appendChild(secContact);
+        if (secCRM) container.appendChild(secCRM);
+
+        if (modalHeader) {
+            modalHeader.className = 'modal-header bg-success text-white py-3';
+        }
+        if (modalTitle) {
+            modalTitle.innerHTML = '<span class="fas fa-industry me-2"></span>Edit Seller Profile';
+        }
+        if (btnSeller) {
+            btnSeller.className = 'btn btn-success text-white fw-bold active';
+        }
+        if (btnBuyer) {
+            btnBuyer.className = 'btn btn-outline-primary';
+        }
+        if (badge) {
+            badge.className = 'badge bg-success-subtle text-success border border-success-subtle fs-10 fw-bold';
+            badge.innerHTML = '🏭 SELLER ACCOUNT';
+        }
+        if (submitBtn) {
+            submitBtn.className = 'btn btn-success btn-sm px-4';
+            submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Seller Profile';
+        }
+    } else {
+        container.innerHTML = '';
+        container.appendChild(secContact);
+        container.appendChild(secCompany);
+        if (secCRM) container.appendChild(secCRM);
+
+        if (modalHeader) {
+            modalHeader.className = 'modal-header bg-primary text-white py-3';
+        }
+        if (modalTitle) {
+            modalTitle.innerHTML = '<span class="fas fa-shopping-bag me-2"></span>Edit Buyer Profile';
+        }
+        if (btnSeller) {
+            btnSeller.className = 'btn btn-outline-success';
+        }
+        if (btnBuyer) {
+            btnBuyer.className = 'btn btn-primary text-white fw-bold active';
+        }
+        if (badge) {
+            badge.className = 'badge bg-primary-subtle text-primary border border-primary-subtle fs-10 fw-bold';
+            badge.innerHTML = '🛍️ BUYER ACCOUNT';
+        }
+        if (submitBtn) {
+            submitBtn.className = 'btn btn-primary btn-sm px-4';
+            submitBtn.innerHTML = '<i class="fas fa-save me-1"></i>Save Buyer Profile';
+        }
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const initialMode = "{{ customer.customer_type|default:'buyer' }}";
+    setEditProfileMode(initialMode);
+
+    const typeSelect = document.getElementById('id_customer_type');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', function() {
+            setEditProfileMode(this.value);
+        });
+    }
+});
+</script>
 {% endblock %}

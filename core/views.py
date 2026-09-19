@@ -984,15 +984,16 @@ def customer_detail(request, customer_id):
     from .forms import CustomerEditForm
     
     if request.method == 'POST' and request.POST.get('action') == 'edit_customer':
-        edit_form = CustomerEditForm(request.POST, instance=customer)
+        edit_form = CustomerEditForm(request.POST, instance=customer, user=request.user)
         if edit_form.is_valid():
-            edit_form.save()
-            messages.success(request, "Buyer profile updated successfully.")
+            updated_customer = edit_form.save()
+            lbl = "Seller" if updated_customer.customer_type == 'seller' else "Buyer"
+            messages.success(request, f"{lbl} profile updated successfully.")
             return redirect('customer_detail', customer_id=customer.id)
         else:
-            messages.error(request, "Failed to update buyer profile. Please check the errors.")
+            messages.error(request, "Failed to update profile. Please check the errors.")
     else:
-        edit_form = CustomerEditForm(instance=customer)
+        edit_form = CustomerEditForm(instance=customer, user=request.user)
     
     # Fetch related data with prefetching for performance
     orders = customer.orders.all().prefetch_related('status_history').order_by('-created_at')

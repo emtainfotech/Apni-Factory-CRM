@@ -1191,7 +1191,7 @@ def customer_detail(request, customer_id):
                 messages.error(request, "You cannot edit this profile because it is not assigned to you. Please request reassignment first.")
                 return redirect('employee_portal:customer_detail', customer_id=customer.id)
 
-            edit_form = CustomerEditForm(request.POST, instance=customer)
+            edit_form = CustomerEditForm(request.POST, instance=customer, user=request.user)
             if edit_form.is_valid():
                 updated_cust = edit_form.save()
                 party_lbl = updated_cust.get_customer_type_display()
@@ -1206,7 +1206,7 @@ def customer_detail(request, customer_id):
             else:
                 messages.error(request, "Failed to update profile. Please check the errors.")
         
-    edit_form = CustomerEditForm(instance=customer)
+    edit_form = CustomerEditForm(instance=customer, user=request.user)
         
     # Fetch local records
     invoices = customer.invoices.all().order_by('-created_at')

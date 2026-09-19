@@ -1,3 +1,4 @@
+import re
 from django import forms
 from authentication.models import User
 
@@ -287,35 +288,78 @@ class CustomerEditForm(forms.ModelForm):
     class Meta:
         model = Customer
         fields = [
+            'customer_type',
             'first_name', 'last_name', 'phone', 'whatsapp_number', 'email',
             'company_name', 'gst_number', 'is_gst_verified',
             'address', 'city', 'state', 'pincode', 'country',
             'lead_source', 'status', 'assigned_to', 'notes'
         ]
         widgets = {
+            'customer_type': forms.Select(attrs={'class': 'form-select fw-semibold', 'id': 'id_customer_type'}),
             'first_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'First Name (Optional)'}),
             'last_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Last Name (Optional)'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control'}),
-            'whatsapp_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '10-digit Phone Number'}),
+            'whatsapp_number': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '10-digit WhatsApp Number'}),
             'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email (Optional)'}),
-            'company_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'gst_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'company_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Registered Company / Business Name'}),
+            'gst_number': forms.TextInput(attrs={'class': 'form-control text-uppercase', 'placeholder': '15-digit GSTIN'}),
             'is_gst_verified': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Address (Optional)'}),
-            'city': forms.TextInput(attrs={'class': 'form-control'}),
-            'state': forms.TextInput(attrs={'class': 'form-control'}),
-            'pincode': forms.TextInput(attrs={'class': 'form-control'}),
-            'country': forms.TextInput(attrs={'class': 'form-control'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Office / Factory Address (Optional)'}),
+            'city': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'City'}),
+            'state': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'State'}),
+            'pincode': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Pincode'}),
+            'country': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Country'}),
             'lead_source': forms.Select(attrs={'class': 'form-select'}),
             'status': forms.Select(attrs={'class': 'form-select'}),
             'assigned_to': forms.Select(attrs={'class': 'form-select'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Internal notes...'}),
         }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
-        self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('username')
+        self.fields['assigned_to'].queryset = User.objects.filter(is_active=True).order_by('first_name', 'username')
         self.fields['assigned_to'].empty_label = "Unassigned"
+        self.fields['assigned_to'].label_from_instance = lambda obj: f"{obj.get_full_name()} ({obj.username})" if obj.get_full_name() else obj.username
         self.fields['first_name'].required = False
+        self.fields['last_name'].required = False
+        self.fields['company_name'].required = False
         self.fields['address'].required = False
-        self.fields['email'].required = False
+        self.fields['email'].required = False
+
+        # If logged in user is a regular employee (not admin/superuser), prevent direct reassignment
+        if user and getattr(user, 'role', '') == 'employee' and not user.is_superuser:
+            if 'assigned_to' in self.fields:
+                self.fields['assigned_to'].disabled = True
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '')
+        if phone:
+            phone = re.sub(r'\D', '', str(phone))
+            if len(phone) > 10 and phone.startswith('91'):
+                phone = phone[2:]
+            if len(phone) > 10 and phone.startswith('0'):
+                phone = phone[1:]
+        if phone and self.instance.pk:
+            exists = Customer.objects.filter(phone=phone).exclude(pk=self.instance.pk).exists()
+            if exists:
+                raise forms.ValidationError(f"Another customer with phone number {phone} already exists.")
+        return phone
+
+    def clean_first_name(self):
+        val = self.cleaned_data.get('first_name', '')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ''
+        return val.strip() if val else ''
+
+    def clean_last_name(self):
+        val = self.cleaned_data.get('last_name', '')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ''
+        return val.strip() if val else ''
+
+    def clean_company_name(self):
+        val = self.cleaned_data.get('company_name', '')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ''
+        return val.strip() if val else ''
