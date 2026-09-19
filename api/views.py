@@ -139,7 +139,13 @@ def product_list_view(request):
     sort_by = request.GET.get('sort', '-id')
     
     page = max(1, int(request.GET.get('page', 1)))
-    page_size = min(50, max(1, int(request.GET.get('page_size', 12))))
+    # Allow page_size up to 5000 for sitemaps, search engines, and full-catalog sync
+    try:
+        raw_page_size = int(request.GET.get('page_size', 12))
+    except (ValueError, TypeError):
+        raw_page_size = 12
+    max_limit = 5000 if (request.GET.get('all') == 'true' or raw_page_size > 50) else 50
+    page_size = min(max_limit, max(1, raw_page_size))
     
     cats, subcats, brands_map, shades, pack_map = _build_product_lookup_maps()
     cat_slug_to_id = {slugify(name): cid for cid, name in cats.items()}
