@@ -23,9 +23,12 @@
                 {% endif %}
             </p>
         </div>
-        <div class="col-auto d-flex gap-2">
-            <button type="button" class="btn btn-primary btn-sm px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#addCustomerModal">
-                <i class="fas fa-user-plus me-1"></i> + Add Buyer / Seller
+        <div class="col-auto d-flex gap-2 flex-wrap">
+            <button type="button" class="btn btn-success btn-sm px-3 shadow-sm fw-bold" onclick="openEmpAddCustomerModal('seller')">
+                <i class="fas fa-industry me-1"></i> + Add Seller
+            </button>
+            <button type="button" class="btn btn-primary btn-sm px-3 shadow-sm fw-bold" onclick="openEmpAddCustomerModal('buyer')">
+                <i class="fas fa-shopping-bag me-1"></i> + Add Buyer
             </button>
             <a href="{% url 'employee_portal:vendor_search' %}" class="btn btn-phoenix-primary btn-sm">
                 <span class="fas fa-search-plus me-1"></span> Search & Sync New Leads
@@ -37,14 +40,14 @@
     <ul class="nav nav-underline border-bottom mb-3">
         <li class="nav-item">
             <a class="nav-link {% if assigned_filter == 'my' %}active fw-bold text-primary{% else %}text-body-secondary{% endif %}" 
-               href="{% url 'employee_portal:customer_list' %}?assigned_to=my{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+               href="{% url 'employee_portal:customer_list' %}?assigned_to=my{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                 <i class="fas fa-user-check me-1"></i> My Assigned Contacts 
                 <span class="badge bg-primary-subtle text-primary rounded-pill ms-1 fs-11">{{ my_total_count }}</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if assigned_filter == 'unassigned' %}active fw-bold text-warning{% else %}text-body-secondary{% endif %}" 
-               href="{% url 'employee_portal:customer_list' %}?assigned_to=unassigned{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+               href="{% url 'employee_portal:customer_list' %}?assigned_to=unassigned{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                 <i class="fas fa-user-clock me-1 text-warning"></i> ⚠️ Unassigned Leads Pool 
                 <span class="badge bg-warning-subtle text-warning rounded-pill ms-1 fs-11">{{ unassigned_total_count }}</span>
             </a>
@@ -52,7 +55,7 @@
         {% if employees or request.user.role in 'manager,admin' or request.user.is_superuser %}
         <li class="nav-item">
             <a class="nav-link {% if assigned_filter == 'all' %}active fw-bold text-secondary{% else %}text-body-secondary{% endif %}" 
-               href="{% url 'employee_portal:customer_list' %}?assigned_to=all{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+               href="{% url 'employee_portal:customer_list' %}?assigned_to=all{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                 <i class="fas fa-globe me-1"></i> All CRM Contacts
             </a>
         </li>
@@ -63,20 +66,20 @@
     <ul class="nav nav-links mb-3 mb-lg-2 mx-n3">
         <li class="nav-item">
             <a class="nav-link {% if not current_customer_type %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
-               href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+               href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                 All Contacts
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if current_customer_type == 'buyer' %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
-               href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}&customer_type=buyer{% if per_page %}&per_page={{ per_page }}{% endif %}">
-                🛍️ Buyers / Contractors
+               href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}&customer_type=buyer{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+                🛍️ Buyers Only
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if current_customer_type == 'seller' %}active text-primary fw-bold border-bottom border-2 border-primary{% endif %}" 
-               href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}&customer_type=seller{% if per_page %}&per_page={{ per_page }}{% endif %}">
-                🏭 Customers / Sellers / Vendors
+               href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}&customer_type=seller{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+                🏭 Sellers Only
             </a>
         </li>
     </ul>
@@ -125,8 +128,8 @@
                 <input type="hidden" name="customer_type" value="{{ current_customer_type }}">
                 {% endif %}
 
-                <!-- Row 1: Search, Status, Source -->
-                <div class="col-12 col-md-4">
+                <!-- Row 1: Search, Connection Status, Status, Source -->
+                <div class="col-12 col-md-3">
                     <div class="input-group input-group-sm">
                         <span class="input-group-text bg-body-tertiary"><span class="fas fa-search"></span></span>
                         <input class="form-control fs-9" type="search" name="q" value="{{ query }}" placeholder="Search by name, phone, email, company..." />
@@ -134,6 +137,18 @@
                 </div>
 
                 <div class="col-6 col-md-3">
+                    <select name="connection_status" class="form-select form-select-sm fs-9">
+                        <option value="">All Call Connections</option>
+                        <option value="connected" {% if connection_status_filter == 'connected' %}selected{% endif %}>📞 Connected</option>
+                        <option value="not_connected" {% if connection_status_filter == 'not_connected' %}selected{% endif %}>❌ Not Connected</option>
+                        <option value="busy" {% if connection_status_filter == 'busy' %}selected{% endif %}>⏳ Line Busy</option>
+                        <option value="no_answer" {% if connection_status_filter == 'no_answer' %}selected{% endif %}>📵 No Answer</option>
+                        <option value="follow_up" {% if connection_status_filter == 'follow_up' %}selected{% endif %}>📅 Follow Up Needed</option>
+                        <option value="never_called" {% if connection_status_filter == 'never_called' %}selected{% endif %}>⚪ Never Called</option>
+                    </select>
+                </div>
+
+                <div class="col-6 col-md-2">
                     <select name="status" class="form-select form-select-sm fs-9">
                         <option value="">All Statuses</option>
                         {% for code, label in status_choices %}
@@ -142,7 +157,7 @@
                     </select>
                 </div>
 
-                <div class="col-6 col-md-3">
+                <div class="col-6 col-md-2">
                     <select name="lead_source" class="form-select form-select-sm fs-9">
                         <option value="">All Sources</option>
                         {% for code, label in source_choices %}
@@ -151,7 +166,7 @@
                     </select>
                 </div>
 
-                <div class="col-12 col-md-2 d-flex gap-1">
+                <div class="col-6 col-md-2 d-flex gap-1">
                     <button type="submit" class="btn btn-primary btn-sm w-100 fs-9 fw-semibold">
                         <i class="fas fa-filter me-1"></i> Filter
                     </button>
@@ -211,6 +226,11 @@
             <span class="badge badge-phoenix badge-phoenix-primary fs-9 px-3 py-1">
                 <i class="fas fa-check-circle me-1"></i> Found <strong>{{ total_filtered_count }}</strong> contacts
             </span>
+            {% if connection_status_filter %}
+            <span class="badge bg-warning-subtle text-warning-emphasis fs-10 border">
+                <i class="fas fa-phone-alt me-1"></i>Call Status: <strong>{{ connection_status_filter|title }}</strong>
+            </span>
+            {% endif %}
             {% if state_filter %}
             <span class="badge bg-secondary-subtle text-body fs-10 border"><i class="fas fa-map-marker-alt me-1 text-danger"></i>State: {{ state_filter }}</span>
             {% endif %}
@@ -242,14 +262,14 @@
                                     <input class="form-check-input" type="checkbox" id="emp-select-all-customers">
                                 </div>
                             </th>
-                            <th class="ps-2 py-3">Account / Name</th>
-                            <th class="py-3">Classification</th>
-                            <th class="py-3">Location & Company</th>
-                            <th class="py-3">Contact</th>
-                            <th class="py-3">Lead Source</th>
-                            <th class="py-3">Assignment</th>
-                            <th class="py-3">Status</th>
-                            <th class="text-end pe-4 py-3">Actions</th>
+                            <th class="ps-2 py-3" style="min-width: 220px;">Account / Party</th>
+                            <th class="py-3" style="min-width: 130px;">Contact Info</th>
+                            <th class="py-3" style="min-width: 140px;">Location Details</th>
+                            <th class="py-3" style="min-width: 110px;">Lead Source</th>
+                            <th class="py-3" style="min-width: 150px;">Assigned To</th>
+                            <th class="py-3" style="min-width: 180px;">Last Call & Remark</th>
+                            <th class="py-3 text-center" style="min-width: 90px;">Status</th>
+                            <th class="text-end pe-4 py-3" style="min-width: 110px;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -262,74 +282,113 @@
                                 </div>
                             </td>
 
-                            <!-- Name -->
+                            <!-- Account / Party (Seller vs Buyer distinction) -->
                             <td class="ps-2 py-3">
-                                <a href="{% url 'employee_portal:customer_detail' customer.id %}" class="fw-bold text-primary text-decoration-none">
-                                    {{ customer.first_name|default:"Unnamed" }} {{ customer.last_name }}
-                                </a>
-                                {% if customer.is_gst_verified %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle px-1 ms-1" style="font-size: 8px;">
-                                    <i class="fas fa-check-circle me-1"></i>GST
-                                </span>
-                                {% endif %}
-                                <div class="text-body-quaternary fs-11">ID: #{{ customer.id }}</div>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar avatar-s me-2 rounded-circle {% if customer.customer_type == 'seller' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} fw-bold text-center pt-1" style="width:34px; height:34px;">
+                                        {% if customer.customer_type == 'seller' %}
+                                            <i class="fas fa-industry fs-10"></i>
+                                        {% else %}
+                                            <i class="fas fa-shopping-bag fs-10"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <a href="{% url 'employee_portal:customer_detail' customer.id %}" class="fw-bold text-body-emphasis text-decoration-none d-block">
+                                            {% if customer.customer_type == 'seller' %}
+                                                <span class="text-success"><i class="fas fa-building me-1"></i></span>{{ customer.display_title }}
+                                            {% else %}
+                                                <span class="text-primary"><i class="fas fa-user me-1"></i></span>{{ customer.display_title }}
+                                            {% endif %}
+                                            {% if customer.is_gst_verified %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-1 ms-1" style="font-size: 8px;">
+                                                <i class="fas fa-check-circle me-1"></i>GST
+                                            </span>
+                                            {% endif %}
+                                        </a>
+                                        {% if customer.display_subtitle %}
+                                        <div class="text-body-secondary fs-10">
+                                            {% if customer.customer_type == 'seller' %}
+                                                <i class="fas fa-user-tie me-1 text-body-tertiary"></i>Contact: <strong class="text-body-highlight">{{ customer.display_subtitle }}</strong>
+                                            {% else %}
+                                                <i class="fas fa-store me-1 text-body-tertiary"></i>Firm: <strong class="text-body-highlight">{{ customer.display_subtitle }}</strong>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        <div class="d-flex align-items-center gap-1 mt-0.5">
+                                            <span class="badge badge-phoenix {% if customer.customer_type == 'seller' %}badge-phoenix-success{% else %}badge-phoenix-info{% endif %}" style="font-size: 8px;">
+                                                {% if customer.customer_type == 'seller' %}🏭 SELLER{% else %}🛍️ BUYER{% endif %}
+                                            </span>
+                                            <small class="text-body-quaternary fs-11">ID: #{{ customer.id }}</small>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
 
-                            <!-- Classification -->
+                            <!-- Contact Info -->
                             <td>
-                                {% if customer.customer_type == 'seller' %}
-                                <span class="badge badge-phoenix badge-phoenix-success">🏭 Seller</span>
-                                {% else %}
-                                <span class="badge badge-phoenix badge-phoenix-warning">🛍️ Buyer</span>
-                                {% endif %}
-                            </td>
-
-                            <!-- Location & Company -->
-                            <td>
-                                {% if customer.company_name %}
-                                <div class="text-body-highlight fw-semibold fs-10">{{ customer.company_name }}</div>
-                                {% endif %}
-                                <div class="text-body-tertiary fs-10">
-                                    {% if customer.city or customer.state %}
-                                        <i class="fas fa-map-marker-alt me-1 text-danger"></i>{{ customer.city|default:"" }}{% if customer.city and customer.state %}, {% endif %}{{ customer.state|default:"" }}
-                                    {% else %}
-                                        <span class="text-body-quaternary">-</span>
+                                <div class="d-flex flex-column">
+                                    <a href="tel:{{ customer.phone }}" class="text-body-highlight text-decoration-none fw-semibold fs-10">
+                                        <span class="fas fa-phone-alt me-1 text-body-tertiary"></span>{{ customer.phone }}
+                                    </a>
+                                    {% if customer.whatsapp_number and customer.whatsapp_number != customer.phone %}
+                                    <a href="https://wa.me/91{{ customer.whatsapp_number }}" target="_blank" class="text-success text-decoration-none fs-11">
+                                        <i class="fab fa-whatsapp me-1"></i>{{ customer.whatsapp_number }}
+                                    </a>
+                                    {% endif %}
+                                    {% if customer.email %}
+                                    <a href="mailto:{{ customer.email }}" class="text-body-tertiary fs-11 text-decoration-none text-truncate" style="max-width: 140px;">
+                                        <span class="fas fa-envelope me-1 text-body-tertiary"></span>{{ customer.email }}
+                                    </a>
                                     {% endif %}
                                 </div>
-                                {% if customer.pincode %}
-                                <div class="text-body-quaternary fs-11">Pin: {{ customer.pincode }}</div>
-                                {% endif %}
                             </td>
 
-                            <!-- Contact -->
+                            <!-- Location Details -->
                             <td>
-                                <div class="fw-semibold text-body-highlight">
-                                    <a href="tel:{{ customer.phone }}" class="text-decoration-none text-body-highlight">
-                                        <i class="fas fa-phone-alt me-1 text-body-tertiary"></i>{{ customer.phone }}
-                                    </a>
+                                <div class="d-flex flex-column">
+                                    {% if customer.city or customer.state %}
+                                    <span class="text-body-highlight fw-semibold fs-10">
+                                        {{ customer.city|default:"" }}{% if customer.city and customer.state %}, {% endif %}{{ customer.state|default:"" }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-body-quaternary fs-10">-</span>
+                                    {% endif %}
+                                    <small class="text-body-tertiary fs-11">
+                                        <span class="fas fa-map-marker-alt me-1 text-danger"></span>Pin: {{ customer.pincode|default:"Universal" }}
+                                    </small>
                                 </div>
-                                {% if customer.email %}
-                                <div class="text-body-tertiary fs-11 text-truncate" style="max-width: 150px;">{{ customer.email }}</div>
-                                {% endif %}
                             </td>
 
-                            <!-- Source -->
+                            <!-- Lead Source -->
                             <td>
-                                <span class="badge bg-body-tertiary text-body-highlight border fs-11">
-                                    {{ customer.get_lead_source_display }}
+                                <span class="badge bg-secondary-subtle text-secondary fs-10">
+                                    <span class="fas fa-bullhorn me-1"></span>{{ customer.get_lead_source_display|default:"Direct" }}
                                 </span>
                             </td>
 
-                            <!-- Assignment Status / Quick Claim -->
+                            <!-- Assignment Status / Quick Claim with Employee Name & ID Badge -->
                             <td>
-                                {% if customer.assigned_to == request.user %}
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle fs-11">
-                                        <i class="fas fa-user-check me-1"></i>Assigned to You
-                                    </span>
-                                {% elif customer.assigned_to %}
-                                    <span class="badge bg-secondary-subtle text-secondary border fs-11">
-                                        {{ customer.assigned_to.username }}
-                                    </span>
+                                {% if customer.assigned_to %}
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar avatar-s me-2">
+                                            <div class="avatar-name rounded-circle {% if customer.assigned_to == request.user %}bg-success-subtle text-success{% else %}bg-primary-subtle text-primary{% endif %} pt-0.5 fw-bold" style="font-size: 0.75rem;">
+                                                {{ customer.assigned_to.first_name|slice:":1"|default:customer.assigned_to.username|slice:":1"|upper }}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <span class="text-body-emphasis fw-bold fs-10 d-block">
+                                                {{ customer.assigned_to.get_full_name|default:customer.assigned_to.username }}
+                                            </span>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <span class="badge bg-secondary-subtle text-secondary py-0 px-1 fs-11 font-monospace">{{ customer.assigned_to.username }}</span>
+                                                {% if customer.assigned_to == request.user %}
+                                                    <small class="text-success fs-11"><i class="fas fa-user-check me-0.5"></i>You</small>
+                                                {% else %}
+                                                    <small class="text-body-quaternary fs-11">Assigned</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
                                 {% else %}
                                     <form method="POST" action="{% url 'employee_portal:customer_list' %}" class="d-inline">
                                         {% csrf_token %}
@@ -342,19 +401,61 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Status -->
+                            <!-- Last Connection Status & Last Remark with Hover Tooltip -->
                             <td>
-                                {% if customer.status == 'lead' %}
-                                    <span class="badge badge-phoenix badge-phoenix-primary">Lead</span>
-                                {% elif customer.status == 'prospect' %}
-                                    <span class="badge badge-phoenix badge-phoenix-warning">Prospect</span>
-                                {% elif customer.status == 'customer' %}
-                                    <span class="badge badge-phoenix badge-phoenix-success">Customer</span>
-                                {% elif customer.status == 'inactive' %}
-                                    <span class="badge badge-phoenix badge-phoenix-secondary">Inactive</span>
-                                {% else %}
-                                    <span class="badge badge-phoenix badge-phoenix-danger">Lost</span>
-                                {% endif %}
+                                <div class="d-flex flex-column">
+                                    <!-- Connection Status Badge -->
+                                    <div class="mb-1 d-flex align-items-center gap-1 flex-wrap">
+                                        {% if customer.last_call_status == 'connected' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5 fs-11">
+                                                <i class="fas fa-phone-alt me-1"></i>Connected
+                                            </span>
+                                        {% elif customer.last_call_status == 'not_connected' %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-1.5 fs-11">
+                                                <i class="fas fa-phone-slash me-1"></i>Not Connected
+                                            </span>
+                                        {% elif customer.last_call_status == 'busy' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-0.5 px-1.5 fs-11">
+                                                <i class="fas fa-phone-volume me-1"></i>Busy
+                                            </span>
+                                        {% elif customer.last_call_status == 'no_answer' %}
+                                            <span class="badge bg-secondary-subtle text-secondary border py-0.5 px-1.5 fs-11">
+                                                <i class="fas fa-phone-missed me-1"></i>No Answer
+                                            </span>
+                                        {% elif customer.last_call_status == 'follow_up' %}
+                                            <span class="badge bg-info-subtle text-info border border-info-subtle py-0.5 px-1.5 fs-11">
+                                                <i class="fas fa-calendar-check me-1"></i>Follow Up
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-body-secondary text-body-tertiary border py-0.5 px-1.5 fs-11">
+                                                <i class="fas fa-minus me-1"></i>Never Called
+                                            </span>
+                                        {% endif %}
+                                        {% if customer.last_call_time %}
+                                            <small class="text-body-quaternary fs-11">{{ customer.last_call_time|timesince }} ago</small>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Last Remark with Interactive Hover Tooltip -->
+                                    {% with remark_text=customer.last_call_remark|default:customer.notes %}
+                                        {% if remark_text %}
+                                            <div class="text-body-secondary fs-10 text-truncate" style="max-width: 175px; cursor: pointer;" 
+                                                 data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top"
+                                                 title="<div class='text-start p-1'><strong>Last Remark:</strong><br/>{{ remark_text|escape }}<br/><hr class='my-1 border-secondary'/><small class='text-light'>{% if customer.last_call_emp_first_name or customer.last_call_emp_username %}By: {{ customer.last_call_emp_first_name|default:customer.last_call_emp_username }} &bull; {% endif %}{{ customer.last_call_time|date:'d M Y, H:i'|default:'Initial Note' }}</small></div>">
+                                                <i class="fas fa-comment-dots text-primary me-1"></i>{{ remark_text }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-body-quaternary fs-11 fst-italic">No remarks logged</span>
+                                        {% endif %}
+                                    {% endwith %}
+                                </div>
+                            </td>
+
+                            <!-- Pipeline Status -->
+                            <td class="text-center">
+                                <span class="badge badge-phoenix fs-10 badge-phoenix-{% if customer.status == 'customer' %}success{% elif customer.status == 'lead' %}primary{% elif customer.status == 'prospect' %}warning{% elif customer.status == 'inactive' %}secondary{% else %}danger{% endif %}">
+                                    {{ customer.get_status_display }}
+                                </span>
                             </td>
 
                             <!-- Actions -->
@@ -388,12 +489,12 @@
                 <ul class="pagination pagination-sm mb-0">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+                        <a class="page-link" href="?page=1&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                             <i class="fas fa-angle-double-left"></i>
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                             Previous
                         </a>
                     </li>
@@ -408,12 +509,12 @@
 
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                             Next
                         </a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}&assigned_to={{ assigned_filter }}{% if query %}&q={{ query }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if source_filter %}&lead_source={{ source_filter }}{% endif %}{% if current_customer_type %}&customer_type={{ current_customer_type }}{% endif %}{% if connection_status_filter %}&connection_status={{ connection_status_filter }}{% endif %}{% if state_filter %}&state={{ state_filter }}{% endif %}{% if city_filter %}&city={{ city_filter }}{% endif %}{% if pincode_filter %}&pincode={{ pincode_filter }}{% endif %}{% if per_page %}&per_page={{ per_page }}{% endif %}">
                             <i class="fas fa-angle-double-right"></i>
                         </a>
                     </li>
@@ -431,7 +532,7 @@
                     <span class="fas fa-user-slash text-primary fs-4"></span>
                 </div>
                 <h5 class="text-body-emphasis">No contacts found</h5>
-                <p class="text-body-secondary fs-9 mb-3">No contacts match your selected location or status filters.</p>
+                <p class="text-body-secondary fs-9 mb-3">No contacts match your selected location, status, or connection filters.</p>
                 <a href="{% url 'employee_portal:customer_list' %}?assigned_to={{ assigned_filter }}" class="btn btn-phoenix-secondary btn-sm">
                     Reset Filter
                 </a>
@@ -442,6 +543,14 @@
 </div>
 
 <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Bootstrap Tooltips
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return bootstrap.Tooltip.getOrCreateInstance(tooltipTriggerEl);
+        });
+    });
+
     document.addEventListener('change', function(e) {
         if (e.target.classList.contains('emp-customer-checkbox')) {
             updateEmpBulkActions();

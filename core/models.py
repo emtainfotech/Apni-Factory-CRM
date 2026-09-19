@@ -69,8 +69,69 @@ class Customer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    def clean_last_name(self):
+        if not self.last_name or str(self.last_name).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return self.last_name.strip()
+
+    def clean_first_name(self):
+        if not self.first_name or str(self.first_name).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return self.first_name.strip()
+
+    def clean_company_name(self):
+        if not self.company_name or str(self.company_name).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return self.company_name.strip()
+
+    @property
+    def full_name(self):
+        fn = self.clean_first_name()
+        ln = self.clean_last_name()
+        if fn and ln:
+            return f"{fn} {ln}"
+        return fn or ln or ""
+
+    @property
+    def display_title(self):
+        """
+        For Sellers: primary title is Company Name. If company name is missing, fall back to full name.
+        For Buyers: primary title is Buyer full name. If missing, fall back to company name.
+        """
+        cn = self.clean_company_name()
+        fn = self.full_name
+        if self.customer_type == 'seller':
+            return cn or fn or "Unnamed Seller"
+        return fn or cn or "Unnamed Buyer"
+
+    @property
+    def display_subtitle(self):
+        """
+        Secondary line in table.
+        For Sellers: show Contact Person name if available and not identical to company name.
+        For Buyers: show Company name if available and not identical to buyer name.
+        """
+        cn = self.clean_company_name()
+        fn = self.full_name
+        if self.customer_type == 'seller':
+            if fn and fn.lower() != cn.lower():
+                return fn
+            return ""
+        if cn and cn.lower() != fn.lower():
+            return cn
+        return ""
+
+    def save(self, *args, **kwargs):
+        if self.last_name and str(self.last_name).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            self.last_name = ""
+        if self.first_name and str(self.first_name).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            self.first_name = ""
+        if self.company_name and str(self.company_name).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            self.company_name = ""
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        name = self.first_name or self.company_name or "Customer"
+        name = self.display_title or "Customer"
         return f"{name} - {self.phone}"
 
 # --- 2. WHATSAPP BOT STATE ---

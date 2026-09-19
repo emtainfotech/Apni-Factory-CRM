@@ -60,6 +60,35 @@ class CustomerModalForm(forms.ModelForm):
         self.fields['gst_number'].required = False
         self.fields['whatsapp_number'].required = False
 
+    def clean_last_name(self):
+        val = self.cleaned_data.get('last_name')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return val or ""
+
+    def clean_first_name(self):
+        val = self.cleaned_data.get('first_name')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return val or ""
+
+    def clean_company_name(self):
+        val = self.cleaned_data.get('company_name')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return val or ""
+
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone')
+        if phone:
+            import re
+            digits = re.sub(r'\D', '', str(phone))
+            if len(digits) >= 10:
+                phone = digits[-10:]
+            else:
+                phone = digits
+        return phone
+
 
 class EmployeeCustomerCreateForm(forms.ModelForm):
     CUSTOMER_TYPE_CHOICES = (
@@ -152,6 +181,24 @@ class EmployeeCustomerCreateForm(forms.ModelForm):
         if wa:
             wa = wa.strip()
         return wa
+
+    def clean_last_name(self):
+        val = self.cleaned_data.get('last_name')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return val or ""
+
+    def clean_first_name(self):
+        val = self.cleaned_data.get('first_name')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return val or ""
+
+    def clean_company_name(self):
+        val = self.cleaned_data.get('company_name')
+        if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
+            return ""
+        return val or ""
 
 from hostinger_data.models import Advertisements, Sliders, Categories
 

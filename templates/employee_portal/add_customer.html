@@ -14,10 +14,15 @@
 
     <div class="row g-3 mb-4 align-items-center justify-content-between">
         <div class="col-auto">
-            <h2 class="mb-0 text-body-emphasis">➕ Add New Buyer / Seller</h2>
-            <p class="text-body-tertiary mb-0 fs-9">
-                Capture comprehensive contact, company, location, and requirement details. 
-                This lead is automatically assigned to your personal pipeline (<strong class="text-body-highlight">{{ request.user.username }}</strong>).
+            <h2 class="mb-0 text-body-emphasis" id="pageMainTitle">
+                {% if form.customer_type.value == 'buyer' %}🛍️ Add New Buyer / Contractor{% else %}🏭 Add New Seller / Vendor{% endif %}
+            </h2>
+            <p class="text-body-tertiary mb-0 fs-9" id="pageMainSubTitle">
+                {% if form.customer_type.value == 'buyer' %}
+                    Capture purchaser or buyer lead with primary contact details first.
+                {% else %}
+                    Capture supplier or manufacturer profile with company & business details first.
+                {% endif %}
             </p>
         </div>
         <div class="col-auto">
@@ -44,11 +49,11 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <input type="radio" class="btn-check party-type-radio" name="customer_type" id="pagePartySeller" value="seller" {% if form.customer_type.value == 'seller' or not form.customer_type.value %}checked{% endif %}>
-                                    <label class="btn btn-outline-primary w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="pagePartySeller">
+                                    <label class="btn btn-outline-success w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="pagePartySeller">
                                         <span class="fs-3">🏭</span>
                                         <div>
-                                            <div class="fw-bold fs-8">Customer / Seller / Vendor</div>
-                                            <div class="fs-10 text-body-tertiary">Raw Material Supplier, Manufacturer, Factory Vendor</div>
+                                            <div class="fw-bold fs-8">Customer / Seller / Vendor Form</div>
+                                            <div class="fs-10 text-body-tertiary">Raw Material Supplier, Manufacturer &bull; <strong>Company Details First</strong></div>
                                         </div>
                                     </label>
                                 </div>
@@ -57,195 +62,210 @@
                                     <label class="btn btn-outline-primary w-100 p-3 text-start d-flex align-items-center gap-3 rounded-3" for="pagePartyBuyer">
                                         <span class="fs-3">🛍️</span>
                                         <div>
-                                            <div class="fw-bold fs-8">Buyer / Contractor</div>
-                                            <div class="fs-10 text-body-tertiary">Purchaser, Project Contractor, Building Material Retail Client</div>
+                                            <div class="fw-bold fs-8">Buyer / Contractor Form</div>
+                                            <div class="fs-10 text-body-tertiary">Purchaser, Project Contractor &bull; <strong>Contact Person First</strong></div>
                                         </div>
                                     </label>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- 1. Company & Location (Starting Fields) -->
-                        <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4">
-                            <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
-                                <i class="fas fa-building me-1 text-primary"></i> 1. Company & City Details
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-7">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCompanyName">Company / Firm / Shop Name</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-building"></i></span>
-                                        <input type="text" class="form-control" id="pageCompanyName" name="company_name" value="{{ form.company_name.value|default:'' }}" placeholder="e.g. Apex Hardware & Sanitary Store">
-                                    </div>
-                                    {% if form.company_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.company_name.errors.0 }}</div>{% endif %}
+                        <!-- Dynamic Reorderable Sections Container -->
+                        <div id="pageSectionsContainer">
+
+                            <!-- SECTION: Company & City Details -->
+                            <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4" id="pageSectionCompanyDetails">
+                                <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                                    <h6 class="text-success fs-9 text-uppercase fw-bold mb-0">
+                                        <i class="fas fa-building me-1"></i> Company & Firm Identity
+                                        <span class="badge bg-success-subtle text-success ms-2 fs-11" id="badgePageCompanyPriority">Primary Details for Seller</span>
+                                    </h6>
+                                    <span class="fs-11 text-body-tertiary">Firm Name & City</span>
                                 </div>
-                                <div class="col-md-5">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCity">City / District</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-city"></i></span>
-                                        <input type="text" class="form-control" id="pageCity" name="city" value="{{ form.city.value|default:'' }}" placeholder="e.g. Surat, Jaipur">
+                                <div class="row g-3">
+                                    <div class="col-md-7">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCompanyName">
+                                            Company / Firm / Shop Name <span class="text-danger" id="pageReqMarkCompany">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-building"></i></span>
+                                            <input type="text" class="form-control" id="pageCompanyName" name="company_name" value="{{ form.company_name.value|default:'' }}" placeholder="e.g. Apex Hardware & Sanitary Store">
+                                        </div>
+                                        {% if form.company_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.company_name.errors.0 }}</div>{% endif %}
                                     </div>
-                                    {% if form.city.errors %}<div class="text-danger fs-10 mt-1">{{ form.city.errors.0 }}</div>{% endif %}
+                                    <div class="col-md-5">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageCity">City / District</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                            <input type="text" class="form-control" id="pageCity" name="city" value="{{ form.city.value|default:'' }}" placeholder="e.g. Surat, Jaipur">
+                                        </div>
+                                        {% if form.city.errors %}<div class="text-danger fs-10 mt-1">{{ form.city.errors.0 }}</div>{% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- 2. Contact Person Information -->
-                        <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4">
-                            <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
-                                <i class="fas fa-address-book me-1 text-primary"></i> 2. Contact Information
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageFirstName">First Name</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                        <input type="text" class="form-control" id="pageFirstName" name="first_name" value="{{ form.first_name.value|default:'' }}" placeholder="e.g. Rahul">
+                            <!-- SECTION: Business & Tax Details -->
+                            <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4" id="pageSectionTaxDetails">
+                                <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
+                                    <i class="fas fa-briefcase me-1 text-info"></i> Business & Tax Details
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageGSTIN">GSTIN Number</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text text-uppercase fw-bold fs-11">GST</span>
+                                            <input type="text" class="form-control text-uppercase font-monospace" id="pageGSTIN" name="gst_number" value="{{ form.gst_number.value|default:'' }}" placeholder="15-digit GSTIN (e.g. 07AAAAA0000A1Z5)" maxlength="15">
+                                        </div>
+                                        {% if form.gst_number.errors %}<div class="text-danger fs-10 mt-1">{{ form.gst_number.errors.0 }}</div>{% endif %}
                                     </div>
-                                    {% if form.first_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.first_name.errors.0 }}</div>{% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageLastName">Last Name</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
-                                        <input type="text" class="form-control" id="pageLastName" name="last_name" value="{{ form.last_name.value|default:'' }}" placeholder="e.g. Sharma">
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageLeadSource">Lead Inflow Source</label>
+                                        <select class="form-select" id="pageLeadSource" name="lead_source">
+                                            <option value="manual" {% if form.lead_source.value == 'manual' or not form.lead_source.value %}selected{% endif %}>Manual Entry / Direct Field Visit</option>
+                                            <option value="call" {% if form.lead_source.value == 'call' %}selected{% endif %}>Direct Phone Call</option>
+                                            <option value="whatsapp" {% if form.lead_source.value == 'whatsapp' %}selected{% endif %}>WhatsApp Enquiry</option>
+                                            <option value="website" {% if form.lead_source.value == 'website' %}selected{% endif %}>Website / Web Catalog</option>
+                                            <option value="facebook" {% if form.lead_source.value == 'facebook' %}selected{% endif %}>Facebook Campaign</option>
+                                            <option value="instagram" {% if form.lead_source.value == 'instagram' %}selected{% endif %}>Instagram Campaign</option>
+                                        </select>
                                     </div>
-                                    {% if form.last_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.last_name.errors.0 }}</div>{% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-bold text-body-highlight mb-1" for="pagePhone">
-                                        Primary Mobile / Phone <span class="text-danger">*</span>
-                                    </label>
-                                    <div class="input-group">
-                                         <span class="input-group-text bg-primary-subtle text-primary fw-bold">+91</span>
-                                         <input type="tel" class="form-control {% if form.phone.errors %}is-invalid{% endif %}" id="pagePhone" name="phone" value="{{ form.phone.value|default:'' }}" placeholder="10-digit mobile number" required pattern="[0-9]{10,15}" autocomplete="off">
-                                         <span class="input-group-text d-none" id="pagePhoneSpinner"><span class="spinner-border spinner-border-sm text-primary" style="width: 0.9rem; height: 0.9rem;"></span></span>
-                                     </div>
-                                     <div id="pagePhoneDuplicateAlert" class="text-danger fs-11 mt-1 d-none">
-                                         <i class="fas fa-exclamation-triangle me-1"></i>Mobile number already registered! <a href="javascript:void(0)" class="fw-bold text-danger text-decoration-underline ms-1" id="linkPageShowDupModal">View Details</a>
-                                     </div>
-                                     {% if form.phone.errors %}
-                                         <div class="text-danger fs-10 mt-1">{{ form.phone.errors.0 }}</div>
-                                     {% else %}
-                                         <div class="form-text fs-11">Primary contact identifier used for calls and order linking.</div>
-                                     {% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-0" for="pageWhatsApp">WhatsApp Number</label>
-                                        <button type="button" class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-success" id="btnPageCopyPhoneToWA">
-                                            <i class="fab fa-whatsapp me-1"></i>Same as Phone
-                                        </button>
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageLeadStatus">Pipeline Status</label>
+                                        <select class="form-select" id="pageLeadStatus" name="status">
+                                            <option value="lead" {% if form.status.value == 'lead' or not form.status.value %}selected{% endif %}>Lead (New / In Review)</option>
+                                            <option value="prospect" {% if form.status.value == 'prospect' %}selected{% endif %}>Prospect (Actively Interested)</option>
+                                            <option value="customer" {% if form.status.value == 'customer' %}selected{% endif %}>Active Customer (Converted)</option>
+                                            <option value="inactive" {% if form.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
+                                            <option value="lost" {% if form.status.value == 'lost' %}selected{% endif %}>Lost</option>
+                                        </select>
                                     </div>
-                                    <div class="input-group">
-                                        <span class="input-group-text text-success"><i class="fab fa-whatsapp"></i></span>
-                                        <input type="tel" class="form-control" id="pageWhatsApp" name="whatsapp_number" value="{{ form.whatsapp_number.value|default:'' }}" placeholder="WhatsApp number (optional)">
-                                    </div>
-                                    {% if form.whatsapp_number.errors %}<div class="text-danger fs-10 mt-1">{{ form.whatsapp_number.errors.0 }}</div>{% endif %}
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageEmail">Email Address</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
-                                        <input type="email" class="form-control" id="pageEmail" name="email" value="{{ form.email.value|default:'' }}" placeholder="e.g. contact@company.com">
-                                    </div>
-                                    {% if form.email.errors %}<div class="text-danger fs-10 mt-1">{{ form.email.errors.0 }}</div>{% endif %}
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- 3. Business & CRM Details -->
-                        <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4">
-                            <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
-                                <i class="fas fa-briefcase me-1 text-info"></i> 3. Business & Tax Details
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageGSTIN">GSTIN Number</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text text-uppercase fw-bold fs-11">GST</span>
-                                        <input type="text" class="form-control text-uppercase font-monospace" id="pageGSTIN" name="gst_number" value="{{ form.gst_number.value|default:'' }}" placeholder="15-digit GSTIN (e.g. 07AAAAA0000A1Z5)" maxlength="15">
+                            <!-- SECTION: Contact Person Information -->
+                            <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4" id="pageSectionContactDetails">
+                                <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
+                                    <h6 class="text-primary fs-9 text-uppercase fw-bold mb-0">
+                                        <i class="fas fa-address-book me-1"></i> Contact Person Information
+                                        <span class="badge bg-primary-subtle text-primary ms-2 fs-11 d-none" id="badgePageBuyerPriority">Primary Details for Buyer</span>
+                                    </h6>
+                                    <span class="fs-11 text-body-tertiary">Direct Contact Info</span>
+                                </div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageFirstName">First Name</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                            <input type="text" class="form-control" id="pageFirstName" name="first_name" value="{{ form.first_name.value|default:'' }}" placeholder="e.g. Rahul">
+                                        </div>
+                                        {% if form.first_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.first_name.errors.0 }}</div>{% endif %}
                                     </div>
-                                    {% if form.gst_number.errors %}<div class="text-danger fs-10 mt-1">{{ form.gst_number.errors.0 }}</div>{% endif %}
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageLeadSource">Lead Inflow Source</label>
-                                    <select class="form-select" id="pageLeadSource" name="lead_source">
-                                        <option value="manual" {% if form.lead_source.value == 'manual' or not form.lead_source.value %}selected{% endif %}>Manual Entry / Direct Field Visit</option>
-                                        <option value="call" {% if form.lead_source.value == 'call' %}selected{% endif %}>Direct Phone Call</option>
-                                        <option value="whatsapp" {% if form.lead_source.value == 'whatsapp' %}selected{% endif %}>WhatsApp Enquiry</option>
-                                        <option value="website" {% if form.lead_source.value == 'website' %}selected{% endif %}>Website / Web Catalog</option>
-                                        <option value="facebook" {% if form.lead_source.value == 'facebook' %}selected{% endif %}>Facebook Campaign</option>
-                                        <option value="instagram" {% if form.lead_source.value == 'instagram' %}selected{% endif %}>Instagram Campaign</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageLeadStatus">Pipeline Status</label>
-                                    <select class="form-select" id="pageLeadStatus" name="status">
-                                        <option value="lead" {% if form.status.value == 'lead' or not form.status.value %}selected{% endif %}>Lead (New / In Review)</option>
-                                        <option value="prospect" {% if form.status.value == 'prospect' %}selected{% endif %}>Prospect (Actively Interested)</option>
-                                        <option value="customer" {% if form.status.value == 'customer' %}selected{% endif %}>Active Customer (Converted)</option>
-                                        <option value="inactive" {% if form.status.value == 'inactive' %}selected{% endif %}>Inactive</option>
-                                        <option value="lost" {% if form.status.value == 'lost' %}selected{% endif %}>Lost</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 4. Location & Address Details -->
-                        <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4">
-                            <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
-                                <i class="fas fa-map-marker-alt me-1 text-danger"></i> 4. Territory & Location
-                            </h6>
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageAddress">Street Address / Landmark</label>
-                                    <textarea class="form-control" id="pageAddress" name="address" rows="2" placeholder="Building Name, Shop No, Street or Industrial Area...">{{ form.address.value|default:'' }}</textarea>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageState">State / Region</label>
-                                    <input type="text" class="form-control" id="pageState" name="state" value="{{ form.state.value|default:'' }}" placeholder="e.g. Gujarat, Delhi" list="pageStateList">
-                                    <datalist id="pageStateList">
-                                        {% for st in state_choices %}
-                                        <option value="{{ st }}"></option>
-                                        {% endfor %}
-                                        <option value="Andhra Pradesh"></option>
-                                        <option value="Assam"></option>
-                                        <option value="Bihar"></option>
-                                        <option value="Chhattisgarh"></option>
-                                        <option value="Delhi"></option>
-                                        <option value="Goa"></option>
-                                        <option value="Gujarat"></option>
-                                        <option value="Haryana"></option>
-                                        <option value="Himachal Pradesh"></option>
-                                        <option value="Jharkhand"></option>
-                                        <option value="Karnataka"></option>
-                                        <option value="Kerala"></option>
-                                        <option value="Madhya Pradesh"></option>
-                                        <option value="Maharashtra"></option>
-                                        <option value="Odisha"></option>
-                                        <option value="Punjab"></option>
-                                        <option value="Rajasthan"></option>
-                                        <option value="Tamil Nadu"></option>
-                                        <option value="Telangana"></option>
-                                        <option value="Uttar Pradesh"></option>
-                                        <option value="Uttarakhand"></option>
-                                        <option value="West Bengal"></option>
-                                    </datalist>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pagePincode">Pin Code</label>
-                                    <input type="text" class="form-control font-monospace" id="pagePincode" name="pincode" value="{{ form.pincode.value|default:'' }}" placeholder="e.g. 395003" maxlength="10">
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageLastName">Last Name</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                            <input type="text" class="form-control" id="pageLastName" name="last_name" value="{{ form.last_name.value|default:'' }}" placeholder="e.g. Sharma">
+                                        </div>
+                                        {% if form.last_name.errors %}<div class="text-danger fs-10 mt-1">{{ form.last_name.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-bold text-body-highlight mb-1" for="pagePhone">
+                                            Primary Mobile / Phone <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                             <span class="input-group-text bg-primary-subtle text-primary fw-bold">+91</span>
+                                             <input type="tel" class="form-control {% if form.phone.errors %}is-invalid{% endif %}" id="pagePhone" name="phone" value="{{ form.phone.value|default:'' }}" placeholder="10-digit mobile number" required pattern="[0-9]{10,15}" autocomplete="off">
+                                             <span class="input-group-text d-none" id="pagePhoneSpinner"><span class="spinner-border spinner-border-sm text-primary" style="width: 0.9rem; height: 0.9rem;"></span></span>
+                                         </div>
+                                         <div id="pagePhoneDuplicateAlert" class="text-danger fs-11 mt-1 d-none">
+                                             <i class="fas fa-exclamation-triangle me-1"></i>Mobile number already registered! <a href="javascript:void(0)" class="fw-bold text-danger text-decoration-underline ms-1" id="linkPageShowDupModal">View Details</a>
+                                         </div>
+                                         {% if form.phone.errors %}
+                                             <div class="text-danger fs-10 mt-1">{{ form.phone.errors.0 }}</div>
+                                         {% else %}
+                                             <div class="form-text fs-11">Primary contact identifier used for calls and order linking.</div>
+                                         {% endif %}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <label class="form-label fs-9 fw-semibold text-body-highlight mb-0" for="pageWhatsApp">WhatsApp Number</label>
+                                            <button type="button" class="btn btn-link btn-sm p-0 fs-11 text-decoration-none text-success" id="btnPageCopyPhoneToWA">
+                                                <i class="fab fa-whatsapp me-1"></i>Same as Phone
+                                            </button>
+                                        </div>
+                                        <div class="input-group">
+                                            <span class="input-group-text text-success"><i class="fab fa-whatsapp"></i></span>
+                                            <input type="tel" class="form-control" id="pageWhatsApp" name="whatsapp_number" value="{{ form.whatsapp_number.value|default:'' }}" placeholder="WhatsApp number (optional)">
+                                        </div>
+                                        {% if form.whatsapp_number.errors %}<div class="text-danger fs-10 mt-1">{{ form.whatsapp_number.errors.0 }}</div>{% endif %}
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageEmail">Email Address</label>
+                                        <div class="input-group">
+                                            <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                            <input type="email" class="form-control" id="pageEmail" name="email" value="{{ form.email.value|default:'' }}" placeholder="e.g. contact@company.com">
+                                        </div>
+                                        {% if form.email.errors %}<div class="text-danger fs-10 mt-1">{{ form.email.errors.0 }}</div>{% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- 5. CRM Discussion Notes -->
-                        <div class="mb-4">
-                            <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageNotes">
-                                <i class="fas fa-sticky-note me-1 text-warning"></i> 5. Requirements & CRM Discussion Notes
-                            </label>
-                            <textarea class="form-control" id="pageNotes" name="notes" rows="4" placeholder="Enter order volume requirements, specific product catalog interest, payment preference, follow-up timeline...">{{ form.notes.value|default:'' }}</textarea>
+                            <!-- SECTION: Location & Address Details -->
+                            <div class="card bg-body-tertiary border-0 rounded-3 mb-4 p-3 p-md-4" id="pageSectionLocationDetails">
+                                <h6 class="text-body-secondary fs-9 text-uppercase fw-bold mb-3">
+                                    <i class="fas fa-map-marker-alt me-1 text-danger"></i> Territory & Location
+                                </h6>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageAddress">Street Address / Landmark</label>
+                                        <textarea class="form-control" id="pageAddress" name="address" rows="2" placeholder="Building Name, Shop No, Street or Industrial Area...">{{ form.address.value|default:'' }}</textarea>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageState">State / Region</label>
+                                        <input type="text" class="form-control" id="pageState" name="state" value="{{ form.state.value|default:'' }}" placeholder="e.g. Gujarat, Delhi" list="pageStateList">
+                                        <datalist id="pageStateList">
+                                            {% for st in state_choices %}
+                                            <option value="{{ st }}"></option>
+                                            {% endfor %}
+                                            <option value="Andhra Pradesh"></option>
+                                            <option value="Assam"></option>
+                                            <option value="Bihar"></option>
+                                            <option value="Chhattisgarh"></option>
+                                            <option value="Delhi"></option>
+                                            <option value="Goa"></option>
+                                            <option value="Gujarat"></option>
+                                            <option value="Haryana"></option>
+                                            <option value="Himachal Pradesh"></option>
+                                            <option value="Jharkhand"></option>
+                                            <option value="Karnataka"></option>
+                                            <option value="Kerala"></option>
+                                            <option value="Madhya Pradesh"></option>
+                                            <option value="Maharashtra"></option>
+                                            <option value="Odisha"></option>
+                                            <option value="Punjab"></option>
+                                            <option value="Rajasthan"></option>
+                                            <option value="Tamil Nadu"></option>
+                                            <option value="Telangana"></option>
+                                            <option value="Uttar Pradesh"></option>
+                                            <option value="Uttarakhand"></option>
+                                            <option value="West Bengal"></option>
+                                        </datalist>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pagePincode">Pin Code</label>
+                                        <input type="text" class="form-control font-monospace" id="pagePincode" name="pincode" value="{{ form.pincode.value|default:'' }}" placeholder="e.g. 395003" maxlength="10">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- SECTION: CRM Discussion Notes -->
+                            <div class="mb-4" id="pageSectionNotesDetails">
+                                <label class="form-label fs-9 fw-semibold text-body-highlight mb-1" for="pageNotes">
+                                    <i class="fas fa-sticky-note me-1 text-warning"></i> Requirements & CRM Discussion Notes
+                                </label>
+                                <textarea class="form-control" id="pageNotes" name="notes" rows="4" placeholder="Enter order volume requirements, specific product catalog interest, payment preference, follow-up timeline...">{{ form.notes.value|default:'' }}</textarea>
+                            </div>
+
                         </div>
 
                         <!-- Action Buttons -->
@@ -253,8 +273,8 @@
                             <a href="{{ next|default:'employee_portal:customer_list' }}" class="btn btn-subtle-secondary px-4">
                                 Cancel
                             </a>
-                            <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm" id="btnPageSubmit">
-                                <i class="fas fa-check me-2"></i> Save & Assign to My Pipeline
+                            <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm" id="btnPageSubmit">
+                                <i class="fas fa-check me-2"></i> Save Seller Lead
                             </button>
                         </div>
                     </form>
@@ -350,7 +370,73 @@
 </div>
 
 <script>
+function applyPageMode(mode) {
+    const mainTitle = document.getElementById('pageMainTitle');
+    const mainSubTitle = document.getElementById('pageMainSubTitle');
+    const submitBtn = document.getElementById('btnPageSubmit');
+    const container = document.getElementById('pageSectionsContainer');
+    const secCompany = document.getElementById('pageSectionCompanyDetails');
+    const secContact = document.getElementById('pageSectionContactDetails');
+    const secTax = document.getElementById('pageSectionTaxDetails');
+    const secLocation = document.getElementById('pageSectionLocationDetails');
+    const secNotes = document.getElementById('pageSectionNotesDetails');
+    const badgeCompany = document.getElementById('badgePageCompanyPriority');
+    const badgeBuyer = document.getElementById('badgePageBuyerPriority');
+    const reqCompany = document.getElementById('pageReqMarkCompany');
+
+    if (!container || !secCompany || !secContact) return;
+
+    if (mode === 'seller') {
+        if (mainTitle) mainTitle.innerHTML = '🏭 Add New Seller / Vendor';
+        if (mainSubTitle) mainSubTitle.innerHTML = 'Capture supplier or manufacturer profile with company & business details first.';
+        if (submitBtn) {
+            submitBtn.className = 'btn btn-success px-5 fw-bold shadow-sm';
+            submitBtn.innerHTML = '<i class="fas fa-check me-2"></i> Save Seller Lead';
+        }
+        if (badgeCompany) badgeCompany.classList.remove('d-none');
+        if (badgeBuyer) badgeBuyer.classList.add('d-none');
+        if (reqCompany) reqCompany.classList.remove('d-none');
+
+        // Reorder for Seller: Company -> Tax -> Contact -> Location -> Notes
+        container.innerHTML = '';
+        container.appendChild(secCompany);
+        container.appendChild(secTax);
+        container.appendChild(secContact);
+        container.appendChild(secLocation);
+        container.appendChild(secNotes);
+    } else {
+        if (mainTitle) mainTitle.innerHTML = '🛍️ Add New Buyer / Contractor';
+        if (mainSubTitle) mainSubTitle.innerHTML = 'Capture purchaser or buyer lead with primary contact person details first.';
+        if (submitBtn) {
+            submitBtn.className = 'btn btn-primary px-5 fw-bold shadow-sm';
+            submitBtn.innerHTML = '<i class="fas fa-check me-2"></i> Save Buyer Lead';
+        }
+        if (badgeCompany) badgeCompany.classList.add('d-none');
+        if (badgeBuyer) badgeBuyer.classList.remove('d-none');
+        if (reqCompany) reqCompany.classList.add('d-none');
+
+        // Reorder for Buyer: Contact -> Company -> Tax -> Location -> Notes
+        container.innerHTML = '';
+        container.appendChild(secContact);
+        container.appendChild(secCompany);
+        container.appendChild(secTax);
+        container.appendChild(secLocation);
+        container.appendChild(secNotes);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    const partyRadios = document.querySelectorAll('.party-type-radio');
+    partyRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            applyPageMode(this.value);
+        });
+    });
+    const checkedRadio = document.querySelector('.party-type-radio:checked');
+    if (checkedRadio) {
+        applyPageMode(checkedRadio.value);
+    }
+
     const copyBtn = document.getElementById('btnPageCopyPhoneToWA');
     const phoneInput = document.getElementById('pagePhone');
     const waInput = document.getElementById('pageWhatsApp');

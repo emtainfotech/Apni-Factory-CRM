@@ -4,36 +4,45 @@
 <div class="mb-9">
     <div class="row g-3 mb-3 align-items-center justify-content-between">
         <div class="col-auto">
-            <h2 class="mb-0 text-body-emphasis">Buyers & Contacts Directory</h2>
-            <p class="text-body-tertiary mb-0 fs-9">Filter buyers and sellers by location, assignment status, and assign leads seamlessly in bulk.</p>
+            <h2 class="mb-0 text-body-emphasis">Buyers & Sellers Directory</h2>
+            <p class="text-body-tertiary mb-0 fs-9">Manage, filter, and track verified buyers and manufacturers/sellers with live call statuses and remarks.</p>
         </div>
         <div class="col-auto d-flex gap-2">
-            <button class="btn btn-primary btn-sm white-space-nowrap" type="button" data-bs-toggle="modal" data-bs-target="#addBuyerModal">
-                <span class="fas fa-plus me-2"></span>Add Buyer
+            <button class="btn btn-phoenix-success btn-sm white-space-nowrap fw-bold shadow-sm" type="button" onclick="openAddCustomerModal('seller')">
+                <span class="fas fa-industry me-1"></span>+ Add Seller
+            </button>
+            <button class="btn btn-primary btn-sm white-space-nowrap fw-bold shadow-sm" type="button" onclick="openAddCustomerModal('buyer')">
+                <span class="fas fa-shopping-bag me-1"></span>+ Add Buyer
             </button>
             <a href="{% url 'bulk_upload_customers' %}" class="btn btn-phoenix-secondary btn-sm white-space-nowrap">
-                <span class="fas fa-file-export me-2"></span>Import Buyers / Excel
+                <span class="fas fa-file-export me-1"></span>Import Excel
             </a>
         </div>
     </div>
 
-    <!-- Quick Metrics / Filter Action Bar -->
-    <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-        <span class="badge badge-phoenix badge-phoenix-primary fs-9 px-3 py-2">
-            <i class="fas fa-database me-1"></i> Total Filtered: <strong id="header-total-count">{{ total_filtered_count }}</strong>
-        </span>
-        <button type="button" class="btn btn-sm btn-subtle-warning fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterAssignee('unassigned')" title="View All Unassigned Leads">
-            <i class="fas fa-user-clock me-1 text-warning"></i> Unassigned Pool: <strong>{{ total_unassigned_count }}</strong>
-        </button>
-        <button type="button" class="btn btn-sm btn-subtle-success fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterAssignee('assigned')" title="View Assigned Leads">
-            <i class="fas fa-user-check me-1 text-success"></i> Assigned: <strong>{{ total_assigned_count }}</strong>
-        </button>
-        <button type="button" class="btn btn-sm btn-subtle-info fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterType('buyer')" title="View Only Buyers">
-            <i class="fas fa-shopping-bag me-1 text-info"></i> Buyers: <strong>{{ total_buyers_count }}</strong>
-        </button>
-        <button type="button" class="btn btn-sm btn-subtle-secondary fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterType('seller')" title="View Only Sellers">
-            <i class="fas fa-industry me-1 text-secondary"></i> Sellers: <strong>{{ total_sellers_count }}</strong>
-        </button>
+    <!-- Category Tabs & Quick Filter Action Bar -->
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+        <!-- Live Category Switcher Tabs -->
+        <div class="btn-group btn-group-sm" role="group" aria-label="Customer Type Filter">
+            <button type="button" class="btn {% if not selected_customer_type %}btn-primary{% else %}btn-phoenix-secondary{% endif %} fw-semibold px-3" onclick="quickFilterType('')">
+                All Contacts <span class="badge bg-body-tertiary text-body ms-1 rounded-pill">{{ total_filtered_count }}</span>
+            </button>
+            <button type="button" class="btn {% if selected_customer_type == 'buyer' %}btn-info text-white{% else %}btn-phoenix-secondary{% endif %} fw-semibold px-3" onclick="quickFilterType('buyer')">
+                🛍️ Buyers Only <span class="badge bg-info-subtle text-info ms-1 rounded-pill">{{ total_buyers_count }}</span>
+            </button>
+            <button type="button" class="btn {% if selected_customer_type == 'seller' %}btn-success text-white{% else %}btn-phoenix-secondary{% endif %} fw-semibold px-3" onclick="quickFilterType('seller')">
+                🏭 Sellers Only <span class="badge bg-success-subtle text-success ms-1 rounded-pill">{{ total_sellers_count }}</span>
+            </button>
+        </div>
+
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button type="button" class="btn btn-sm {% if selected_assignee == 'unassigned' %}btn-warning text-dark{% else %}btn-subtle-warning{% endif %} fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterAssignee('unassigned')" title="View All Unassigned Leads">
+                <i class="fas fa-user-clock me-1 text-warning"></i> Unassigned: <strong>{{ total_unassigned_count }}</strong>
+            </button>
+            <button type="button" class="btn btn-sm {% if selected_assignee == 'assigned' %}btn-success text-white{% else %}btn-subtle-success{% endif %} fs-10 py-1 px-3 border rounded-pill" onclick="quickFilterAssignee('assigned')" title="View Assigned Leads">
+                <i class="fas fa-user-check me-1 text-success"></i> Assigned: <strong>{{ total_assigned_count }}</strong>
+            </button>
+        </div>
     </div>
 
     <!-- Bulk Actions Sticky/Floating Card -->
@@ -51,7 +60,7 @@
                 <select class="form-select form-select-sm w-auto" name="assign_to_user" required style="min-width: 220px;">
                     <option value="">Assign To Employee...</option>
                     {% for emp in employees %}
-                        <option value="{{ emp.id }}">{{ emp.username }} ({{ emp.get_role_display }})</option>
+                        <option value="{{ emp.id }}">{{ emp.get_full_name|default:emp.username }} ({{ emp.username }})</option>
                     {% endfor %}
                 </select>
                 
@@ -79,7 +88,7 @@
                         <!-- Row 1: Search & Primary Selectors -->
                         <div class="col-12 col-md-3">
                             <div class="search-box position-relative">
-                                <input class="form-control form-control-sm search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search name, phone, email, company..." 
+                                <input class="form-control form-control-sm search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search company, name, phone, city..." 
                                        hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
                                 <span class="fas fa-search search-box-icon"></span>
                             </div>
@@ -95,6 +104,20 @@
                             </select>
                         </div>
 
+                        <!-- Connection Status Filter (NEW) -->
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" name="connection_status" id="filter-connection-status"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="">All Call Statuses</option>
+                                <option value="connected" {% if selected_connection_status == 'connected' %}selected{% endif %}>🟢 Connected</option>
+                                <option value="not_connected" {% if selected_connection_status == 'not_connected' %}selected{% endif %}>🔴 Not Connected</option>
+                                <option value="busy" {% if selected_connection_status == 'busy' %}selected{% endif %}>🟡 Busy</option>
+                                <option value="no_answer" {% if selected_connection_status == 'no_answer' %}selected{% endif %}>⚪ No Answer</option>
+                                <option value="follow_up" {% if selected_connection_status == 'follow_up' %}selected{% endif %}>🟣 Follow Up</option>
+                                <option value="never_called" {% if selected_connection_status == 'never_called' %}selected{% endif %}>⚪ Never Called</option>
+                            </select>
+                        </div>
+
                         <!-- Assigned To Filter (Unassigned vs Assigned vs Employee) -->
                         <div class="col-6 col-md-3">
                             <select class="form-select form-select-sm" name="assigned_to" id="filter-assigned-to"
@@ -104,37 +127,38 @@
                                 <option value="assigned" {% if selected_assignee == 'assigned' %}selected{% endif %}>✅ Assigned Only ({{ total_assigned_count }})</option>
                                 <optgroup label="Specific Employee">
                                     {% for emp in employees %}
-                                        <option value="{{ emp.id }}" {% if selected_assignee == emp.id|stringformat:"i" %}selected{% endif %}>{{ emp.username }}</option>
+                                        <option value="{{ emp.id }}" {% if selected_assignee == emp.id|stringformat:"i" %}selected{% endif %}>
+                                            {{ emp.get_full_name|default:emp.username }} ({{ emp.username }})
+                                        </option>
                                     {% endfor %}
                                 </optgroup>
                             </select>
                         </div>
                         
-                        <!-- Status Filter -->
+                        <!-- Pipeline Status Filter -->
                         <div class="col-6 col-md-2">
                             <select class="form-select form-select-sm" name="status"
                                     hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
-                                <option value="">All Statuses</option>
+                                <option value="">All Pipeline Stages</option>
                                 {% for code, label in status_choices %}
                                     <option value="{{ code }}" {% if selected_status == code %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
 
-                        <!-- Lead Source Filter -->
+                        <!-- Row 2: Location Filters (State, City, Pincode), Source, Per Page, and Reset -->
                         <div class="col-6 col-md-2">
                             <select class="form-select form-select-sm" name="lead_source"
                                     hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
-                                <option value="">All Sources</option>
+                                <option value="">All Lead Sources</option>
                                 {% for code, label in source_choices %}
                                     <option value="{{ code }}" {% if selected_source == code %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
 
-                        <!-- Row 2: Location Filters (State, City, Pincode), Per Page, and Reset -->
                         <!-- State Filter with Datalist -->
-                        <div class="col-12 col-md-3">
+                        <div class="col-6 col-md-3">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-body-tertiary"><i class="fas fa-map-marker-alt text-danger"></i></span>
                                 <input class="form-control form-control-sm" list="state-options-list" name="state" id="filter-state" value="{{ selected_state|default:'' }}" placeholder="Filter by State..." 
@@ -165,28 +189,19 @@
                             </div>
                         </div>
 
-                        <!-- Per Page Selector (10, 25, 50, 100, 250, 500) -->
-                        <div class="col-6 col-md-2">
-                            <div class="input-group input-group-sm">
-                                <span class="input-group-text bg-body-tertiary fs-10 fw-semibold">Show</span>
-                                <select class="form-select form-select-sm" name="per_page" id="filter-per-page"
-                                        hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
-                                    <option value="10" {% if selected_per_page == 10 %}selected{% endif %}>10 / page</option>
-                                    <option value="25" {% if selected_per_page == 25 %}selected{% endif %}>25 / page</option>
-                                    <option value="50" {% if selected_per_page == 50 %}selected{% endif %}>50 / page</option>
-                                    <option value="100" {% if selected_per_page == 100 %}selected{% endif %}>100 / page</option>
-                                    <option value="250" {% if selected_per_page == 250 %}selected{% endif %}>250 / page</option>
-                                    <option value="500" {% if selected_per_page == 500 %}selected{% endif %}>500 / page</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Clear Filters & Spinner -->
-                        <div class="col-6 col-md-2 d-flex align-items-center gap-2">
-                            <a href="{% url 'customer_list' %}" class="btn btn-phoenix-secondary btn-sm w-100" title="Reset All Filters">
-                                <i class="fas fa-undo me-1"></i>Reset
+                        <!-- Per Page & Reset -->
+                        <div class="col-12 col-md-2 d-flex align-items-center gap-2">
+                            <select class="form-select form-select-sm" name="per_page" id="filter-per-page" style="min-width: 85px;"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="10" {% if selected_per_page == 10 %}selected{% endif %}>10/page</option>
+                                <option value="25" {% if selected_per_page == 25 %}selected{% endif %}>25/page</option>
+                                <option value="50" {% if selected_per_page == 50 %}selected{% endif %}>50/page</option>
+                                <option value="100" {% if selected_per_page == 100 %}selected{% endif %}>100/page</option>
+                            </select>
+                            <a href="{% url 'customer_list' %}" class="btn btn-phoenix-secondary btn-sm" title="Reset All Filters">
+                                <i class="fas fa-undo"></i>
                             </a>
-                            <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status" id="search-spinner" style="width: 1.2rem; height: 1.2rem;"></div>
+                            <div class="spinner-border spinner-border-sm text-primary htmx-indicator" role="status" id="search-spinner" style="width: 1.1rem; height: 1.1rem;"></div>
                         </div>
                     </form>
                 </div>
@@ -201,115 +216,211 @@
     </div>
 </div>
 
-<!-- Add Buyer Modal -->
-<div class="modal fade" id="addBuyerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addBuyerModalLabel" aria-hidden="true">
+<!-- Add Customer / Lead Modal (Supports Dual Seller & Buyer Specialized Layouts) -->
+<div class="modal fade" id="addCustomerModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-        <div class="modal-content bg-body-highlight">
+        <div class="modal-content bg-body-highlight border shadow-lg">
             
-            <div class="modal-header justify-content-between border-0 px-6 pt-6 mb-2">
-                <h3 class="mb-0" id="addBuyerModalLabel">Add New Buyer / Lead</h3>
-                <button class="btn btn-sm btn-phoenix-secondary" data-bs-dismiss="modal" aria-label="Close">
-                    <span class="fas fa-times text-danger"></span>
-                </button>
+            <div class="modal-header border-bottom px-4 pt-3 pb-3 justify-content-between align-items-center">
+                <div>
+                    <h4 class="mb-1 fw-bold text-body-highlight" id="modalMainTitle">
+                        <i class="fas fa-industry text-success me-2" id="modalTitleIcon"></i><span id="modalTitleText">Add New Seller / Vendor</span>
+                    </h4>
+                    <p class="text-body-tertiary mb-0 fs-10" id="modalSubTitleText">
+                        Create a dedicated manufacturer or seller profile with company and factory information first.
+                    </p>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <!-- Dual Mode Switcher Pills -->
+                    <div class="btn-group btn-group-sm p-1 bg-body-tertiary rounded-pill border" role="group">
+                        <button type="button" class="btn btn-sm btn-success rounded-pill px-3 py-1 fw-bold fs-10" id="btnSwitchSeller" onclick="switchCustomerModalMode('seller')">
+                            <i class="fas fa-industry me-1"></i> Seller Form (Company First)
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold fs-10 border-0" id="btnSwitchBuyer" onclick="switchCustomerModalMode('buyer')">
+                            <i class="fas fa-shopping-bag me-1"></i> Buyer Form (Normal)
+                        </button>
+                    </div>
+                    <button class="btn btn-sm btn-phoenix-secondary rounded-circle" data-bs-dismiss="modal" aria-label="Close">
+                        <span class="fas fa-times"></span>
+                    </button>
+                </div>
             </div>
 
-            <div class="modal-body px-6">
-                <form method="POST" id="addBuyerForm">
+            <div class="modal-body px-4 py-3">
+                <form method="POST" id="addCustomerForm">
                     {% csrf_token %}
                     <input type="hidden" name="add_customer" value="true">
+                    <input type="hidden" name="customer_type" id="modalCustomerTypeHidden" value="seller">
 
                     {% if modal_form.non_field_errors %}
-                        <div class="alert alert-danger">
+                        <div class="alert alert-danger py-2 fs-10">
                             {{ modal_form.non_field_errors }}
                         </div>
                     {% endif %}
 
-                    <h5 class="mb-3 border-bottom pb-2">Personal Details</h5>
-                    <div class="row g-4 mb-4">
-                        <div class="col-lg-6">
-                            <div class="mb-3">
-                                <label class="text-body-highlight fw-bold mb-2">First Name</label>
-                                {{ modal_form.first_name }}
-                                <div class="text-danger small">{{ modal_form.first_name.errors }}</div>
+                    <!-- Container for Reordered Sections -->
+                    <div id="modalDynamicSectionsContainer">
+
+                        <!-- SECTION A: Company & Business Details -->
+                        <div class="card bg-body-tertiary border-0 rounded-3 mb-3 p-3" id="sectionCompanyDetails">
+                            <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                                <h6 class="text-success fs-9 text-uppercase fw-bold mb-0">
+                                    <i class="fas fa-building me-1"></i> 1. Company & Business Details <span class="badge bg-success-subtle text-success ms-2 fs-11" id="badgeCompanyPriority">Primary Details for Seller</span>
+                                </h6>
+                                <span class="fs-11 text-body-tertiary">Premises, Trade Name & GST</span>
                             </div>
-                            <div class="mb-3">
-                                <label class="text-body-highlight fw-bold mb-2">Phone <span class="text-danger">*</span></label>
-                                {{ modal_form.phone }}
-                                <div class="text-danger small">{{ modal_form.phone.errors }}</div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="text-body-highlight fw-bold mb-2">Email</label>
-                                {{ modal_form.email }}
-                                <div class="text-danger small">{{ modal_form.email.errors }}</div>
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">Company / Firm / Factory Name <span class="text-danger" id="reqMarkCompany">*</span></label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="fas fa-industry"></i></span>
+                                        {{ modal_form.company_name }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.company_name.errors }}</div>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">GSTIN Number (Optional)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text text-uppercase fw-bold fs-11">GST</span>
+                                        {{ modal_form.gst_number }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.gst_number.errors }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fs-10 fw-semibold text-body-highlight mb-1">Street / Factory / Shop Address</label>
+                                    {{ modal_form.address }}
+                                    <div class="text-danger small">{{ modal_form.address.errors }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">City / District</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="fas fa-city"></i></span>
+                                        {{ modal_form.city }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.city.errors }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">State / Region</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="fas fa-map-marker-alt"></i></span>
+                                        {{ modal_form.state }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.state.errors }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fs-10 fw-semibold text-body-highlight mb-1">Pincode</label>
+                                    {{ modal_form.pincode }}
+                                    <div class="text-danger small">{{ modal_form.pincode.errors }}</div>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-lg-6">
-                            <div class="mb-3">
-                                <label class="text-body-highlight fw-bold mb-2">Last Name</label>
-                                {{ modal_form.last_name }}
-                                <div class="text-danger small">{{ modal_form.last_name.errors }}</div>
+
+                        <!-- SECTION B: Contact Person Details -->
+                        <div class="card bg-body-tertiary border-0 rounded-3 mb-3 p-3" id="sectionContactDetails">
+                            <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                                <h6 class="text-primary fs-9 text-uppercase fw-bold mb-0">
+                                    <i class="fas fa-address-book me-1"></i> 2. Contact Person Details <span class="badge bg-primary-subtle text-primary ms-2 fs-11 d-none" id="badgeBuyerPriority">Primary Details for Buyer</span>
+                                </h6>
+                                <span class="fs-11 text-body-tertiary">Direct Phone & WhatsApp</span>
                             </div>
-                            <div class="mb-3">
-                                <label class="text-body-highlight fw-bold mb-2">Status <span class="text-danger">*</span></label>
-                                {{ modal_form.status }}
-                                <div class="text-danger small">{{ modal_form.status.errors }}</div>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">First Name</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        {{ modal_form.first_name }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.first_name.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">Last Name</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                        {{ modal_form.last_name }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.last_name.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">Primary Mobile / Phone <span class="text-danger">*</span></label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text bg-primary-subtle text-primary fw-bold">+91</span>
+                                        {{ modal_form.phone }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.phone.errors }}</div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <label class="form-label fs-10 fw-semibold text-body-highlight mb-0">WhatsApp Number</label>
+                                        <button type="button" class="btn btn-link btn-xs p-0 text-success text-decoration-none" onclick="copyModalPhoneToWa()">
+                                            <i class="fab fa-whatsapp me-0.5"></i>Same as Phone
+                                        </button>
+                                    </div>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text text-success"><i class="fab fa-whatsapp"></i></span>
+                                        {{ modal_form.whatsapp_number }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.whatsapp_number.errors }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fs-10 fw-semibold text-body-highlight mb-1">Email Address (Optional)</label>
+                                    <div class="input-group input-group-sm">
+                                        <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                        {{ modal_form.email }}
+                                    </div>
+                                    <div class="text-danger small">{{ modal_form.email.errors }}</div>
+                                </div>
                             </div>
                         </div>
+
+                        <!-- SECTION C: CRM, Pipeline & Notes -->
+                        <div class="card bg-body-tertiary border-0 rounded-3 mb-3 p-3" id="sectionCRMDetails">
+                            <div class="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
+                                <h6 class="text-info fs-9 text-uppercase fw-bold mb-0">
+                                    <i class="fas fa-briefcase me-1"></i> 3. CRM Pipeline, Lead Source & Notes
+                                </h6>
+                                <span class="fs-11 text-body-tertiary">Assignment & Initial Status</span>
+                            </div>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">Pipeline Status <span class="text-danger">*</span></label>
+                                    {{ modal_form.status }}
+                                    <div class="text-danger small">{{ modal_form.status.errors }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">Lead Source</label>
+                                    {{ modal_form.lead_source }}
+                                    <div class="text-danger small">{{ modal_form.lead_source.errors }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fs-10 fw-bold text-body-highlight mb-1">Assign To</label>
+                                    {{ modal_form.assigned_to }}
+                                    <div class="text-danger small">{{ modal_form.assigned_to.errors }}</div>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fs-10 fw-semibold text-body-highlight mb-1">Internal Notes & Initial Remarks</label>
+                                    {{ modal_form.notes }}
+                                    <div class="text-danger small">{{ modal_form.notes.errors }}</div>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
 
-                    <h5 class="mb-3 border-bottom pb-2">CRM Information</h5>
-                    <div class="row g-4 mb-4">
-                        <div class="col-md-6">
-                            <label class="text-body-highlight fw-bold mb-2">Lead Source</label>
-                            {{ modal_form.lead_source }}
-                            <div class="text-danger small">{{ modal_form.lead_source.errors }}</div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="text-body-highlight fw-bold mb-2">Assign To</label>
-                            {{ modal_form.assigned_to }}
-                            <div class="text-danger small">{{ modal_form.assigned_to.errors }}</div>
-                        </div>
-                    </div>
-
-                    <h5 class="mb-3 border-bottom pb-2">Address Details</h5>
-                    <div class="row g-3 mb-4">
-                        <div class="col-12">
-                            <label class="text-body-highlight fw-bold mb-2">Street Address</label>
-                            {{ modal_form.address }}
-                            <div class="text-danger small">{{ modal_form.address.errors }}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-body-highlight fw-bold mb-2">City</label>
-                            {{ modal_form.city }}
-                            <div class="text-danger small">{{ modal_form.city.errors }}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-body-highlight fw-bold mb-2">State</label>
-                            {{ modal_form.state }}
-                            <div class="text-danger small">{{ modal_form.state.errors }}</div>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="text-body-highlight fw-bold mb-2">Pincode</label>
-                            {{ modal_form.pincode }}
-                            <div class="text-danger small">{{ modal_form.pincode.errors }}</div>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="text-body-highlight fw-bold mb-2">Internal Notes</label>
-                        {{ modal_form.notes }}
-                        <div class="text-danger small">{{ modal_form.notes.errors }}</div>
-                    </div>
-
-                    <div class="modal-footer border-0 pt-4 px-0 pb-0">
-                        <button type="button" class="btn btn-link text-danger px-3 my-0" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary my-0">Create Buyer</button>
+                    <div class="modal-footer border-0 pt-2 px-0 pb-0 d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-subtle-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success px-5 fw-bold shadow-sm" id="btnModalSubmit">
+                            <i class="fas fa-check-circle me-1"></i> Save Seller Lead
+                        </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Backwards Compatibility Invisible Modal Anchor -->
+<div id="addBuyerModal" class="d-none"></div>
 
 <script>
     // Event delegation for table checkboxes
@@ -373,5 +484,93 @@
             htmx.trigger(select, 'change');
         }
     }
+
+    // Dual Modal Mode Switcher (Seller vs Buyer)
+    function switchCustomerModalMode(mode) {
+        const hiddenType = document.getElementById('modalCustomerTypeHidden');
+        const btnSeller = document.getElementById('btnSwitchSeller');
+        const btnBuyer = document.getElementById('btnSwitchBuyer');
+        const mainTitle = document.getElementById('modalTitleText');
+        const titleIcon = document.getElementById('modalTitleIcon');
+        const subTitle = document.getElementById('modalSubTitleText');
+        const submitBtn = document.getElementById('btnModalSubmit');
+        const container = document.getElementById('modalDynamicSectionsContainer');
+        const secCompany = document.getElementById('sectionCompanyDetails');
+        const secContact = document.getElementById('sectionContactDetails');
+        const secCRM = document.getElementById('sectionCRMDetails');
+        const badgeComp = document.getElementById('badgeCompanyPriority');
+        const badgeBuy = document.getElementById('badgeBuyerPriority');
+        const reqCompany = document.getElementById('reqMarkCompany');
+
+        if (mode === 'seller') {
+            hiddenType.value = 'seller';
+            btnSeller.className = 'btn btn-sm btn-success rounded-pill px-3 py-1 fw-bold fs-10';
+            btnBuyer.className = 'btn btn-sm btn-outline-primary rounded-pill px-3 py-1 fw-bold fs-10 border-0';
+            mainTitle.innerText = 'Add New Seller / Vendor';
+            titleIcon.className = 'fas fa-industry text-success me-2';
+            subTitle.innerText = 'Create a dedicated manufacturer or seller profile with company and factory information first.';
+            submitBtn.className = 'btn btn-success px-5 fw-bold shadow-sm';
+            submitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Save Seller Lead';
+
+            // Order for Seller: Company First -> Contact Person -> CRM
+            container.innerHTML = '';
+            container.appendChild(secCompany);
+            container.appendChild(secContact);
+            container.appendChild(secCRM);
+
+            if (badgeComp) badgeComp.classList.remove('d-none');
+            if (badgeBuy) badgeBuy.classList.add('d-none');
+            if (reqCompany) reqCompany.classList.remove('d-none');
+        } else {
+            hiddenType.value = 'buyer';
+            btnBuyer.className = 'btn btn-sm btn-primary rounded-pill px-3 py-1 fw-bold fs-10';
+            btnSeller.className = 'btn btn-sm btn-outline-success rounded-pill px-3 py-1 fw-bold fs-10 border-0';
+            mainTitle.innerText = 'Add New Buyer / Contractor';
+            titleIcon.className = 'fas fa-shopping-bag text-primary me-2';
+            subTitle.innerText = 'Create a customer/buyer lead with purchaser contact person details first.';
+            submitBtn.className = 'btn btn-primary px-5 fw-bold shadow-sm';
+            submitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> Save Buyer Lead';
+
+            // Order for Buyer: Contact Person First -> Company Details -> CRM
+            container.innerHTML = '';
+            container.appendChild(secContact);
+            container.appendChild(secCompany);
+            container.appendChild(secCRM);
+
+            if (badgeComp) badgeComp.classList.add('d-none');
+            if (badgeBuy) badgeBuy.classList.remove('d-none');
+            if (reqCompany) reqCompany.classList.add('d-none');
+        }
+    }
+
+    function openAddCustomerModal(mode) {
+        switchCustomerModalMode(mode);
+        const modalEl = document.getElementById('addCustomerModal');
+        if (modalEl) {
+            const modalObj = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modalObj.show();
+        }
+    }
+
+    function copyModalPhoneToWa() {
+        const phoneInput = document.querySelector('#addCustomerForm input[name="phone"]');
+        const waInput = document.querySelector('#addCustomerForm input[name="whatsapp_number"]');
+        if (phoneInput && waInput && phoneInput.value) {
+            waInput.value = phoneInput.value;
+        }
+    }
+
+    // Initialize Bootstrap Tooltips & Popovers
+    function initBootstrapTooltips() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return bootstrap.Tooltip.getOrCreateInstance(tooltipTriggerEl);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initBootstrapTooltips);
+    document.body.addEventListener('htmx:afterSwap', function() {
+        initBootstrapTooltips();
+    });
 </script>
 {% endblock %}

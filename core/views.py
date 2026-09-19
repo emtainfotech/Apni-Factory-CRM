@@ -1450,7 +1450,17 @@ def customer_list(request):
         return redirect('customer_list')
 
     # --- STANDARD LIST LOGIC (Search/Pagination) ---
-    qs = Customer.objects.select_related('assigned_to').all().order_by('-created_at')
+    from django.db.models import OuterRef, Subquery
+    last_call_sub = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-created_at')
+
+    qs = Customer.objects.select_related('assigned_to').annotate(
+        last_call_status=Subquery(last_call_sub.values('call_status')[:1]),
+        last_call_remark=Subquery(last_call_sub.values('remark')[:1]),
+        last_call_time=Subquery(last_call_sub.values('created_at')[:1]),
+        last_call_emp_first_name=Subquery(last_call_sub.values('employee__first_name')[:1]),
+        last_call_emp_last_name=Subquery(last_call_sub.values('employee__last_name')[:1]),
+        last_call_emp_username=Subquery(last_call_sub.values('employee__username')[:1]),
+    ).order_by('-created_at')
     
     # 1. Search Query
     query = request.GET.get('q', '').strip()
@@ -1468,6 +1478,7 @@ def customer_list(request):
     source_filter = request.GET.get('lead_source', '').strip()
     assignee_filter = request.GET.get('assigned_to', '').strip()
     customer_type_filter = request.GET.get('customer_type', '').strip()
+    connection_status_filter = request.GET.get('connection_status', '').strip()
     state_filter = request.GET.get('state', '').strip()
     city_filter = request.GET.get('city', '').strip()
     pincode_filter = request.GET.get('pincode', '').strip()
@@ -1485,6 +1496,11 @@ def customer_list(request):
         qs = qs.filter(assigned_to__isnull=False)
     elif assignee_filter and assignee_filter.isdigit():
         qs = qs.filter(assigned_to_id=assignee_filter)
+
+    if connection_status_filter == 'never_called':
+        qs = qs.filter(last_call_status__isnull=True)
+    elif connection_status_filter in ('connected', 'not_connected', 'busy', 'no_answer', 'follow_up'):
+        qs = qs.filter(last_call_status=connection_status_filter)
 
     if state_filter:
         qs = qs.filter(state__icontains=state_filter)
@@ -1535,6 +1551,8 @@ def customer_list(request):
         'selected_source': source_filter,
         'selected_assignee': assignee_filter,
         'selected_customer_type': customer_type_filter,
+        'selected_connection_status': connection_status_filter,
+        'call_status_choices': CallLog.CALL_STATUS_CHOICES,
         'selected_state': state_filter,
         'selected_city': city_filter,
         'selected_pincode': pincode_filter,

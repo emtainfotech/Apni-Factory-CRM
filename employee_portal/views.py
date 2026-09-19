@@ -836,17 +836,30 @@ def customer_list(request):
             return redirect(referer or 'employee_portal:customer_list')
 
     # 2. Assignment Scope Filter
+    from django.db.models import OuterRef, Subquery
+    last_call_sub = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-created_at')
+
     assigned_filter = request.GET.get('assigned_to', 'my').strip()
     if assigned_filter == 'unassigned':
-        qs = Customer.objects.filter(assigned_to__isnull=True).order_by('-created_at')
+        qs = Customer.objects.filter(assigned_to__isnull=True)
     elif assigned_filter == 'all' and (request.user.role in ['manager', 'admin'] or request.user.is_superuser):
-        qs = Customer.objects.all().order_by('-created_at')
+        qs = Customer.objects.all()
     else:
         assigned_filter = 'my'
-        qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user)).order_by('-created_at')
+        qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user))
+
+    qs = qs.select_related('assigned_to', 'created_by').annotate(
+        last_call_status=Subquery(last_call_sub.values('call_status')[:1]),
+        last_call_remark=Subquery(last_call_sub.values('remark')[:1]),
+        last_call_time=Subquery(last_call_sub.values('created_at')[:1]),
+        last_call_emp_first_name=Subquery(last_call_sub.values('employee__first_name')[:1]),
+        last_call_emp_last_name=Subquery(last_call_sub.values('employee__last_name')[:1]),
+        last_call_emp_username=Subquery(last_call_sub.values('employee__username')[:1]),
+    ).order_by('-created_at')
 
     # 3. Filters
     customer_type_filter = request.GET.get('customer_type', '').strip()
+    connection_status_filter = request.GET.get('connection_status', '').strip()
     query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
     source_filter = request.GET.get('lead_source', '').strip()
@@ -856,6 +869,11 @@ def customer_list(request):
 
     if customer_type_filter in ('buyer', 'seller'):
         qs = qs.filter(customer_type=customer_type_filter)
+
+    if connection_status_filter == 'never_called':
+        qs = qs.filter(last_call_status__isnull=True)
+    elif connection_status_filter in ('connected', 'not_connected', 'busy', 'no_answer', 'follow_up'):
+        qs = qs.filter(last_call_status=connection_status_filter)
 
     if query:
         qs = qs.filter(
@@ -920,6 +938,8 @@ def customer_list(request):
         'city_filter': city_filter,
         'pincode_filter': pincode_filter,
         'current_customer_type': customer_type_filter,
+        'connection_status_filter': connection_status_filter,
+        'call_status_choices': CallLog.CALL_STATUS_CHOICES,
         'assigned_filter': assigned_filter,
         'per_page': per_page,
         'total_filtered_count': total_filtered_count,
@@ -933,7 +953,7 @@ def customer_list(request):
         'source_choices': source_choices,
         'state_choices': state_choices,
         'employees': employees,
-        'create_customer_form': EmployeeCustomerCreateForm(initial={'country': 'India', 'lead_source': 'manual', 'status': 'lead', 'customer_type': 'buyer'}),
+        'create_customer_form': EmployeeCustomerCreateForm(initial={'country': 'India', 'lead_source': 'manual', 'status': 'lead', 'customer_type': 'seller'}),
     }
     return render(request, 'employee_portal/customer_list.html', context)
 

@@ -35,14 +35,15 @@
                         <input class="form-check-input" type="checkbox" id="select-all-customers" title="Select all on this page">
                     </div>
                 </th>
-                <th class="ps-2 py-3" style="min-width: 200px;">Account / Name</th>
-                <th class="py-3" style="min-width: 150px;">Contact Info</th>
-                <th class="py-3" style="min-width: 160px;">Location Details</th>
-                <th class="py-3" style="min-width: 120px;">Lead Source</th>
-                <th class="py-3" style="min-width: 120px;">Joined Date</th>
-                <th class="py-3" style="min-width: 130px;">Assigned To</th>
-                <th class="py-3 text-center" style="min-width: 100px;">Status</th>
-                <th class="text-end pe-4 py-3" style="min-width: 90px;">Actions</th>
+                <th class="ps-2 py-3" style="min-width: 220px;">Account / Party</th>
+                <th class="py-3" style="min-width: 140px;">Contact Info</th>
+                <th class="py-3" style="min-width: 150px;">Location Details</th>
+                <th class="py-3" style="min-width: 110px;">Lead Source</th>
+                <th class="py-3" style="min-width: 110px;">Joined Date</th>
+                <th class="py-3" style="min-width: 150px;">Assigned To</th>
+                <th class="py-3" style="min-width: 180px;">Last Call & Remark</th>
+                <th class="py-3 text-center" style="min-width: 90px;">Pipeline</th>
+                <th class="text-end pe-4 py-3" style="min-width: 80px;">Actions</th>
             </tr>
         </thead>
         <tbody class="list">
@@ -56,23 +57,42 @@
 
                 <td class="ps-2">
                     <div class="d-flex align-items-center">
-                        <div class="avatar avatar-s me-2 rounded-circle {% if customer.customer_type == 'seller' %}bg-success-subtle text-success{% else %}bg-primary-subtle text-primary{% endif %} fw-bold text-center pt-1" style="width:32px; height:32px;">
-                            {{ customer.first_name|slice:":1"|upper|default:"C" }}
+                        <div class="avatar avatar-s me-2 rounded-circle {% if customer.customer_type == 'seller' %}bg-success-subtle text-success border border-success-subtle{% else %}bg-primary-subtle text-primary border border-primary-subtle{% endif %} fw-bold text-center pt-1" style="width:34px; height:34px;">
+                            {% if customer.customer_type == 'seller' %}
+                                <i class="fas fa-industry fs-10"></i>
+                            {% else %}
+                                <i class="fas fa-shopping-bag fs-10"></i>
+                            {% endif %}
                         </div>
                         <div>
                             <a class="fw-bold text-body-emphasis text-decoration-none d-block" href="{% url 'customer_detail' customer.id %}">
-                                {{ customer.first_name|default:"Unnamed" }} {{ customer.last_name }}
+                                {% if customer.customer_type == 'seller' %}
+                                    <span class="text-success"><i class="fas fa-building me-1"></i></span>{{ customer.display_title }}
+                                {% else %}
+                                    <span class="text-primary"><i class="fas fa-user me-1"></i></span>{{ customer.display_title }}
+                                {% endif %}
                                 {% if customer.is_gst_verified %}
                                 <span class="badge bg-success-subtle text-success border border-success-subtle px-1.5 py-0.5 ms-1" style="font-size: 8px;">
-                                    <i class="fas fa-check-circle me-1"></i>GST
+                                    <i class="fas fa-check-circle me-0.5"></i>GST
                                 </span>
                                 {% endif %}
                             </a>
+                            
+                            {% if customer.display_subtitle %}
+                            <div class="text-body-secondary fs-10">
+                                {% if customer.customer_type == 'seller' %}
+                                    <i class="fas fa-user-tie me-1 text-body-tertiary"></i>Contact: <strong class="text-body-highlight">{{ customer.display_subtitle }}</strong>
+                                {% else %}
+                                    <i class="fas fa-store me-1 text-body-tertiary"></i>Firm: <strong class="text-body-highlight">{{ customer.display_subtitle }}</strong>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
                             <div class="d-flex align-items-center gap-1 mt-0.5">
                                 <span class="badge badge-phoenix {% if customer.customer_type == 'seller' %}badge-phoenix-success{% else %}badge-phoenix-info{% endif %}" style="font-size: 8px;">
-                                    {% if customer.customer_type == 'seller' %}🏭 Seller{% else %}🛍️ Buyer{% endif %}
+                                    {% if customer.customer_type == 'seller' %}🏭 SELLER{% else %}🛍️ BUYER{% endif %}
                                 </span>
-                                <small class="text-body-quaternary fs-10">ID: #{{ customer.id }}</small>
+                                <small class="text-body-quaternary fs-11">ID: #{{ customer.id }}</small>
                             </div>
                         </div>
                     </div>
@@ -83,8 +103,13 @@
                         <a href="tel:{{ customer.phone }}" class="text-body-highlight text-decoration-none fw-semibold fs-10">
                             <span class="fas fa-phone-alt me-1 text-body-tertiary"></span>{{ customer.phone }}
                         </a>
+                        {% if customer.whatsapp_number and customer.whatsapp_number != customer.phone %}
+                        <a href="https://wa.me/91{{ customer.whatsapp_number }}" target="_blank" class="text-success text-decoration-none fs-11">
+                            <i class="fab fa-whatsapp me-1"></i>{{ customer.whatsapp_number }}
+                        </a>
+                        {% endif %}
                         {% if customer.email %}
-                        <a href="mailto:{{ customer.email }}" class="text-body-tertiary fs-10 text-decoration-none">
+                        <a href="mailto:{{ customer.email }}" class="text-body-tertiary fs-11 text-decoration-none text-truncate" style="max-width: 140px;">
                             <span class="fas fa-envelope me-1 text-body-tertiary"></span>{{ customer.email }}
                         </a>
                         {% endif %}
@@ -100,7 +125,7 @@
                         {% else %}
                         <span class="text-body-quaternary fs-10">-</span>
                         {% endif %}
-                        <small class="text-body-tertiary fs-10">
+                        <small class="text-body-tertiary fs-11">
                             <span class="fas fa-map-marker-alt me-1 text-danger"></span>Pin: {{ customer.pincode|default:"Universal" }}
                         </small>
                     </div>
@@ -121,13 +146,18 @@
                     {% if customer.assigned_to %}
                         <div class="d-flex align-items-center">
                             <div class="avatar avatar-s me-2">
-                                <div class="avatar-name rounded-circle bg-success-subtle text-success pt-0.5" style="font-size: 0.75rem;">
-                                    {{ customer.assigned_to.username|slice:":1"|upper }}
+                                <div class="avatar-name rounded-circle bg-success-subtle text-success pt-0.5 fw-bold" style="font-size: 0.75rem;">
+                                    {{ customer.assigned_to.first_name|slice:":1"|default:customer.assigned_to.username|slice:":1"|upper }}
                                 </div>
                             </div>
                             <div>
-                                <span class="text-body fw-bold fs-10 d-block">{{ customer.assigned_to.username }}</span>
-                                <small class="text-success fs-11"><i class="fas fa-check-circle me-1"></i>Assigned</small>
+                                <span class="text-body-emphasis fw-bold fs-10 d-block">
+                                    {{ customer.assigned_to.get_full_name|default:customer.assigned_to.username }}
+                                </span>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span class="badge bg-secondary-subtle text-secondary py-0 px-1 fs-11 font-monospace">{{ customer.assigned_to.username }}</span>
+                                    <small class="text-success fs-11"><i class="fas fa-check-circle me-0.5"></i>Assigned</small>
+                                </div>
                             </div>
                         </div>
                     {% else %}
@@ -135,6 +165,56 @@
                             <i class="fas fa-user-clock me-1"></i>Unassigned
                         </span>
                     {% endif %}
+                </td>
+
+                <!-- Last Connection & Remark (NEW) -->
+                <td>
+                    <div class="d-flex flex-column">
+                        <!-- Connection Status Badge -->
+                        <div class="mb-1 d-flex align-items-center gap-1 flex-wrap">
+                            {% if customer.last_call_status == 'connected' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle py-0.5 px-1.5 fs-11">
+                                    <i class="fas fa-phone-alt me-1"></i>Connected
+                                </span>
+                            {% elif customer.last_call_status == 'not_connected' %}
+                                <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0.5 px-1.5 fs-11">
+                                    <i class="fas fa-phone-slash me-1"></i>Not Connected
+                                </span>
+                            {% elif customer.last_call_status == 'busy' %}
+                                <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-0.5 px-1.5 fs-11">
+                                    <i class="fas fa-phone-volume me-1"></i>Busy
+                                </span>
+                            {% elif customer.last_call_status == 'no_answer' %}
+                                <span class="badge bg-secondary-subtle text-secondary border py-0.5 px-1.5 fs-11">
+                                    <i class="fas fa-phone-missed me-1"></i>No Answer
+                                </span>
+                            {% elif customer.last_call_status == 'follow_up' %}
+                                <span class="badge bg-info-subtle text-info border border-info-subtle py-0.5 px-1.5 fs-11">
+                                    <i class="fas fa-calendar-check me-1"></i>Follow Up
+                                </span>
+                            {% else %}
+                                <span class="badge bg-body-secondary text-body-tertiary border py-0.5 px-1.5 fs-11">
+                                    <i class="fas fa-minus me-1"></i>Never Called
+                                </span>
+                            {% endif %}
+                            {% if customer.last_call_time %}
+                                <small class="text-body-quaternary fs-11">{{ customer.last_call_time|timesince }} ago</small>
+                            {% endif %}
+                        </div>
+
+                        <!-- Last Remark with Interactive Hover Tooltip -->
+                        {% with remark_text=customer.last_call_remark|default:customer.notes %}
+                            {% if remark_text %}
+                                <div class="text-body-secondary fs-10 text-truncate" style="max-width: 175px; cursor: pointer;" 
+                                     data-bs-toggle="tooltip" data-bs-html="true" data-bs-placement="top"
+                                     title="<div class='text-start p-1'><strong>Last Remark:</strong><br/>{{ remark_text|escape }}<br/><hr class='my-1 border-secondary'/><small class='text-light'>{% if customer.last_call_emp_first_name or customer.last_call_emp_username %}By: {{ customer.last_call_emp_first_name|default:customer.last_call_emp_username }} &bull; {% endif %}{{ customer.last_call_time|date:'d M Y, H:i'|default:'Initial Note' }}</small></div>">
+                                    <i class="fas fa-comment-dots text-primary me-1"></i>{{ remark_text }}
+                                </div>
+                            {% else %}
+                                <span class="text-body-quaternary fs-11 fst-italic">No remarks logged</span>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
                 </td>
 
                 <td class="text-center">
@@ -156,7 +236,7 @@
             </tr>
             {% empty %}
             <tr>
-                <td colspan="9" class="text-center py-5 text-body-tertiary">
+                <td colspan="10" class="text-center py-5 text-body-tertiary">
                     <div class="avatar avatar-xl bg-body-tertiary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
                         <span class="fas fa-search-minus text-secondary fs-4"></span>
                     </div>
