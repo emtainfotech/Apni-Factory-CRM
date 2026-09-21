@@ -58,6 +58,8 @@ def _enrich_product_object(p, cats, subcats, brands, attrs_by_prod, shades, pack
     p.brand_name = brands.get(p.brand_id, '')
     
     prod_attrs = attrs_by_prod.get(str(p.product_id), []) or attrs_by_prod.get(str(p.id), [])
+    if not prod_attrs:
+        prod_attrs = list(ProductAttributes.objects.filter(Q(product_id=str(p.product_id)) | Q(product_id=str(p.id))))
     
     if prod_attrs:
         prices = [a.price for a in prod_attrs if a.price is not None and a.price > 0]
@@ -336,6 +338,12 @@ def product_detail_view(request, slug):
     product.sizes = list(sizes_map.values())
     
     sim_prods = list(Products.objects.filter(category_id=product.category_id, status=1).exclude(id=product.id)[:6])
+    if sim_prods:
+        sim_ids_str = [str(sp.product_id) for sp in sim_prods] + [str(sp.id) for sp in sim_prods]
+        sim_attrs = list(ProductAttributes.objects.filter(product_id__in=sim_ids_str))
+        for a in sim_attrs:
+            attrs_by_prod.setdefault(str(a.product_id), []).append(a)
+            
     for sp in sim_prods:
         _enrich_product_object(sp, cats, subcats, brands_map, attrs_by_prod, shades, pack_map)
     product.similar_products = sim_prods
