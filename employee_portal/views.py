@@ -426,7 +426,7 @@ def missed_punchout_form(request):
         if missed_attendance and missed_attendance.punch_in:
             from datetime import datetime as dt_cls
             exit_dt_naive = dt_cls.combine(missed_date, exit_time)
-            exit_dt = kolkata_tz.localize(exit_dt_naive)
+            exit_dt = exit_dt_naive.replace(tzinfo=kolkata_tz)
             missed_attendance.punch_out = exit_dt
             missed_attendance.is_punched_in = False
             work_duration = exit_dt - missed_attendance.punch_in
