@@ -12,6 +12,7 @@ urlpatterns = [
     path('dashboard/admin/approve-login/<int:request_id>/', views.approve_login_request, name='approve_login_request'),
     path('dashboard/admin/reject-login/<int:request_id>/', views.reject_login_request, name='reject_login_request'),
     path('dashboard/admin/approve-reassignment/<int:request_id>/', views.approve_reassignment_request, name='approve_reassignment_request'),
+    path('dashboard/admin/bulk-approve-reassignments/', views.bulk_approve_reassignments, name='bulk_approve_reassignments'),
     path('dashboard/admin/reject-reassignment/<int:request_id>/', views.reject_reassignment_request, name='reject_reassignment_request'),
     path('dashboard/manager/', views.manager_dashboard, name='dashboard_manager'),
     path('dashboard/agent/', views.agent_dashboard, name='dashboard_agent'),

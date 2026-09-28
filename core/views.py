@@ -172,8 +172,8 @@ def admin_dashboard(request):
     # Leads count
     total_leads = Customer.objects.filter(status='lead').count()
     
-    # WhatsApp Bot capture metrics
-    whatsapp_needs_human = WhatsAppLead.objects.filter(needs_human=True).select_related('customer')
+    # WhatsApp Bot capture metrics - show only latest 10
+    whatsapp_needs_human = WhatsAppLead.objects.filter(needs_human=True).select_related('customer').order_by('-last_message_time', '-id')[:10]
     total_whatsapp_leads = WhatsAppLead.objects.count()
     
     # HRMS Overview
@@ -359,64 +359,120 @@ def reject_login_request(request, request_id):
     return redirect('dashboard_admin')
 
 
-@login_required
-@user_passes_test(is_admin)
-def approve_reassignment_request(request, request_id):
-    """
-    Admin approval of a lead reassignment request:
-    Reassigns customer to requested_by, logs activity, sends notification, and marks approved.
-    """
-    from .models import LeadReassignmentRequest, CustomerActivityLog
+def _process_single_reassignment_approval(reassign_req, admin_user, admin_notes=''):
+    """Helper to approve a single reassignment request, reassign customer, log activity, and notify."""
+    if reassign_req.status != 'pending':
+        return False, None
+    from .models import CustomerActivityLog
     from authentication.models import Notification
 
-    reassign_req = get_object_or_404(LeadReassignmentRequest, id=request_id)
-    if reassign_req.status == 'pending':
-        cust = reassign_req.customer
-        old_assignee = cust.assigned_to
-        new_assignee = reassign_req.requested_by
+    cust = reassign_req.customer
+    old_assignee = cust.assigned_to
+    new_assignee = reassign_req.requested_by
 
-        # Update customer assignment
-        cust.assigned_to = new_assignee
-        cust.save()
+    # Update customer assignment
+    cust.assigned_to = new_assignee
+    cust.save()
 
-        # Update request record
-        reassign_req.status = 'approved'
-        reassign_req.resolved_at = timezone.now()
-        reassign_req.resolved_by = request.user
-        reassign_req.admin_notes = request.POST.get('admin_notes', '').strip()
-        reassign_req.save()
+    # Update request record
+    reassign_req.status = 'approved'
+    reassign_req.resolved_at = timezone.now()
+    reassign_req.resolved_by = admin_user
+    if admin_notes:
+        reassign_req.admin_notes = admin_notes
+    reassign_req.save()
 
-        party_name = cust.company_name or f"{cust.first_name} {cust.last_name}".strip() or cust.phone
+    party_name = cust.company_name or f"{cust.first_name} {cust.last_name}".strip() or cust.phone
 
-        # Notify requesting employee
+    # Notify requesting employee
+    try:
         Notification.objects.create(
             recipient=new_assignee,
-            message=f"🎉 Reassignment Approved: Customer '{party_name}' has been assigned to you by Admin.",
+            message=f"✅ Reassignment Approved: Customer '{party_name}' has been assigned to you by Admin.",
             url=reverse('employee_portal:customer_detail', kwargs={'customer_id': cust.id})
         )
+    except Exception:
+        pass
 
-        # Notify old assignee if exists
-        if old_assignee and old_assignee != new_assignee:
+    # Notify old assignee if exists
+    if old_assignee and old_assignee != new_assignee:
+        try:
             Notification.objects.create(
                 recipient=old_assignee,
                 message=f"Notice: Customer '{party_name}' has been reassigned to {new_assignee.get_display_name()} by Admin.",
                 url=reverse('employee_portal:customer_list')
             )
+        except Exception:
+            pass
 
-        # Log Activity
-        old_name = old_assignee.get_display_name() if old_assignee else 'Unassigned'
-        new_name = new_assignee.get_display_name()
+    # Log Activity
+    old_name = old_assignee.get_display_name() if old_assignee else 'Unassigned'
+    new_name = new_assignee.get_display_name()
+    try:
         CustomerActivityLog.objects.create(
             customer=cust,
-            employee=request.user,
+            employee=admin_user,
             action="Reassignment Approved",
-            description=f"Lead reassigned from {old_name} to {new_name} by Admin {request.user.username}."
+            description=f"Lead reassigned from {old_name} to {new_name} by Admin {admin_user.username}."
         )
+    except Exception:
+        pass
 
-        messages.success(request, f"Successfully reassigned '{party_name}' to {new_name}.")
+    return True, party_name
+
+
+@login_required
+@user_passes_test(is_admin)
+def approve_reassignment_request(request, request_id):
+    """
+    Admin approval of a single lead reassignment request:
+    Reassigns customer to requested_by, logs activity, sends notification, and marks approved.
+    """
+    from .models import LeadReassignmentRequest
+    reassign_req = get_object_or_404(LeadReassignmentRequest, id=request_id)
+    notes = request.POST.get('admin_notes', '').strip()
+    success, party_name = _process_single_reassignment_approval(reassign_req, request.user, notes)
+    if success:
+        messages.success(request, f"Successfully reassigned '{party_name}' to {reassign_req.requested_by.get_display_name()}.")
     else:
         messages.info(request, "This request has already been processed.")
 
+    return redirect('dashboard_admin')
+
+
+@login_required
+@user_passes_test(is_admin)
+def bulk_approve_reassignments(request):
+    """
+    Bulk approval of lead reassignment requests:
+    Supports approving all pending requests at once ('action=all') or multiple selected requests ('request_ids').
+    """
+    if request.method != 'POST':
+        return redirect('dashboard_admin')
+
+    from .models import LeadReassignmentRequest
+
+    action = request.POST.get('action', '').strip()
+    if action == 'all':
+        pending_list = list(LeadReassignmentRequest.objects.filter(status='pending').select_related('customer', 'requested_by', 'current_assignee'))
+    else:
+        req_ids = request.POST.getlist('request_ids')
+        if not req_ids:
+            messages.warning(request, "Please select at least one reassignment request to approve.")
+            return redirect('dashboard_admin')
+        pending_list = list(LeadReassignmentRequest.objects.filter(id__in=req_ids, status='pending').select_related('customer', 'requested_by', 'current_assignee'))
+
+    if not pending_list:
+        messages.info(request, "No pending reassignment requests found to approve.")
+        return redirect('dashboard_admin')
+
+    approved_count = 0
+    for req in pending_list:
+        success, _ = _process_single_reassignment_approval(req, request.user)
+        if success:
+            approved_count += 1
+
+    messages.success(request, f"Successfully approved {approved_count} lead reassignment request(s) at once.")
     return redirect('dashboard_admin')
 
 

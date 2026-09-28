@@ -405,7 +405,7 @@
         <div class="col-12">
             <div class="card border-1 border-warning bg-warning-subtle shadow-sm">
                 <div class="card-header bg-warning border-0 py-2 d-flex align-items-center justify-content-between">
-                    <h6 class="text-white mb-0 fw-bold"><span class="fab fa-whatsapp me-2"></span>WhatsApp Live Conversational Alerts (Human Required)</h6>
+                    <h6 class="text-white mb-0 fw-bold"><span class="fab fa-whatsapp me-2"></span>WhatsApp Live Conversational Alerts (Human Required) &bull; <span class="fs-10 fw-normal opacity-75">Latest 10 Leads</span></h6>
                     <span class="badge bg-danger">Critical Attention</span>
                 </div>
                 <div class="card-body p-0">
@@ -421,7 +421,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for wl in whatsapp_needs_human %}
+                                {% for wl in whatsapp_needs_human|slice:":10" %}
                                 <tr>
                                     <td class="ps-3 fw-bold">{{ wl.phone_number }}</td>
                                     <td>
@@ -451,8 +451,9 @@
                                 </tr>
                                 {% endfor %}
                             </tbody>
-                        </table>
-                    </div>
+                            </table>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -464,7 +465,7 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow-sm border-0 border-top border-4 border-warning">
-                <div class="card-header bg-warning-subtle d-flex justify-content-between align-items-center py-3">
+                <div class="card-header bg-warning-subtle d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-2">
                         <span class="fas fa-people-arrows text-warning fs-8"></span>
                         <div>
@@ -472,16 +473,31 @@
                             <span class="text-body-tertiary fs-10">Employees requesting lead reassignment from duplicate checks or portfolio transfers</span>
                         </div>
                     </div>
-                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">
-                        <i class="fas fa-bell me-1"></i>{{ pending_reassignments_count }} Request{{ pending_reassignments_count|pluralize }}
-                    </span>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <span class="badge badge-phoenix badge-phoenix-warning fs-10">
+                            <i class="fas fa-bell me-1"></i>{{ pending_reassignments_count }} Request{{ pending_reassignments_count|pluralize }}
+                        </span>
+                        <!-- Approve Selected Button (activates when checkboxes are checked) -->
+                        <button type="submit" form="bulkReassignForm" id="btnApproveSelected" class="btn btn-primary btn-sm shadow-sm" disabled style="display: none;">
+                            <i class="fas fa-check me-1"></i>Approve Selected (<span id="reassignSelectedCount">0</span>)
+                        </button>
+                        <!-- Approve All in Once Button -->
+                        <button type="button" class="btn btn-success btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#modalApproveAllReassignments">
+                            <i class="fas fa-check-double me-1"></i>Approve All in Once
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-hover fs-9 mb-0 align-middle">
-                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
-                                <tr>
-                                    <th class="ps-3 py-2">Customer / Company</th>
+                    <form method="post" action="{% url 'bulk_approve_reassignments' %}" id="bulkReassignForm">
+                        {% csrf_token %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover fs-9 mb-0 align-middle">
+                                <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                    <tr>
+                                        <th class="ps-3 py-2 text-center" style="width: 38px;">
+                                            <input class="form-check-input" type="checkbox" id="checkAllReassign" title="Select All Requests" />
+                                        </th>
+                                        <th class="py-2">Customer / Company</th>
                                     <th class="py-2">Type</th>
                                     <th class="py-2">Requested By</th>
                                     <th class="py-2">Current Assignee</th>
@@ -493,7 +509,10 @@
                             <tbody>
                                 {% for req in pending_reassignments %}
                                 <tr>
-                                    <td class="ps-3">
+                                    <td class="ps-3 text-center">
+                                        <input class="form-check-input row-reassign-check" type="checkbox" name="request_ids" value="{{ req.id }}" />
+                                    </td>
+                                    <td>
                                         <a href="{% url 'customer_detail' req.customer.id %}" class="fw-bold text-primary text-decoration-none" title="Open full customer profile in CRM">
                                             {% if req.customer.company_name %}
                                                 {{ req.customer.company_name }}
@@ -580,6 +599,91 @@
             </div>
         </div>
     </div>
+
+    <!-- Modal: Confirm Approve All Reassignments in Once -->
+    <div class="modal fade" id="modalApproveAllReassignments" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header bg-success text-white py-3">
+                    <h6 class="modal-title fw-bold text-white mb-0">
+                        <span class="fas fa-check-double me-2"></span>Approve All Reassignments in Once
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'bulk_approve_reassignments' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="all">
+                    <div class="modal-body p-4 text-start">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="avatar avatar-l bg-success-subtle rounded-circle d-flex align-items-center justify-content-center text-success fs-7">
+                                <i class="fas fa-people-arrows"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-1">Confirm Approve All</h6>
+                                <p class="fs-10 text-body-secondary mb-0">You are about to approve <strong>all {{ pending_reassignments_count }} pending lead reassignment requests</strong> in one click.</p>
+                            </div>
+                        </div>
+                        <div class="alert alert-subtle-success fs-10 mb-0">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Each customer lead will be immediately reassigned to their respective requesting employee, activity logs will be recorded, and notifications will be sent automatically.
+                        </div>
+                    </div>
+                    <div class="modal-footer py-2 bg-light border-top">
+                        <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success btn-sm fw-bold">
+                            <i class="fas fa-check-double me-1"></i>Yes, Approve All ({{ pending_reassignments_count }})
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const checkAll = document.getElementById('checkAllReassign');
+        const rowChecks = document.querySelectorAll('.row-reassign-check');
+        const btnApproveSelected = document.getElementById('btnApproveSelected');
+        const countDisplay = document.getElementById('reassignSelectedCount');
+
+        function updateReassignBulkControls() {
+            let count = 0;
+            rowChecks.forEach(cb => {
+                if (cb.checked) count++;
+            });
+            if (countDisplay) countDisplay.textContent = count;
+            if (btnApproveSelected) {
+                if (count > 0) {
+                    btnApproveSelected.style.display = 'inline-block';
+                    btnApproveSelected.removeAttribute('disabled');
+                    btnApproveSelected.classList.remove('disabled');
+                } else {
+                    btnApproveSelected.style.display = 'none';
+                    btnApproveSelected.setAttribute('disabled', 'disabled');
+                    btnApproveSelected.classList.add('disabled');
+                }
+            }
+            if (checkAll) {
+                checkAll.checked = rowChecks.length > 0 && count === rowChecks.length;
+                checkAll.indeterminate = count > 0 && count < rowChecks.length;
+            }
+        }
+
+        if (checkAll) {
+            checkAll.addEventListener('change', function() {
+                rowChecks.forEach(cb => {
+                    cb.checked = checkAll.checked;
+                });
+                updateReassignBulkControls();
+            });
+        }
+
+        rowChecks.forEach(cb => {
+            cb.addEventListener('change', updateReassignBulkControls);
+        });
+    });
+    </script>
+
     {% endif %}
 
     <!-- Pending Login Approvals -->
