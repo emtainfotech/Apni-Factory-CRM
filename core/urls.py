@@ -3,6 +3,7 @@ from django.urls import path
 from . import views
 from . import gst_api_view
 from . import api_views
+from . import file_views
 from . import mobile_api_views
 
 urlpatterns = [
@@ -106,6 +107,12 @@ urlpatterns = [
     path('api/my-customers/', api_views.my_customers),
     path('api/customer-detail/<int:customer_id>/', api_views.get_customer_detail),
     path('api/mobile/gst-check/', mobile_api_views.mobile_gst_check, name='mobile_gst_check'), ## Mobile Application API end Points
+
+    # File Manager Routes
+    path('files/', file_views.file_manager_view, name='file_manager'),
+    path('files/api/<int:customer_id>/folders/', file_views.get_customer_folders_api, name='get_customer_folders_api'),
+    path('files/api/<int:customer_id>/create-folder/', file_views.create_folder_api, name='create_folder_api'),
+    path('files/api/<int:customer_id>/upload/', file_views.upload_file_api, name='upload_file_api'),
 
     # Employee Onboarding Routes (Admin)
     path('onboarding/', views.onboarding_list, name='onboarding_list'),

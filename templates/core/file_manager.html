@@ -1,0 +1,318 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <!-- Sidebar for Customer Selection -->
+        <div class="col-md-3">
+            <div class="card h-100 shadow-sm border-0">
+                <div class="card-header bg-white border-0 pt-4 pb-0">
+                    <h5 class="mb-0 fw-bold">Customers</h5>
+                    <input type="text" id="customer-search" class="form-control form-control-sm mt-3" placeholder="Search customer...">
+                </div>
+                <div class="card-body px-0" style="max-height: 70vh; overflow-y: auto;">
+                    <ul class="list-group list-group-flush" id="customer-list">
+                        {% for customer in customers %}
+                        <li class="list-group-item list-group-item-action cursor-pointer customer-item" data-id="{{ customer.id }}">
+                            <div class="d-flex align-items-center">
+                                <div class="avatar avatar-sm me-3 bg-primary text-white rounded-circle d-flex align-items-center justify-content-center">
+                                    {{ customer.get_display_name|slice:":1"|upper }}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-sm">{{ customer.get_display_name }}</h6>
+                                    <p class="text-xs text-muted mb-0">{{ customer.phone }}</p>
+                                </div>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-center text-muted">No customers found.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main File Area -->
+        <div class="col-md-9">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
+                    <div class="d-flex align-items-center">
+                        <h5 class="mb-0 fw-bold me-3" id="current-customer-name">Select a Customer</h5>
+                        <nav aria-label="breadcrumb">
+                            <ol class="breadcrumb mb-0 bg-transparent p-0 text-sm" id="breadcrumb-container" style="display: none;">
+                                <li class="breadcrumb-item"><a href="#" id="breadcrumb-root">Home</a></li>
+                            </ol>
+                        </nav>
+                    </div>
+                    <div class="d-flex gap-2" id="file-actions" style="display: none !important;">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="showCreateFolderModal()"><i class="fas fa-folder-plus"></i> New Folder</button>
+                        <button class="btn btn-sm btn-primary" onclick="document.getElementById('file-upload-input').click()"><i class="fas fa-upload"></i> Upload</button>
+                        <input type="file" id="file-upload-input" class="d-none" multiple>
+                    </div>
+                </div>
+                <div class="card-body bg-light" id="file-manager-body">
+                    <div class="text-center text-muted py-5" id="no-customer-selected">
+                        <i class="fas fa-folder-open fa-4x mb-3 text-light"></i>
+                        <h5>Please select a customer from the sidebar to manage files.</h5>
+                    </div>
+
+                    <!-- Drag & Drop Zone -->
+                    <div id="drop-zone" class="border-2 border-dashed border-primary rounded p-5 text-center bg-white d-none mb-3">
+                        <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-2"></i>
+                        <h5>Drag & Drop files here</h5>
+                        <p class="text-muted small">or click Upload button</p>
+                    </div>
+
+                    <!-- Files Grid -->
+                    <div class="row g-3 d-none" id="files-grid">
+                        <!-- Items rendered via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Folder Modal -->
+<div class="modal fade" id="createFolderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New Folder</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="new-folder-name" class="form-control" placeholder="Folder Name">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="createFolder()">Create</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .cursor-pointer { cursor: pointer; }
+    .customer-item.active { background-color: #f8f9fa; border-left: 4px solid #0d6efd; }
+    .file-item, .folder-item { transition: all 0.2s; border: 1px solid transparent; }
+    .file-item:hover, .folder-item:hover { background-color: #e9ecef; border-color: #dee2e6; border-radius: 8px; }
+    .border-dashed { border-style: dashed !important; }
+</style>
+<script>
+    let currentCustomerId = null;
+    let currentFolderId = null;
+    let breadcrumbs = [];
+
+    // Search Customers
+    document.getElementById('customer-search').addEventListener('input', function(e) {
+        const text = e.target.value.toLowerCase();
+        document.querySelectorAll('.customer-item').forEach(item => {
+            const name = item.querySelector('h6').textContent.toLowerCase();
+            const phone = item.querySelector('p').textContent.toLowerCase();
+            item.style.display = (name.includes(text) || phone.includes(text)) ? 'block' : 'none';
+        });
+    });
+
+    // Select Customer
+    document.querySelectorAll('.customer-item').forEach(item => {
+        item.addEventListener('click', function() {
+            document.querySelectorAll('.customer-item').forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+            
+            currentCustomerId = this.dataset.id;
+            const customerName = this.querySelector('h6').textContent;
+            
+            document.getElementById('no-customer-selected').classList.add('d-none');
+            document.getElementById('current-customer-name').textContent = customerName;
+            document.getElementById('file-actions').style.display = 'flex';
+            document.getElementById('file-actions').style.setProperty('display', 'flex', 'important');
+            document.getElementById('files-grid').classList.remove('d-none');
+            document.getElementById('breadcrumb-container').style.display = 'flex';
+            
+            currentFolderId = null;
+            breadcrumbs = [{id: null, name: 'Home'}];
+            updateBreadcrumbs();
+            loadFolderContents();
+        });
+    });
+
+    // Load Folder Contents
+    function loadFolderContents(folderId = null) {
+        if (!currentCustomerId) return;
+        currentFolderId = folderId;
+        
+        let url = `/files/api/${currentCustomerId}/folders/`;
+        if (folderId) url += `?parent_id=${folderId}`;
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                const grid = document.getElementById('files-grid');
+                grid.innerHTML = '';
+                
+                // Render Folders
+                data.folders.forEach(folder => {
+                    const icon = folder.is_system ? 'fa-brands fa-whatsapp text-success' : 'fa-folder text-warning';
+                    grid.innerHTML += `
+                        <div class="col-md-3 col-sm-4 col-6">
+                            <div class="p-3 text-center folder-item cursor-pointer" onclick="openFolder(${folder.id}, '${folder.name}')">
+                                <i class="fas ${icon} fa-3x mb-2"></i>
+                                <h6 class="text-truncate mb-0" title="${folder.name}">${folder.name}</h6>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // Render Files
+                data.files.forEach(file => {
+                    let icon = 'fa-file text-secondary';
+                    if (file.type.includes('image')) icon = 'fa-file-image text-primary';
+                    else if (file.type.includes('pdf')) icon = 'fa-file-pdf text-danger';
+                    else if (file.type.includes('video')) icon = 'fa-file-video text-info';
+
+                    grid.innerHTML += `
+                        <div class="col-md-3 col-sm-4 col-6">
+                            <div class="p-3 text-center file-item cursor-pointer" onclick="window.open('${file.url}', '_blank')">
+                                <i class="fas ${icon} fa-3x mb-2"></i>
+                                <h6 class="text-truncate mb-0 text-sm" title="${file.name}">${file.name}</h6>
+                                <small class="text-muted">${formatBytes(file.size)}</small>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if(data.folders.length === 0 && data.files.length === 0) {
+                    grid.innerHTML = '<div class="col-12 text-center py-4 text-muted">This folder is empty.</div>';
+                }
+            });
+    }
+
+    // Open Folder
+    function openFolder(folderId, folderName) {
+        breadcrumbs.push({id: folderId, name: folderName});
+        updateBreadcrumbs();
+        loadFolderContents(folderId);
+    }
+
+    // Update Breadcrumbs
+    function updateBreadcrumbs() {
+        const container = document.getElementById('breadcrumb-container');
+        container.innerHTML = '';
+        breadcrumbs.forEach((crumb, index) => {
+            if (index === breadcrumbs.length - 1) {
+                container.innerHTML += `<li class="breadcrumb-item active">${crumb.name}</li>`;
+            } else {
+                container.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="navigateToCrumb(${index})">${crumb.name}</a></li>`;
+            }
+        });
+    }
+
+    function navigateToCrumb(index) {
+        breadcrumbs = breadcrumbs.slice(0, index + 1);
+        const targetCrumb = breadcrumbs[breadcrumbs.length - 1];
+        updateBreadcrumbs();
+        loadFolderContents(targetCrumb.id);
+    }
+
+    // Create Folder
+    function showCreateFolderModal() {
+        if (!currentCustomerId) return;
+        new bootstrap.Modal(document.getElementById('createFolderModal')).show();
+    }
+
+    function createFolder() {
+        const name = document.getElementById('new-folder-name').value;
+        if (!name) return;
+
+        const formData = new FormData();
+        formData.append('name', name);
+        if (currentFolderId) formData.append('parent_id', currentFolderId);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        fetch(`/files/api/${currentCustomerId}/create-folder/`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('createFolderModal')).hide();
+                document.getElementById('new-folder-name').value = '';
+                loadFolderContents(currentFolderId);
+            } else {
+                alert(data.error);
+            }
+        });
+    }
+
+    // Upload File (Click & Drag-Drop)
+    const fileInput = document.getElementById('file-upload-input');
+    const dropZone = document.getElementById('drop-zone');
+
+    fileInput.addEventListener('change', (e) => uploadFiles(e.target.files));
+
+    // Drag and Drop Logic
+    document.getElementById('file-manager-body').addEventListener('dragover', (e) => {
+        e.preventDefault();
+        if(currentFolderId) dropZone.classList.remove('d-none');
+    });
+    
+    document.getElementById('file-manager-body').addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        if(e.target === dropZone) dropZone.classList.add('d-none');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('d-none');
+        uploadFiles(e.dataTransfer.files);
+    });
+
+    function uploadFiles(files) {
+        if (!currentCustomerId) {
+            alert('Please select a customer first');
+            return;
+        }
+        if (!currentFolderId) {
+            alert('You can only upload files inside a folder. Please open or create a folder first.');
+            return;
+        }
+
+        Array.from(files).forEach(file => {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('folder_id', currentFolderId);
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+            fetch(`/files/api/${currentCustomerId}/upload/`, {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    loadFolderContents(currentFolderId);
+                } else {
+                    alert(data.error || 'Upload failed');
+                }
+            });
+        });
+        
+        fileInput.value = ''; // Reset input
+    }
+
+    function formatBytes(bytes, decimals = 1) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+</script>
+{% endblock %}

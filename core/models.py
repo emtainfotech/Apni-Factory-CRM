@@ -1099,4 +1099,39 @@ class WhatsAppQuickReplyMedia(models.Model):
 
     def __str__(self):
         return f"{self.file_name} ({self.media_type}) for /{self.quick_reply.keyword}"
-
+
+class CustomerFolder(models.Model):
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='folders')
+    parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='subfolders')
+    name = models.CharField(max_length=255)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_system_folder = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ('customer', 'parent', 'name')
+
+    def __str__(self):
+        return f"{self.name} ({self.customer.get_display_name()})"
+
+
+def customer_directory_path(instance, filename):
+    return f'customer_docs/customer_{instance.folder.customer.id}/{filename}'
+
+
+class CustomerFile(models.Model):
+    folder = models.ForeignKey(CustomerFolder, on_delete=models.CASCADE, related_name='files')
+    file = models.FileField(upload_to=customer_directory_path)
+    name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=50, blank=True)
+    size = models.BigIntegerField(default=0)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return self.name
+

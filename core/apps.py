@@ -28,3 +28,5 @@ class CoreConfig(AppConfig):
                         shutil.copyfile(valid_src, target_file)
         except Exception:
             pass
+
+        import core.signals

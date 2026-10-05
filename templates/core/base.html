@@ -248,6 +248,14 @@
                                                 class="nav-link text-body-tertiary fs-10 fw-bold text-uppercase ps-3">Team
                                                 & Customers</span>
                                         </li>
+                                        <li class="nav-item">
+                                            <a class="nav-link {% if url_name == 'file_manager' %}active{% endif %}" href="{% url 'file_manager' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><i class="fas fa-folder text-warning"></i></span>
+                                                    <span class="nav-link-text">File Manager</span>
+                                                </div>
+                                            </a>
+                                        </li>
 
                                         <li class="nav-item">
                                             <a class="nav-link {% if 'user' in request.path and 'hostinger' not in request.path %}active{% endif %}"

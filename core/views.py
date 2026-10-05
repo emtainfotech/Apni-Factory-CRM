@@ -3301,6 +3301,33 @@ def process_conversation(phone, profile_name, message, media_id=None):
         if content_file:
             chat.attachment = content_file
             chat.attachment_type = mime_type
+            
+            # Auto-save to customer's whatsapp folder
+            from core.models import CustomerFolder, CustomerFile
+            import os
+            whatsapp_folder, _ = CustomerFolder.objects.get_or_create(
+                customer=customer, 
+                name='whatsapp',
+                parent=None,
+                defaults={'is_system_folder': True}
+            )
+            file_name = message if message and not message.startswith('[') else os.path.basename(content_file.name)
+            if not file_name:
+                file_name = f"whatsapp_media_{media_id}"
+            
+            size = 0
+            try:
+                size = content_file.size
+            except Exception:
+                pass
+                
+            CustomerFile.objects.create(
+                folder=whatsapp_folder,
+                file=content_file,
+                name=file_name,
+                file_type=mime_type or '',
+                size=size
+            )
     chat.save()
 
     lead, _ = WhatsAppLead.objects.get_or_create(phone_number=phone)
