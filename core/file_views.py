@@ -8,6 +8,8 @@ from .models import CustomerFolder, CustomerFile, Customer
 from django.db.models import Q
 from django.core.exceptions import PermissionDenied
 
+from django.core.paginator import Paginator
+
 @login_required
 def file_manager_view(request):
     """
@@ -15,11 +17,23 @@ def file_manager_view(request):
     Admins can see all customers.
     Employees see only their assigned customers.
     """
-    customers = Customer.objects.all()
+    customers = Customer.objects.all().order_by('-created_at')
     if request.user.role == 'employee' and not request.user.is_superuser:
         customers = customers.filter(assigned_to=request.user)
 
-    return render(request, 'core/file_manager.html', {'customers': customers})
+    search_query = request.GET.get('q', '')
+    if search_query:
+        customers = customers.filter(
+            Q(first_name__icontains=search_query) | 
+            Q(phone__icontains=search_query) | 
+            Q(company_name__icontains=search_query)
+        )
+
+    paginator = Paginator(customers, 10) # Show 10 customers per page
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'core/file_manager.html', {'page_obj': page_obj, 'search_query': search_query})
 
 @login_required
 @require_GET
