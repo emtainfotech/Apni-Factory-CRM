@@ -264,7 +264,8 @@
                     </div>
                 </div>
 
-                                <!-- Input Footer -->
+                
+                <!-- Input Footer -->
                 <div class="p-3 bg-white border-top border-300 position-relative">
                     <!-- Quick Action Bar -->
                     <div class="d-flex align-items-center justify-content-between mb-2">
@@ -322,7 +323,7 @@
                     <div id="keywordSuggestionsBox" class="dropdown-menu shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 360px; max-width: 460px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;">
                         <div class="px-3 py-2 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between sticky-top bg-body">
                             <span><i class="fas fa-bolt text-warning me-1"></i> Matching Quick Replies</span>
-                            <span class="badge bg-light text-secondary">?? Navigate � Enter to Insert</span>
+                            <span class="badge bg-light text-secondary">↑↓ Navigate • Enter to Insert</span>
                         </div>
                         <div id="keywordSuggestionsItems">
                             <!-- Injected dynamically -->
@@ -343,15 +344,15 @@
                             </button>
                             <div class="dropdown-menu p-2 shadow-lg border-0" style="min-width: 200px;">
                                 <div class="d-flex flex-wrap gap-1 justify-content-center">
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('?')">?</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
-                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('??')">??</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('👍')">👍</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('🙏')">🙏</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('✅')">✅</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('📦')">📦</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('🤝')">🤝</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('📞')">📞</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('📄')">📄</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('😀')">😀</button>
+                                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertEmployeeEmoji('🚀')">🚀</button>
                                 </div>
                             </div>
 
@@ -376,6 +377,7 @@
                         </div>
                     </form>
                 </div>
+
             </div>
         </div>
     </div>
@@ -704,6 +706,7 @@ let employeeCustomFile = null;
 // Quick Reply & Keyword Shortcuts System
 window.quickReplyTemplates = [];
 window.currentCustomerMeta = { id: null, name: '', company: '', phone: '', city: '' };
+
 function showCustomAlert(message, type = 'danger') {
     const toastContainerId = 'customToastContainer';
     let container = document.getElementById(toastContainerId);
@@ -717,17 +720,17 @@ function showCustomAlert(message, type = 'danger') {
     const toastId = 'toast-' + Math.random().toString(36).substr(2, 9);
     const bgClass = type === 'danger' ? 'bg-danger text-white' : 'bg-success text-white';
     const iconClass = type === 'danger' ? 'fas fa-exclamation-circle' : 'fas fa-check-circle';
-    const toastHtml = \
-        <div id="\" class="toast align-items-center border-0 \" role="alert" aria-live="assertive" aria-atomic="true">
+    const toastHtml = `
+        <div id="${toastId}" class="toast align-items-center border-0 ${bgClass}" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="d-flex">
                 <div class="toast-body d-flex align-items-center gap-2 fs-9">
-                    <i class="\ fs-8"></i>
-                    <span>\</span>
+                    <i class="${iconClass} fs-8"></i>
+                    <span>${message}</span>
                 </div>
                 <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
-    \;
+    `;
     container.insertAdjacentHTML('beforeend', toastHtml);
     const toastEl = document.getElementById(toastId);
     if (window.bootstrap && window.bootstrap.Toast) {
@@ -737,10 +740,10 @@ function showCustomAlert(message, type = 'danger') {
             toastEl.remove();
         });
     } else {
-        // Fallback if bootstrap is not defined
         alert(message);
     }
 }
+
 let activeSuggestionIndex = 0;
 let currentModalFilterType = 'all';
 
@@ -1991,6 +1994,4 @@ function sendSelectedMetaTemplate() {
     });
 }
 </script>
-
-
 
