@@ -122,10 +122,11 @@
         <input type="hidden" id="active-customer-id" value="{{ initial_customer_id|default:'' }}">
         <input type="hidden" id="coreAttachSellerGuideInput" value="false">
         <input type="hidden" id="coreQuickReplyMediaIds" name="quick_reply_media_ids" value="">
+        <input type="hidden" id="coreQuickReplyMetaTemplates" name="quick_reply_meta_templates" value="">
         <input type="file" id="coreAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/*" onchange="handleCoreFileInputChange(this.files)">
 
         <div class="input-group">
-            <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach Document, Image or Video (or Drag & Drop / Paste Ctrl+V)">
+            <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" onclick="openMetaTemplateModal()" title="Send WhatsApp Meta Template"><i class="fab fa-whatsapp fs-9 text-success"></i></button>`r`n              <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach Document, Image or Video (or Drag & Drop / Paste Ctrl+V)">
                 <i class="fas fa-paperclip fs-9 text-primary"></i>
             </button>
             <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message, /keyword (e.g. /seller), or paste (Ctrl+V) / drag image or document..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
@@ -395,6 +396,7 @@ function applyCoreQuickReplyTemplate(templateId) {
 
     const input = document.getElementById('chat-input');
     const mediaIdsInput = document.getElementById('coreQuickReplyMediaIds');
+    const metaTemplatesInput = document.getElementById('coreQuickReplyMetaTemplates');
 
     // 1. Fill substituted message
     const formattedMsg = replaceCoreTemplateVariables(t.message || '');
@@ -408,6 +410,7 @@ function applyCoreQuickReplyTemplate(templateId) {
     // 2. Stage media attachments
     if (t.media && t.media.length > 0) {
         if (mediaIdsInput) mediaIdsInput.value = t.media.map(m => m.id).join(',');
+        if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names || '';
         coreCustomFile = null; // Staged server files take precedence
 
         const tray = document.getElementById('coreCustomAttachmentTray');
@@ -771,7 +774,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (e.key === 'Escape') {
                 const qrMediaVal = document.getElementById('coreQuickReplyMediaIds')?.value;
-                if (coreCustomFile || qrMediaVal) {
+                const qrMetaVal = document.getElementById('coreQuickReplyMetaTemplates')?.value;
+                if (coreCustomFile || qrMediaVal || qrMetaVal) {
                     removeCoreCustomAttachment();
                     return;
                 }
@@ -1056,7 +1060,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const customerId = activeCustomerIdInput.value;
         const msg = chatInput.value.trim();
         const qrMediaIds = (document.getElementById('coreQuickReplyMediaIds')?.value || '').trim();
-        if(!msg && !isCorePdfAttached && !coreCustomFile && !qrMediaIds) return;
+        const qrMetaTemplates = (document.getElementById('coreQuickReplyMetaTemplates')?.value || '').trim();
+        if(!msg && !isCorePdfAttached && !coreCustomFile && !qrMediaIds && !qrMetaTemplates) return;
         if(!customerId) return;
 
         const sendBtn = document.getElementById('coreSendMsgBtn');
@@ -1072,6 +1077,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (qrMediaIds) {
             formData.append('quick_reply_media_ids', qrMediaIds);
+        }
+        if (qrMetaTemplates) {
+            formData.append('quick_reply_meta_templates', qrMetaTemplates);
         }
 
         fetch(`/core/whatsapp/send/${customerId}/`, {
@@ -1191,4 +1199,103 @@ document.addEventListener('DOMContentLoaded', function() {
         );
     }
 });
+</script>
+
+
+
+<!-- Meta Template Selection Modal -->
+<div class="modal fade" id="coreMetaTemplateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-lg">
+      <div class="modal-header bg-light border-bottom-0 pb-0">
+        <h5 class="modal-title fw-bold text-dark"><i class="fab fa-whatsapp text-success me-2"></i>Send Meta Template</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body pt-3 pb-4">
+        <div class="mb-3">
+            <label class="form-label fs-9 fw-bold">Select Approved Template</label>
+            <select id="coreMetaTemplateSelect" class="form-select form-select-sm">
+                <option value="">Loading templates...</option>
+            </select>
+        </div>
+      </div>
+      <div class="modal-footer bg-light border-top py-2">
+        <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success btn-sm px-4 fw-bold" onclick="sendSelectedMetaTemplate()">
+          <i class="fas fa-paper-plane me-1"></i> Send Template
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let metaTemplatesLoaded = false;
+function openMetaTemplateModal() {
+    if (!activeCustomerIdInput.value) {
+        alert('Please select a customer first to send a template.');
+        return;
+    }
+    const modal = new bootstrap.Modal(document.getElementById('coreMetaTemplateModal'));
+    modal.show();
+    
+    if (!metaTemplatesLoaded) {
+        fetch('/core/whatsapp/meta-templates/api/')
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    const sel = document.getElementById('coreMetaTemplateSelect');
+                    sel.innerHTML = '<option value="">-- Choose a template --</option>';
+                    data.templates.forEach(t => {
+                        sel.innerHTML += <option value=" + t.name + "> + t.name + </option>;
+                    });
+                    metaTemplatesLoaded = true;
+                }
+            }).catch(e => console.error(e));
+    }
+}
+
+function sendSelectedMetaTemplate() {
+    const tmplName = document.getElementById('coreMetaTemplateSelect').value;
+    if (!tmplName) {
+        alert('Please select a template');
+        return;
+    }
+    const customerId = activeCustomerIdInput.value;
+    if(!customerId) return;
+
+    const formData = new FormData();
+    formData.append('quick_reply_meta_templates', tmplName);
+
+    // Also close modal
+    const modalEl = document.getElementById('coreMetaTemplateModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if(modal) modal.hide();
+
+    const sendBtn = document.getElementById('coreSendMsgBtn');
+    const sendBtnText = document.getElementById('coreSendMsgBtnText');
+    if (sendBtn) sendBtn.disabled = true;
+    if (sendBtnText) sendBtnText.innerText = "Sending...";
+
+    fetch(`/core/whatsapp/send/` + customerId + `/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': getCookie('csrftoken') || ''
+        },
+        body: formData
+    }).then(res => res.json()).then(data => {
+        if(sendBtn) sendBtn.disabled = false;
+        if(sendBtnText) sendBtnText.innerText = "Send";
+        if(data.status === 'success') {
+            refreshChat(customerId);
+        } else {
+            alert(data.message || 'Error sending template');
+        }
+    }).catch(err => {
+        console.error(err);
+        if(sendBtn) sendBtn.disabled = false;
+        if(sendBtnText) sendBtnText.innerText = "Send";
+        alert('Request failed');
+    });
+}
 </script>

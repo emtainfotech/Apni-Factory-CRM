@@ -101,6 +101,7 @@ urlpatterns = [
     path('whatsapp/templates/<int:pk>/edit/', views.whatsapp_quick_reply_edit, name='whatsapp_quick_reply_edit'),
     path('whatsapp/templates/<int:pk>/delete/', views.whatsapp_quick_reply_delete, name='whatsapp_quick_reply_delete'),
     path('whatsapp/templates/api/', views.whatsapp_quick_replies_api, name='whatsapp_quick_replies_api'),
+    path('whatsapp/meta-templates/api/', views.whatsapp_meta_templates_api, name='whatsapp_meta_templates_api'),
     path('api/login/', api_views.app_login),
     path('api/check-number/', api_views.check_number),
     path('api/save-log/', api_views.save_call_log),

@@ -4434,8 +4434,9 @@ def send_whatsapp_message_ajax(request, customer_id):
         attachment_file = request.FILES.get('attachment')
         attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
         quick_reply_media_ids = request.POST.get('quick_reply_media_ids', '').strip()
+        quick_reply_meta_templates = request.POST.get('quick_reply_meta_templates', '').strip()
         
-        if not message_text and not attachment_file and not attach_seller_guide and not quick_reply_media_ids:
+        if not message_text and not attachment_file and not attach_seller_guide and not quick_reply_media_ids and not quick_reply_meta_templates:
             return JsonResponse({'status': 'error', 'message': 'Message or attachment cannot be empty.'})
             
         target_phone = customer.whatsapp_number or customer.phone
@@ -4447,6 +4448,7 @@ def send_whatsapp_message_ajax(request, customer_id):
             send_video_message,
             upload_media_to_meta,
             send_seller_onboarding_template,
+            send_template_message,
             get_whatsapp_window_status,
             format_india_time,
             format_whatsapp_phone,
@@ -4640,6 +4642,18 @@ def send_whatsapp_message_ajax(request, customer_id):
                 timestamp=timezone.now()
             )
         
+        if quick_reply_meta_templates:
+            tmpl_names = [x.strip() for x in quick_reply_meta_templates.split(',') if x.strip()]
+            for tmpl_name in tmpl_names:
+                ok, wamid, err = send_template_message(target_phone, tmpl_name)
+                WhatsAppChat.objects.create(
+                    customer=customer,
+                    message=f"[Template Sent]: {tmpl_name}",
+                    direction='outgoing',
+                    wamid=wamid if ok else None,
+                    timestamp=timezone.now()
+                )
+        
         # Disable Bot for this customer
         lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))
         lead.customer = customer
@@ -4783,6 +4797,7 @@ def whatsapp_quick_replies_view(request):
             title = request.POST.get('title', '').strip()
             content_type = request.POST.get('content_type', 'text')
             message = request.POST.get('message', '').strip()
+            meta_template_names = ','.join(request.POST.getlist('meta_template_names'))
 
             if not keyword:
                 messages.error(request, "Keyword shortcut cannot be empty.")
@@ -4797,6 +4812,7 @@ def whatsapp_quick_replies_view(request):
                 title=title or f"/{keyword}",
                 content_type=content_type,
                 message=message,
+                meta_template_names=meta_template_names,
                 created_by=request.user,
                 is_active=True
             )
@@ -4848,8 +4864,10 @@ def whatsapp_quick_replies_view(request):
         )
 
     all_templates = WhatsAppQuickReply.objects.all()
+    from .utils import get_approved_meta_templates
     context = {
         'templates': templates,
+        'meta_templates': get_approved_meta_templates(),
         'total_count': all_templates.count(),
         'text_count': all_templates.filter(content_type='text').count(),
         'image_count': all_templates.filter(content_type__in=['image', 'multiple_images']).count(),
@@ -4889,6 +4907,7 @@ def whatsapp_quick_reply_edit(request, pk):
                 'title': qr.title,
                 'content_type': qr.content_type,
                 'message': qr.message,
+                'meta_template_names': qr.meta_template_names,
                 'is_active': qr.is_active,
                 'media': media_list
             }
@@ -4917,6 +4936,7 @@ def whatsapp_quick_reply_edit(request, pk):
         qr.title = title or f"/{keyword}"
         qr.content_type = content_type
         qr.message = message
+        qr.meta_template_names = ','.join(request.POST.getlist('meta_template_names'))
         qr.is_active = is_active
         qr.save()
 
@@ -5014,6 +5034,7 @@ def whatsapp_quick_replies_api(request):
             'content_type': t.content_type,
             'content_type_display': t.get_content_type_display(),
             'message': t.message,
+            'meta_template_names': t.meta_template_names,
             'media': media_list,
         })
     return JsonResponse({'status': 'success', 'templates': results})
@@ -5149,6 +5170,7 @@ def whatsapp_start_new_chat(request):
             send_text_message,
             send_document_message,
             send_seller_onboarding_template,
+            send_template_message,
             get_whatsapp_window_status,
             format_india_time,
             DEFAULT_SELLER_GUIDE_PUBLIC_URL,
@@ -5665,3 +5687,11 @@ def serve_seller_guide_pdf(request):
             response['Cache-Control'] = 'public, max-age=86400'
             return response
     raise Http404("Seller Onboarding Guide PDF not found")
+
+
+
+
+def whatsapp_meta_templates_api(request):
+    from .utils import get_approved_meta_templates
+    templates = get_approved_meta_templates()
+    return JsonResponse({'status': 'success', 'templates': templates})

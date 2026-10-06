@@ -637,3 +637,19 @@ def get_failed_whatsapp_customer_ids(customer_ids=None):
 
     return final_failed_cust_ids
 
+def get_approved_meta_templates():
+    import requests
+    from django.conf import settings
+    waba_id = getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID', None)
+    access_token = getattr(settings, 'WHATSAPP_API_TOKEN', None)
+    if not waba_id or not access_token:
+        return []
+    try:
+        t_url = f'https://graph.facebook.com/v17.0/{waba_id}/message_templates?limit=100'
+        t_res = requests.get(t_url, headers={'Authorization': f'Bearer {access_token}'}, timeout=5)
+        if t_res.status_code == 200:
+            all_templates = t_res.json().get('data', [])
+            return [t for t in all_templates if t.get('status') == 'APPROVED']
+    except Exception:
+        pass
+    return []

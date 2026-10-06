@@ -391,6 +391,16 @@
                         <textarea name="message" id="newMessageInput" rows="5" class="form-control fs-9 font-monospace" placeholder="Type your WhatsApp message template here... Supports *bold*, _italic_, ~strike~, line breaks, and variables."></textarea>
                         <div class="form-text fs-11">Variables will be dynamically substituted with actual customer data upon insertion into chat.</div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fs-9 fw-bold">Attach WhatsApp Meta Templates (Optional)</label>
+                        <select name="meta_template_names" class="form-select form-select-sm" multiple>
+                            {% for tmpl in meta_templates %}
+                                <option value="{{ tmpl.name }}">{{ tmpl.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-11">Hold Ctrl (Windows) or Cmd (Mac) to select multiple templates. These will be sent immediately after the message/media.</div>
+                    </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
                     <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
@@ -486,6 +496,16 @@
                         </div>
 
                         <textarea name="message" id="editMessageInput" rows="5" class="form-control fs-9 font-monospace"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fs-9 fw-bold">Attach WhatsApp Meta Templates (Optional)</label>
+                        <select name="meta_template_names" id="editMetaTemplatesInput" class="form-select form-select-sm" multiple>
+                            {% for tmpl in meta_templates %}
+                                <option value="{{ tmpl.name }}">{{ tmpl.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-11">Hold Ctrl (Windows) or Cmd (Mac) to select multiple templates.</div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
@@ -616,6 +636,18 @@ function openEditModal(templateId) {
                 document.getElementById('editContentType').value = t.content_type;
                 document.getElementById('editMessageInput').value = t.message;
                 document.getElementById('editIsActive').checked = t.is_active;
+
+                // Set Meta Templates
+                const metaSelect = document.getElementById('editMetaTemplatesInput');
+                Array.from(metaSelect.options).forEach(opt => {
+                    opt.selected = false;
+                });
+                if (t.meta_template_names) {
+                    const selectedNames = t.meta_template_names.split(',').map(s => s.trim());
+                    Array.from(metaSelect.options).forEach(opt => {
+                        if (selectedNames.includes(opt.value)) opt.selected = true;
+                    });
+                }
 
                 // Handle existing media display
                 const existingSec = document.getElementById('editExistingMediaSection');

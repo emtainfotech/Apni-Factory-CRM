@@ -1016,6 +1016,7 @@ class WhatsAppQuickReply(models.Model):
         default="",
         help_text="Formatted message/caption. Supports *bold*, _italic_, ~strike~, code, and placeholders: {{customer_name}}, {{company_name}}, {{phone}}, {{city}}"
     )
+    meta_template_names = models.TextField(blank=True, default='', help_text='Comma-separated list of approved Meta Template names to send along with this quick reply.')
     is_active = models.BooleanField(default=True, db_index=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='quick_replies_created')
     created_at = models.DateTimeField(auto_now_add=True)
