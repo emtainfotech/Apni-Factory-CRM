@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from .models import ChatMessage, ChatRoom, UserPresence
+from .models import ChatMessage, ChatRoom, UserPresence, to_ist
 
 User = get_user_model()
 
@@ -77,7 +77,7 @@ def get_notifications(request):
             'id': n.pk,
             'message': n.message,
             'url': n.url or '/chat/',
-            'created_at': n.created_at.strftime('%d %b, %I:%M %p') if n.created_at else '',
+            'created_at': to_ist(n.created_at).strftime('%d %b, %I:%M %p') if n.created_at else '',
         } for n in notifs]
         return JsonResponse({'notifications': data, 'count': notifs.count()})
     except Exception as e:
@@ -376,7 +376,7 @@ def get_rooms_list(request):
             'unread': unread,
             'other_online': (other.pk in online_ids) if other else False,
             'last_message': last_msg.content[:60] if last_msg and last_msg.content else ('📎 Attachment' if last_msg and last_msg.attachment else ''),
-            'last_time': last_msg.timestamp.strftime('%I:%M %p') if last_msg else '',
+            'last_time': to_ist(last_msg.timestamp).strftime('%I:%M %p') if (last_msg and last_msg.timestamp) else '',
         })
 
     # Also get total unread notifications count

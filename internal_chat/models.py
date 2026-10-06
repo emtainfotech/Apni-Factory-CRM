@@ -1,6 +1,19 @@
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
+from zoneinfo import ZoneInfo
+
+IST_TZ = ZoneInfo("Asia/Kolkata")
+
+
+def to_ist(dt):
+    """Convert an aware or naive datetime to Indian Standard Time (Asia/Kolkata)."""
+    if not dt:
+        return None
+    if timezone.is_aware(dt):
+        return dt.astimezone(IST_TZ)
+    return timezone.make_aware(dt, timezone.utc).astimezone(IST_TZ)
+
 
 
 class ChatRoom(models.Model):
@@ -107,6 +120,7 @@ class ChatMessage(models.Model):
     def to_dict(self, current_user=None):
         """Serialize for JSON API response."""
         sender_name = self.sender.get_display_name() if hasattr(self.sender, 'get_display_name') else (self.sender.get_full_name() or self.sender.username)
+        ts_ist = to_ist(self.timestamp)
         data = {
             'id': self.id,
             'sender_id': self.sender_id,
@@ -118,9 +132,9 @@ class ChatMessage(models.Model):
             'content': self.content if not self.is_deleted else '🚫 This message was deleted.',
             'is_deleted': self.is_deleted,
             'is_forwarded': self.is_forwarded,
-            'timestamp': self.timestamp.strftime('%Y-%m-%dT%H:%M:%S'),
-            'time_display': self.timestamp.strftime('%I:%M %p'),
-            'date_display': self.timestamp.strftime('%d %b %Y'),
+            'timestamp': ts_ist.strftime('%Y-%m-%dT%H:%M:%S') if ts_ist else '',
+            'time_display': ts_ist.strftime('%I:%M %p') if ts_ist else '',
+            'date_display': ts_ist.strftime('%d %b %Y') if ts_ist else '',
             'is_own': (self.sender_id == current_user.pk) if current_user else False,
             'read_by_count': self.read_by.count(),
         }

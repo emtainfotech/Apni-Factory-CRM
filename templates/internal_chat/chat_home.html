@@ -1105,6 +1105,7 @@
 const CSRF = '{{ csrf_token }}';
 let activeRoomId = {% if active_room_id %}{{ active_room_id }}{% else %}null{% endif %};
 let lastTimestamp = null;
+let lastDateStr = null;
 let pollInterval = null;
 let presenceInterval = null;
 let roomsInterval = null;
@@ -1170,6 +1171,7 @@ function startDirectChat(userId) {
 function openRoom(roomId, roomName, roomType) {
   activeRoomId = roomId;
   lastTimestamp = null;
+  lastDateStr = null;
   cancelReply();
 
   document.querySelectorAll('.chat-item').forEach(el => el.classList.remove('active'));
@@ -1263,10 +1265,12 @@ function loadMessages(isInitial) {
       }
 
       if (data.messages && data.messages.length > 0) {
-        if (isInitial) container.innerHTML = '';
+        if (isInitial) {
+          container.innerHTML = '';
+          lastDateStr = null;
+        }
 
         let newFromOthers = false;
-        let lastDateStr = null;
 
         data.messages.forEach(msg => {
           rawMessagesCache[msg.id] = msg;
@@ -1658,9 +1662,26 @@ function sendMessage() {
   .then(data => {
     if (data.status === 'sent') {
       const container = document.getElementById('chatMessages');
+      if (data.message.date_display && data.message.date_display !== lastDateStr) {
+        lastDateStr = data.message.date_display;
+        const divider = document.createElement('div');
+        divider.className = 'date-divider';
+        divider.innerHTML = `<span>${data.message.date_display}</span>`;
+        container.appendChild(divider);
+      }
       rawMessagesCache[data.message.id] = data.message;
       container.appendChild(renderMessageElement(data.message));
       container.scrollTop = container.scrollHeight;
+
+      // Update active room time and snippet in sidebar immediately
+      const myTimeEl = document.getElementById('time-' + activeRoomId);
+      if (myTimeEl && data.message.time_display) {
+        myTimeEl.textContent = data.message.time_display;
+      }
+      const mySnippetEl = document.querySelector(`#room-item-${activeRoomId} .chat-snippet`);
+      if (mySnippetEl) {
+        mySnippetEl.textContent = data.message.content || (data.message.attachment_name ? '📎 ' + data.message.attachment_name : '📎 Attachment');
+      }
     }
   })
   .catch(() => {});
@@ -1748,6 +1769,14 @@ function startRoomsPoller() {
       .then(data => {
         if (data.rooms) {
           data.rooms.forEach(rm => {
+            const timeEl = document.getElementById('time-' + rm.id);
+            if (timeEl && rm.last_time) {
+              timeEl.textContent = rm.last_time;
+            }
+            const snippetEl = document.querySelector(`#room-item-${rm.id} .chat-snippet`);
+            if (snippetEl && rm.last_message) {
+              snippetEl.textContent = rm.last_message;
+            }
             const badgeEl = document.getElementById('badge-' + rm.id);
             if (rm.id === activeRoomId || rm.unread === 0) {
               if (badgeEl) badgeEl.remove();
