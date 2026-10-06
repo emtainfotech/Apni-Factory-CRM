@@ -394,12 +394,8 @@
                     
                     <div class="mb-3">
                         <label class="form-label fs-9 fw-bold">Attach WhatsApp Meta Templates (Optional)</label>
-                        <select name="meta_template_names" class="form-select form-select-sm" multiple>
-                            {% for tmpl in meta_templates %}
-                                <option value="{{ tmpl.name }}">{{ tmpl.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text fs-11">Hold Ctrl (Windows) or Cmd (Mac) to select multiple templates. These will be sent immediately after the message/media.</div>
+                        <input type="text" name="meta_template_names" class="form-control form-control-sm" placeholder="e.g. hello_world, welcome_message">
+                        <div class="form-text fs-11">Separate multiple template names with commas. These will be sent immediately after the message/media.</div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
@@ -500,12 +496,8 @@
                     
                     <div class="mb-3">
                         <label class="form-label fs-9 fw-bold">Attach WhatsApp Meta Templates (Optional)</label>
-                        <select name="meta_template_names" id="editMetaTemplatesInput" class="form-select form-select-sm" multiple>
-                            {% for tmpl in meta_templates %}
-                                <option value="{{ tmpl.name }}">{{ tmpl.name }}</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text fs-11">Hold Ctrl (Windows) or Cmd (Mac) to select multiple templates.</div>
+                        <input type="text" name="meta_template_names" id="editMetaTemplatesInput" class="form-control form-control-sm" placeholder="e.g. hello_world, welcome_message">
+                        <div class="form-text fs-11">Separate multiple template names with commas. These will be sent immediately after the message/media.</div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
@@ -638,16 +630,7 @@ function openEditModal(templateId) {
                 document.getElementById('editIsActive').checked = t.is_active;
 
                 // Set Meta Templates
-                const metaSelect = document.getElementById('editMetaTemplatesInput');
-                Array.from(metaSelect.options).forEach(opt => {
-                    opt.selected = false;
-                });
-                if (t.meta_template_names) {
-                    const selectedNames = t.meta_template_names.split(',').map(s => s.trim());
-                    Array.from(metaSelect.options).forEach(opt => {
-                        if (selectedNames.includes(opt.value)) opt.selected = true;
-                    });
-                }
+                document.getElementById('editMetaTemplatesInput').value = t.meta_template_names || '';
 
                 // Handle existing media display
                 const existingSec = document.getElementById('editExistingMediaSection');
@@ -724,3 +707,5 @@ function markMediaForDelete(mediaId) {
 }
 </style>
 {% endblock %}
+
+

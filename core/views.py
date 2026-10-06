@@ -4797,7 +4797,7 @@ def whatsapp_quick_replies_view(request):
             title = request.POST.get('title', '').strip()
             content_type = request.POST.get('content_type', 'text')
             message = request.POST.get('message', '').strip()
-            meta_template_names = ','.join(request.POST.getlist('meta_template_names'))
+            meta_template_names = request.POST.get('meta_template_names', '')
 
             if not keyword:
                 messages.error(request, "Keyword shortcut cannot be empty.")
@@ -4936,7 +4936,7 @@ def whatsapp_quick_reply_edit(request, pk):
         qr.title = title or f"/{keyword}"
         qr.content_type = content_type
         qr.message = message
-        qr.meta_template_names = ','.join(request.POST.getlist('meta_template_names'))
+        qr.meta_template_names = request.POST.get('meta_template_names', '')
         qr.is_active = is_active
         qr.save()
 
@@ -5695,3 +5695,4 @@ def whatsapp_meta_templates_api(request):
     from .utils import get_approved_meta_templates
     templates = get_approved_meta_templates()
     return JsonResponse({'status': 'success', 'templates': templates})
+
