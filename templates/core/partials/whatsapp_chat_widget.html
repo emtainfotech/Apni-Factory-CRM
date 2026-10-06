@@ -43,53 +43,41 @@
 
 <!-- Chat Input Form -->
 <div class="p-3 bg-white border-top border-300 position-relative {% if not start_active %}d-none{% endif %}" id="chat-input-area">
-    <!-- Quick Action Bar & Emoji Toolbar -->
-    <div class="d-flex align-items-center gap-1 mb-2 flex-wrap">
-        <button type="button" class="btn btn-xs btn-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="openCoreQuickRepliesModal()" title="View all Quick Reply Templates, Keywords & Media">
-            <i class="fas fa-bolt text-warning me-1"></i> <span>⚡ Quick Replies</span>
-        </button>
-        <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" onclick="insertCoreSellerTemplate()" title="Load Seller Onboarding Template (Shortcut: type /seller)">
-            <i class="fas fa-store text-success me-1"></i> <span>Seller Onboarding</span> <span class="badge bg-secondary-subtle text-secondary ms-1">/seller</span>
-        </button>
-        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" id="coreBtnTogglePdf" onclick="toggleCorePdfAttachment()">
-            <i class="fas fa-file-pdf me-1"></i> <span id="corePdfToggleText">Attach Seller Guide PDF</span>
-        </button>
-
-        <!-- Quick Business Emojis -->
-        <div class="d-inline-flex align-items-center gap-1 ms-1 p-1 bg-body-tertiary rounded-pill border" title="Click to insert emoji">
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('👍')" title="Thumbs Up">👍</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('🙏')" title="Namaste">🙏</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('✅')" title="Verified">✅</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('📦')" title="Order/Parcel">📦</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('🤝')" title="Deal">🤝</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('📞')" title="Call">📞</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('📄')" title="Document">📄</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('😀')" title="Smile">😀</button>
-            <button type="button" class="btn btn-link p-0 text-decoration-none fs-9 lh-1" onclick="insertCoreEmoji('🚀')" title="Rocket">🚀</button>
+    <!-- Quick Action Bar -->
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <div class="d-flex align-items-center gap-2 overflow-auto" style="white-space: nowrap; padding-bottom: 4px;">
+            <button type="button" class="btn btn-xs btn-primary rounded-pill px-3 py-1 fs-10 shadow-sm" onclick="openCoreQuickRepliesModal()" title="View all Quick Reply Templates, Keywords & Media">
+                <i class="fas fa-bolt text-warning me-1"></i> Quick Replies
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-success rounded-pill px-3 py-1 fs-10 shadow-sm" onclick="insertCoreSellerTemplate()" title="Load Seller Onboarding Template">
+                <i class="fas fa-store me-1"></i> Seller Template <kbd class="ms-1 bg-success-subtle text-success border-0 px-1">/seller</kbd>
+            </button>
+            <button type="button" class="btn btn-xs btn-outline-danger rounded-pill px-3 py-1 fs-10 shadow-sm" id="coreBtnTogglePdf" onclick="toggleCorePdfAttachment()">
+                <i class="fas fa-file-pdf me-1"></i> <span id="corePdfToggleText">Attach PDF Guide</span>
+            </button>
         </div>
-
-        <div class="ms-auto d-flex align-items-center gap-1">
-            <a href="{% url 'whatsapp_quick_replies' %}" target="_blank" class="btn btn-xs btn-outline-secondary rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Manage Templates, Keywords & Attachments">
-                <i class="fas fa-cog me-1"></i> <span>Manage</span>
+        
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'whatsapp_quick_replies' %}" target="_blank" class="btn btn-xs btn-link text-decoration-none px-2 py-1 fs-10" title="Manage Templates, Keywords & Attachments">
+                <i class="fas fa-cog me-1"></i>Manage
             </a>
-            <a href="#" id="coreWaWebSendDirectBtn" target="_blank" class="btn btn-xs btn-phoenix-success rounded-pill px-2 py-1 fs-10 d-flex align-items-center" title="Open in WhatsApp Web with current message & PDF link (No 24h Meta limit)">
-                <i class="fab fa-whatsapp me-1"></i> <span>Send via WhatsApp Web</span>
+            <a href="#" id="coreWaWebSendDirectBtn" target="_blank" class="btn btn-xs btn-success rounded-pill px-3 py-1 fs-10 shadow-sm" title="Open in WhatsApp Web">
+                <i class="fab fa-whatsapp me-1"></i> WA Web
             </a>
         </div>
     </div>
 
     <!-- Attached Seller Guide PDF Chip -->
-    <div id="coreAttachedPdfChip" class="d-none alert alert-primary py-1 px-2 mb-2 fs-10 d-flex align-items-center">
+    <div id="coreAttachedPdfChip" class="d-none alert alert-primary py-1 px-3 mb-2 fs-10 d-flex align-items-center border-0 rounded-pill shadow-sm w-fit-content">
         <i class="fas fa-file-pdf text-danger fs-8 me-2"></i>
-        <div class="flex-grow-1 text-truncate">
-            <strong>Apni_Factory_Seller_Onboarding_Guide_Final.pdf</strong>
-            <span class="badge bg-primary text-white ms-1">Auto-Attached (120 KB)</span>
+        <div class="me-3">
+            <strong>Seller_Onboarding_Guide.pdf</strong>
+            <span class="badge bg-primary text-white ms-1">Auto-Attached</span>
         </div>
-        <a href="https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf" target="_blank" class="btn btn-xs btn-link text-primary text-decoration-none p-0 me-2"><i class="fas fa-eye me-1"></i>View</a>
         <button type="button" class="btn-close fs-11" onclick="toggleCorePdfAttachment(false)"></button>
     </div>
 
-    <!-- Custom File Attachment Tray (Images, Documents, Copy-Paste, Drag-Drop, Quick Reply Media) -->
+    <!-- Custom File Attachment Tray -->
     <div id="coreCustomAttachmentTray" class="d-none alert alert-secondary py-2 px-3 mb-2 fs-10 d-flex align-items-center gap-3 border shadow-sm rounded-3">
         <div id="coreCustomAttachmentPreview" class="d-flex align-items-center justify-content-center bg-white rounded border overflow-hidden" style="width: 48px; height: 48px; min-width: 48px;">
             <!-- Dynamic Image thumbnail or Document icon -->
@@ -111,31 +99,57 @@
     <div id="coreKeywordSuggestionsBox" class="dropdown-menu shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 360px; max-width: 460px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;">
         <div class="px-3 py-2 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between sticky-top bg-body">
             <span><i class="fas fa-bolt text-warning me-1"></i> Matching Quick Replies</span>
-            <span class="badge bg-light text-secondary">↑↓ Navigate • Enter to Insert</span>
+            <span class="badge bg-light text-secondary">?? Navigate � Enter to Insert</span>
         </div>
         <div id="coreKeywordSuggestionsItems">
             <!-- Injected dynamically -->
         </div>
     </div>
 
-    <form id="chat-form" class="w-100">
+    <form id="chat-form" class="w-100 m-0">
         <input type="hidden" id="active-customer-id" value="{{ initial_customer_id|default:'' }}">
         <input type="hidden" id="coreAttachSellerGuideInput" value="false">
         <input type="hidden" id="coreQuickReplyMediaIds" name="quick_reply_media_ids" value="">
         <input type="hidden" id="coreQuickReplyMetaTemplates" name="quick_reply_meta_templates" value="">
         <input type="file" id="coreAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/*" onchange="handleCoreFileInputChange(this.files)">
 
-        <div class="input-group">
-            <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" onclick="openMetaTemplateModal()" title="Send WhatsApp Meta Template"><i class="fab fa-whatsapp fs-9 text-success"></i></button>`r`n              <button type="button" class="btn btn-phoenix-secondary px-3 d-flex align-items-center justify-content-center" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach Document, Image or Video (or Drag & Drop / Paste Ctrl+V)">
-                <i class="fas fa-paperclip fs-9 text-primary"></i>
+        <div class="input-group shadow-sm bg-white rounded-3 border border-300 focus-ring-primary transition-base" style="border-radius: 20px !important; overflow: hidden;">
+            <!-- Left Actions -->
+            <button type="button" class="btn btn-link text-decoration-none px-3 border-end border-200 bg-light-hover" data-bs-toggle="dropdown" aria-expanded="false" title="Insert Emoji">
+                <i class="fas fa-smile fs-8 text-secondary"></i>
             </button>
-            <textarea id="chat-input" class="form-control fs-9" rows="2" placeholder="Type a message, /keyword (e.g. /seller), or paste (Ctrl+V) / drag image or document..." autocomplete="off" style="resize: vertical; min-height: 42px;"></textarea>
-            <button type="submit" class="btn btn-primary px-4 d-flex align-items-center justify-content-center" id="coreSendMsgBtn">
+            <div class="dropdown-menu p-2 shadow-lg border-0" style="min-width: 200px;">
+                <div class="d-flex flex-wrap gap-1 justify-content-center">
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('?')">?</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                    <button type="button" class="btn btn-link p-1 text-decoration-none fs-7 lh-1 bg-light-hover rounded" onclick="insertCoreEmoji('??')">??</button>
+                </div>
+            </div>
+
+            <button type="button" class="btn btn-link text-decoration-none px-3 border-end border-200 bg-light-hover" id="coreAttachTriggerBtn" onclick="document.getElementById('coreAttachmentFileInput').click()" title="Attach File">
+                <i class="fas fa-paperclip fs-8 text-primary"></i>
+            </button>
+
+            <!-- Text Area -->
+            <textarea id="chat-input" class="form-control border-0 fs-9 py-3 shadow-none" rows="1" placeholder="Type a message, /keyword (e.g. /seller), or paste..." autocomplete="off" style="resize: none; min-height: 48px; max-height: 150px; overflow-y: auto;" oninput="this.style.height = '';this.style.height = this.scrollHeight + 'px'"></textarea>
+
+            <!-- Right Actions -->
+            <button type="button" class="btn btn-link text-decoration-none px-3 border-start border-200 bg-light-hover" onclick="openMetaTemplateModal()" title="Send WhatsApp Meta Template">
+                <i class="fab fa-whatsapp fs-8 text-success"></i>
+            </button>
+
+            <button type="submit" class="btn btn-primary px-4 fw-bold" id="coreSendMsgBtn" style="border-radius: 0 20px 20px 0;">
                 <i class="fas fa-paper-plane me-1"></i> <span id="coreSendMsgBtnText">Send</span>
             </button>
         </div>
-        <div class="d-flex align-items-center justify-content-between mt-1 text-muted fs-11">
-            <span>Tip: Type <kbd>/</kbd> for Quick Replies. <kbd>Ctrl+V</kbd> to paste image. Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to send.</span>
+        <div class="d-flex align-items-center justify-content-between mt-2 text-muted fs-11 px-2">
+            <span>Tip: Type <kbd class="bg-body-secondary text-body">/</kbd> for Quick Replies. <kbd class="bg-body-secondary text-body">Ctrl+V</kbd> to paste image. Press <kbd class="bg-body-secondary text-body">Ctrl+Enter</kbd> to send.</span>
         </div>
     </form>
 </div>
@@ -1105,14 +1119,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.updateContactFailedBadge(customerId, data.has_failed_message || false);
                 }
             } else {
-                alert("Error sending message: " + (data.message || "Failed to deliver"));
+                showCustomAlert("Error sending message: " + (data.message || "Failed to deliver"));
             }
         })
         .catch(err => {
             if (sendBtn) sendBtn.disabled = false;
             if (sendBtnText) sendBtnText.innerText = "Send";
             console.error("Error sending message", err);
-            alert("Error sending message.");
+            showCustomAlert("Error sending message.");
         });
     });
 
@@ -1178,12 +1192,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     window.updateContactFailedBadge(data.customer_id, data.has_failed_message || false);
                 }
             } else {
-                alert(data.message || "Failed to delete message.");
+                showCustomAlert(data.message || "Failed to delete message.");
             }
         })
         .catch(err => {
             console.error("Error deleting message:", err);
-            alert("Error deleting message.");
+            showCustomAlert("Error deleting message.");
         });
     };
 
@@ -1233,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', function() {
 let metaTemplatesLoaded = false;
 function openMetaTemplateModal() {
     if (!activeCustomerIdInput.value) {
-        alert('Please select a customer first to send a template.');
+        showCustomAlert('Please select a customer first to send a template.');
         return;
     }
     const modal = new bootstrap.Modal(document.getElementById('coreMetaTemplateModal'));
@@ -1258,7 +1272,7 @@ function openMetaTemplateModal() {
 function sendSelectedMetaTemplate() {
     const tmplName = document.getElementById('coreMetaTemplateSelect').value;
     if (!tmplName) {
-        alert('Please select a template');
+        showCustomAlert('Please select a template');
         return;
     }
     const customerId = activeCustomerIdInput.value;
@@ -1289,13 +1303,16 @@ function sendSelectedMetaTemplate() {
         if(data.status === 'success') {
             refreshChat(customerId);
         } else {
-            alert(data.message || 'Error sending template');
+            showCustomAlert(data.message || 'Error sending template');
         }
     }).catch(err => {
         console.error(err);
         if(sendBtn) sendBtn.disabled = false;
         if(sendBtnText) sendBtnText.innerText = "Send";
-        alert('Request failed');
+        showCustomAlert('Request failed');
     });
 }
 </script>
+
+
+
