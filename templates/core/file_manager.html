@@ -7,57 +7,57 @@
         <!-- Sidebar for Customer Selection -->
         <div class="col-md-3">
             <div class="card h-100 shadow-sm border-0">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="mb-0 fw-bold">Customers</h5>
+                <div class="card-header bg-white border-0 pt-4 pb-2 px-4">
+                    <h5 class="mb-3 fw-bold text-dark"><i class="fas fa-users me-2 text-primary"></i>Customers</h5>
                     <form method="GET" action="" id="search-form">
-                        <div class="input-group mt-3">
-                            <input type="text" name="q" value="{{ search_query }}" class="form-control form-control-sm" placeholder="Search customer...">
-                            <button class="btn btn-sm btn-outline-secondary" type="submit"><i class="fas fa-search"></i></button>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="q" value="{{ search_query }}" class="form-control shadow-none bg-light border-end-0" placeholder="Search by name, phone...">
+                            <button class="btn btn-light border border-start-0" type="submit"><i class="fas fa-search text-muted"></i></button>
                         </div>
                     </form>
                 </div>
-                <div class="card-body px-0" style="max-height: 70vh; overflow-y: auto;">
-                    <ul class="list-group list-group-flush border-top" id="customer-list">
+                <div class="card-body px-2 pt-0" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                    <ul class="list-group list-group-flush" id="customer-list">
                         {% for customer in page_obj %}
-                        <li class="list-group-item list-group-item-action cursor-pointer customer-item border-bottom-0 py-3" data-id="{{ customer.id }}">
+                        <li class="list-group-item list-group-item-action cursor-pointer customer-item border-0 mb-1 rounded-3 px-3 py-2" data-id="{{ customer.id }}">
                             <div class="d-flex align-items-center">
-                                <div class="avatar avatar-md me-3 bg-gradient bg-primary text-white shadow-sm rounded d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; font-size: 18px;">
+                                <div class="avatar avatar-md me-3 bg-gradient bg-primary text-white rounded d-flex align-items-center justify-content-center fw-bold" style="width: 38px; height: 38px; font-size: 16px;">
                                     {{ customer.display_title|slice:":1"|upper }}
                                 </div>
                                 <div class="flex-grow-1 overflow-hidden">
-                                    <h6 class="mb-1 text-truncate fw-bold text-dark">{{ customer.display_title }}</h6>
-                                    <p class="text-xs text-muted mb-0"><i class="fas fa-phone-alt me-1"></i>{{ customer.phone }}</p>
+                                    <h6 class="mb-1 text-truncate fw-bold text-dark fs-10">{{ customer.display_title }}</h6>
+                                    <p class="text-xs text-muted mb-0"><i class="fas fa-phone-alt me-1" style="font-size:10px;"></i>{{ customer.phone }}</p>
                                 </div>
                                 <div class="text-end">
-                                    <i class="fas fa-chevron-right text-muted" style="font-size: 12px;"></i>
+                                    <i class="fas fa-chevron-right text-muted" style="font-size: 10px;"></i>
                                 </div>
                             </div>
                         </li>
                         {% empty %}
-                        <li class="list-group-item text-center text-muted py-5 border-bottom-0">
+                        <li class="list-group-item text-center text-muted py-5 border-0">
                             <i class="fas fa-users-slash fa-2x mb-3 text-light"></i>
-                            <p class="mb-0">No customers found.</p>
+                            <p class="mb-0 fs-10">No customers found.</p>
                         </li>
                         {% endfor %}
                     </ul>
                     
                     <!-- Pagination Controls -->
                     {% if page_obj.has_other_pages %}
-                    <div class="d-flex justify-content-center mt-3 mb-2">
+                    <div class="d-flex justify-content-center mt-3 mb-2 pb-3">
                         <nav aria-label="Page navigation">
-                            <ul class="pagination pagination-sm mb-0">
+                            <ul class="pagination pagination-sm mb-0 shadow-sm">
                                 {% if page_obj.has_previous %}
-                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}">&laquo;</a></li>
+                                <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.previous_page_number }}&q={{ search_query }}">&laquo;</a></li>
                                 {% else %}
-                                <li class="page-item disabled"><span class="page-link">&laquo;</span></li>
+                                <li class="page-item disabled"><span class="page-link text-muted">&laquo;</span></li>
                                 {% endif %}
                                 
-                                <li class="page-item active"><span class="page-link">{{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+                                <li class="page-item active"><span class="page-link bg-primary border-primary">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
                                 
                                 {% if page_obj.has_next %}
-                                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}">&raquo;</a></li>
+                                <li class="page-item"><a class="page-link text-dark" href="?page={{ page_obj.next_page_number }}&q={{ search_query }}">&raquo;</a></li>
                                 {% else %}
-                                <li class="page-item disabled"><span class="page-link">&raquo;</span></li>
+                                <li class="page-item disabled"><span class="page-link text-muted">&raquo;</span></li>
                                 {% endif %}
                             </ul>
                         </nav>
@@ -70,22 +70,22 @@
         <!-- Main File Area -->
         <div class="col-md-9">
             <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3">
-                    <div class="d-flex align-items-center">
-                        <h5 class="mb-0 fw-bold me-3" id="current-customer-name">Select a Customer</h5>
+                <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center py-3 px-4">
+                    <div class="d-flex flex-column">
+                        <h5 class="mb-1 fw-bold text-dark" id="current-customer-name">Select a Customer</h5>
                         <nav aria-label="breadcrumb">
-                            <ol class="breadcrumb mb-0 bg-transparent p-0 text-sm" id="breadcrumb-container" style="display: none;">
-                                <li class="breadcrumb-item"><a href="#" id="breadcrumb-root">Home</a></li>
+                            <ol class="breadcrumb mb-0 bg-transparent p-0" id="breadcrumb-container" style="display: none; font-size: 12px; font-weight: 500;">
+                                <li class="breadcrumb-item"><a href="#" id="breadcrumb-root" class="text-decoration-none text-primary">Home</a></li>
                             </ol>
                         </nav>
                     </div>
                     <div class="d-flex gap-2" id="file-actions" style="display: none !important;">
-                        <button class="btn btn-sm btn-outline-secondary" onclick="showCreateFolderModal()"><i class="fas fa-folder-plus"></i> New Folder</button>
-                        <button class="btn btn-sm btn-primary" onclick="document.getElementById('file-upload-input').click()"><i class="fas fa-upload"></i> Upload</button>
+                        <button class="btn btn-sm btn-light border fw-semibold" onclick="showCreateFolderModal()"><i class="fas fa-folder-plus text-warning me-1"></i> New Folder</button>
+                        <button class="btn btn-sm btn-primary shadow-sm fw-semibold px-3" onclick="document.getElementById('file-upload-input').click()"><i class="fas fa-cloud-upload-alt me-1"></i> Upload Files</button>
                         <input type="file" id="file-upload-input" class="d-none" multiple>
                     </div>
                 </div>
-                <div class="card-body bg-light" id="file-manager-body" style="min-height: 70vh;">
+                <div class="card-body bg-light p-4 rounded-bottom" id="file-manager-body" style="min-height: 70vh;">
                     <div class="text-center text-muted d-flex flex-column align-items-center justify-content-center h-100 py-5" id="no-customer-selected" style="min-height: 50vh;">
                         <div class="bg-white p-4 rounded-circle shadow-sm mb-4 d-flex align-items-center justify-content-center" style="width: 100px; height: 100px;">
                             <i class="fas fa-folder-open fa-3x text-primary opacity-50"></i>
@@ -175,18 +175,17 @@
 
 <style>
     .cursor-pointer { cursor: pointer; }
-    .customer-item { transition: all 0.2s ease-in-out; border-left: 4px solid transparent !important; }
-    .customer-item:hover { background-color: #f8f9fa; }
-    .customer-item.active { background-color: rgba(13, 110, 253, 0.05); border-left: 4px solid #0d6efd !important; }
+    .customer-item { transition: all 0.2s ease-in-out; border-left: 3px solid transparent !important; }
+    .customer-item:hover { background-color: rgba(0,0,0,0.02); }
+    .customer-item.active { background-color: #fff; border-left: 3px solid #0d6efd !important; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); }
     .customer-item.active h6 { color: #0d6efd !important; }
-    .customer-item.active .avatar { box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.25) !important; }
-    .file-item, .folder-item { transition: all 0.2s; border: 1px solid transparent; }
-    .file-item:hover, .folder-item:hover { background-color: #f8f9fa; border-color: #dee2e6; transform: translateY(-2px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.05) !important; }
-    .border-dashed { border-style: dashed !important; }
     
-    /* File options dropdown button visibility */
+    .file-item, .folder-item { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); border: 1px solid #e9ecef !important; }
+    .file-item:hover, .folder-item:hover { transform: translateY(-3px); box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08) !important; border-color: #cbd5e1 !important; }
     .file-item .dropdown { opacity: 0; transition: opacity 0.2s; }
     .file-item:hover .dropdown { opacity: 1; }
+    
+    .border-dashed { border-style: dashed !important; }
 </style>
 <!-- Upload Progress Toast -->
 <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
@@ -257,13 +256,14 @@
                 grid.innerHTML = '';
                 
                 // Render Folders
+                let html = '';
                 data.folders.forEach(folder => {
-                    const icon = folder.is_system ? 'fa-brands fa-whatsapp text-success' : 'fa-folder text-warning';
-                    grid.innerHTML += `
+                    const icon = folder.is_system ? 'fab fa-whatsapp text-success' : 'fas fa-folder text-warning';
+                    html += `
                         <div class="col-md-3 col-sm-4 col-6">
-                            <div class="p-3 text-center folder-item cursor-pointer" onclick="openFolder(${folder.id}, '${folder.name}')">
-                                <i class="fas ${icon} fa-3x mb-2"></i>
-                                <h6 class="text-truncate mb-0" title="${folder.name}">${folder.name}</h6>
+                            <div class="p-4 text-center border rounded-3 cursor-pointer folder-item bg-white shadow-sm position-relative transition-all" onclick="openFolder(${folder.id}, '${folder.name}')" style="min-height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                                <i class="${icon} fa-3x mb-3 drop-shadow"></i>
+                                <h6 class="text-truncate mb-0 fw-bold text-dark fs-10 w-100 px-2" title="${folder.name}">${folder.name}</h6>
                             </div>
                         </div>
                     `;
@@ -272,36 +272,44 @@
                 // Render Files
                 data.files.forEach(file => {
                     let icon = 'fa-file text-secondary';
-                    if (file.type.includes('image')) icon = 'fa-file-image text-primary';
-                    else if (file.type.includes('pdf')) icon = 'fa-file-pdf text-danger';
-                    else if (file.type.includes('video')) icon = 'fa-file-video text-info';
+                    let colorClass = 'text-secondary';
+                    if (file.type.includes('image')) { icon = 'fa-image'; colorClass = 'text-primary'; }
+                    else if (file.type.includes('pdf')) { icon = 'fa-file-pdf'; colorClass = 'text-danger'; }
+                    else if (file.type.includes('video')) { icon = 'fa-file-video'; colorClass = 'text-info'; }
 
-                    grid.innerHTML += `
+                    html += `
                         <div class="col-md-3 col-sm-4 col-6">
-                            <div class="p-3 text-center border rounded cursor-pointer file-item bg-white shadow-sm position-relative" style="cursor:pointer;">
+                            <div class="p-3 text-center border rounded-3 cursor-pointer file-item bg-white shadow-sm position-relative transition-all" style="min-height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
                                 <div class="dropdown position-absolute top-0 end-0 m-2">
-                                    <button class="btn btn-sm btn-link text-secondary p-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <button class="btn btn-sm btn-link text-muted p-1" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 50%;">
                                         <i class="fas fa-ellipsis-v"></i>
                                     </button>
-                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                        <li><a class="dropdown-item" href="#" onclick="window.open('${file.url}', '_blank')"><i class="fas fa-external-link-alt me-2 text-primary"></i>Open</a></li>
-                                        <li><a class="dropdown-item" href="#" onclick="renameFile(${file.id}, '${file.name}')"><i class="fas fa-edit me-2 text-warning"></i>Rename</a></li>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 rounded-3 text-sm">
+                                        <li><a class="dropdown-item py-2" href="#" onclick="window.open('${file.url}', '_blank')"><i class="fas fa-external-link-alt me-2 text-primary"></i>Open</a></li>
+                                        <li><a class="dropdown-item py-2" href="#" onclick="renameFile(${file.id}, '${file.name}')"><i class="fas fa-edit me-2 text-warning"></i>Rename</a></li>
                                         <li><hr class="dropdown-divider"></li>
-                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteFile(${file.id})"><i class="fas fa-trash-alt me-2"></i>Delete</a></li>
+                                        <li><a class="dropdown-item text-danger py-2" href="#" onclick="deleteFile(${file.id})"><i class="fas fa-trash-alt me-2"></i>Delete</a></li>
                                     </ul>
                                 </div>
-                                <div onclick="window.open('${file.url}', '_blank')">
-                                    <i class="fas ${icon} fa-3x mb-2 mt-3"></i>
-                                    <h6 class="text-truncate mb-0 text-sm" title="${file.name}">${file.name}</h6>
-                                    <small class="text-muted">${formatBytes(file.size)}</small>
+                                <div onclick="window.open('${file.url}', '_blank')" class="w-100">
+                                    <i class="fas ${icon} ${colorClass} fa-3x mb-3 mt-2 drop-shadow"></i>
+                                    <h6 class="text-truncate mb-1 fw-bold text-dark fs-10 w-100 px-2" title="${file.name}">${file.name}</h6>
+                                    <small class="text-muted" style="font-size: 11px;">${formatBytes(file.size)}</small>
                                 </div>
                             </div>
                         </div>
                     `;
                 });
+                grid.innerHTML = html;
 
                 if(data.folders.length === 0 && data.files.length === 0) {
-                    grid.innerHTML = '<div class="col-12 text-center py-4 text-muted">This folder is empty.</div>';
+                    grid.innerHTML = `
+                        <div class="col-12 text-center py-5 mt-4">
+                            <i class="fas fa-folder-open fa-3x text-muted opacity-25 mb-3"></i>
+                            <h6 class="text-muted fw-bold">This folder is empty</h6>
+                            <p class="text-muted small">Upload files or create folders to get started.</p>
+                        </div>
+                    `;
                 }
             });
     }
@@ -319,9 +327,9 @@
         container.innerHTML = '';
         breadcrumbs.forEach((crumb, index) => {
             if (index === breadcrumbs.length - 1) {
-                container.innerHTML += `<li class="breadcrumb-item active">${crumb.name}</li>`;
+                container.innerHTML += `<li class="breadcrumb-item active fw-bold text-dark" aria-current="page">${crumb.name}</li>`;
             } else {
-                container.innerHTML += `<li class="breadcrumb-item"><a href="#" onclick="navigateToCrumb(${index})">${crumb.name}</a></li>`;
+                container.innerHTML += `<li class="breadcrumb-item"><a href="#" class="text-decoration-none text-primary" onclick="navigateToCrumb(${index})">${crumb.name}</a></li>`;
             }
         });
     }
