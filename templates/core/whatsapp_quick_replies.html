@@ -189,6 +189,13 @@
                                 <div class="p-2 bg-body-tertiary rounded-2 border border-translucent text-body-secondary text-break" style="max-height: 90px; overflow-y: auto; white-space: pre-line; font-size: 0.82rem;">
                                     {{ t.message|default:"(No text caption)" }}
                                 </div>
+                                {% if t.meta_template_names %}
+                                <div class="mt-1">
+                                    <span class="badge bg-success-subtle text-success fs-11" title="Approved Meta WhatsApp Template">
+                                        <i class="fab fa-whatsapp me-1"></i>Meta Template: {{ t.meta_template_names }}
+                                    </span>
+                                </div>
+                                {% endif %}
                             </td>
                             <td>
                                 {% if t.media_files.all %}

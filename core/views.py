@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -4478,6 +4478,29 @@ def send_whatsapp_message_ajax(request, customer_id):
         attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
         quick_reply_media_ids = request.POST.get('quick_reply_media_ids', '').strip()
         quick_reply_meta_templates = request.POST.get('quick_reply_meta_templates', '').strip()
+
+        # Check if message_text is a quick reply shortcut (e.g. "/start", "start", "/seller")
+        cleaned_kw = message_text.lower().strip().lstrip('/')
+        if message_text.startswith('/') or (cleaned_kw and not attachment_file and not quick_reply_media_ids and not quick_reply_meta_templates):
+            from .models import WhatsAppQuickReply
+            qr_match = WhatsAppQuickReply.objects.filter(keyword__iexact=cleaned_kw, is_active=True).first()
+            if qr_match:
+                c_name = customer.first_name or customer.company_name or 'Customer'
+                c_comp = customer.company_name or c_name
+                c_phone = customer.whatsapp_number or customer.phone or ''
+                c_city = customer.city or ''
+                tpl_msg = qr_match.message or ''
+                tpl_msg = tpl_msg.replace('{{customer_name}}', c_name)\
+                                 .replace('{{company_name}}', c_comp)\
+                                 .replace('{{phone}}', c_phone)\
+                                 .replace('{{city}}', c_city)
+                message_text = tpl_msg.strip()
+                if qr_match.meta_template_names and not quick_reply_meta_templates:
+                    quick_reply_meta_templates = qr_match.meta_template_names.strip()
+                if not quick_reply_media_ids and qr_match.media_files.exists():
+                    quick_reply_media_ids = ','.join(str(m.id) for m in qr_match.media_files.all())
+                if qr_match.keyword == 'seller':
+                    attach_seller_guide = True
         
         if not message_text and not attachment_file and not attach_seller_guide and not quick_reply_media_ids and not quick_reply_meta_templates:
             return JsonResponse({'status': 'error', 'message': 'Message or attachment cannot be empty.'})
@@ -4673,8 +4696,8 @@ def send_whatsapp_message_ajax(request, customer_id):
             else:
                 api_error = txt_err
 
-        # If not created in attachment or quick_reply branch, create now
-        if not attachment_file and not quick_reply_media_ids:
+        # If not created in attachment or quick_reply branch, create now (only if message_text or attachment exists)
+        if not attachment_file and not quick_reply_media_ids and (message_text or chat_attachment):
             chat = WhatsAppChat.objects.create(
                 customer=customer,
                 message=message_text,
@@ -4688,14 +4711,23 @@ def send_whatsapp_message_ajax(request, customer_id):
         if quick_reply_meta_templates:
             tmpl_names = [x.strip() for x in quick_reply_meta_templates.split(',') if x.strip()]
             for tmpl_name in tmpl_names:
-                ok, wamid, err = send_template_message(target_phone, tmpl_name)
-                WhatsAppChat.objects.create(
+                ok, wamid, err = send_template_message(target_phone, tmpl_name, return_details=True)
+                item_chat = WhatsAppChat.objects.create(
                     customer=customer,
                     message=f"[Template Sent]: {tmpl_name}",
                     direction='outgoing',
                     wamid=wamid if ok else None,
                     timestamp=timezone.now()
                 )
+                if not chat:
+                    chat = item_chat
+                if ok:
+                    api_dispatched = True
+                elif not api_error:
+                    api_error = err
+
+        if not chat:
+            chat = WhatsAppChat.objects.filter(customer=customer, direction='outgoing').order_by('-timestamp').first()
         
         # Disable Bot for this customer
         lead, _ = WhatsAppLead.objects.get_or_create(phone_number=format_whatsapp_phone(target_phone))

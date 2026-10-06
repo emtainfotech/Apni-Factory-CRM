@@ -319,13 +319,23 @@
                         </button>
                     </div>
 
+                    <!-- Attached Meta Template Chip (Employee) -->
+                    <div id="attachedMetaTemplateChip" class="d-none alert alert-success py-1 px-3 mb-2 fs-10 d-flex align-items-center border-0 rounded-pill shadow-sm w-fit-content">
+                        <i class="fab fa-whatsapp text-success fs-8 me-2"></i>
+                        <div class="me-3">
+                            <span>Meta Template: <strong id="attachedMetaTemplateName">template_name</strong></span>
+                            <span class="badge bg-success text-white ms-1">Approved Template</span>
+                        </div>
+                        <button type="button" class="btn-close fs-11" onclick="clearEmployeeMetaTemplateChip()"></button>
+                    </div>
+
                     <!-- Keyword Dropdown Suggestions Box -->
-                    <div id="keywordSuggestionsBox" class="dropdown-menu shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 360px; max-width: 460px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;">
+                    <div id="keywordSuggestionsBox" class="card shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none bg-white rounded-3" style="bottom: 100%; left: 15px; z-index: 1090; min-width: 360px; max-width: 480px; max-height: 280px; overflow-y: auto; margin-bottom: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;">
                         <div class="px-3 py-2 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between sticky-top bg-body">
                             <span><i class="fas fa-bolt text-warning me-1"></i> Matching Quick Replies</span>
                             <span class="badge bg-light text-secondary">↑↓ Navigate • Enter to Insert</span>
                         </div>
-                        <div id="keywordSuggestionsItems">
+                        <div id="keywordSuggestionsItems" class="list-group list-group-flush">
                             <!-- Injected dynamically -->
                         </div>
                     </div>
@@ -673,6 +683,21 @@ function loadChat(customerId, element) {
     }, 4000);
 }
 
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
+window.escapeHTML = escapeHTML;
+window.escapeHtml = escapeHTML;
+
 const SELLER_ONBOARDING_TEMPLATE = `🌟 *Welcome to Apni Factory!* 🌟
 
 Dear Sir/Madam,
@@ -911,10 +936,22 @@ function applyQuickReplyTemplate(templateId) {
         input.focus();
     }
 
-    // 2. Stage media attachments
+    // 2. Stage Meta Templates
+    if (t.meta_template_names) {
+        if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names;
+        const metaChip = document.getElementById('attachedMetaTemplateChip');
+        const metaNameEl = document.getElementById('attachedMetaTemplateName');
+        if (metaChip && metaNameEl) {
+            metaNameEl.textContent = t.meta_template_names;
+            metaChip.classList.remove('d-none');
+        }
+    } else {
+        clearEmployeeMetaTemplateChip();
+    }
+
+    // 3. Stage media attachments
     if (t.media && t.media.length > 0) {
         if (mediaIdsInput) mediaIdsInput.value = t.media.map(m => m.id).join(',');
-        if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names || '';
         employeeCustomFile = null; // Staged server files take precedence
 
         const tray = document.getElementById('employeeCustomAttachmentTray');
@@ -985,9 +1022,13 @@ function handleKeywordAutocomplete(val) {
     const itemsContainer = document.getElementById('keywordSuggestionsItems');
     if (!suggestionsBox || !itemsContainer) return;
 
+    if (!window.quickReplyTemplates || window.quickReplyTemplates.length === 0) {
+        fetchQuickReplyTemplates();
+    }
+
     const trimmed = (val || '').trim().toLowerCase();
     if (!trimmed) {
-        suggestionsBox.classList.add('d-none');
+        hideKeywordSuggestions();
         return;
     }
 
@@ -1002,7 +1043,7 @@ function handleKeywordAutocomplete(val) {
     }
 
     if (query === null) {
-        suggestionsBox.classList.add('d-none');
+        hideKeywordSuggestions();
         return;
     }
 
@@ -1012,7 +1053,7 @@ function handleKeywordAutocomplete(val) {
     });
 
     if (matches.length === 0) {
-        suggestionsBox.classList.add('d-none');
+        hideKeywordSuggestions();
         return;
     }
 
@@ -1021,21 +1062,33 @@ function handleKeywordAutocomplete(val) {
     matches.forEach((t, idx) => {
         let mediaTag = '';
         if (t.media && t.media.length > 0) {
-            mediaTag = `<span class="badge bg-secondary-subtle text-secondary ms-1 fs-11">${t.media.length} 📎</span>`;
+            mediaTag += `<span class="badge bg-secondary-subtle text-secondary ms-1 fs-11">${t.media.length} 📎</span>`;
+        }
+        if (t.meta_template_names) {
+            mediaTag += `<span class="badge bg-success-subtle text-success ms-1 fs-11"><i class="fab fa-whatsapp me-1"></i>Meta</span>`;
+        }
+
+        let descText = '';
+        if (t.message) {
+            descText = escapeHTML(t.message.slice(0, 80));
+        } else if (t.meta_template_names) {
+            descText = `<span class="text-success fw-semibold"><i class="fab fa-whatsapp me-1"></i>Meta Template: ${escapeHTML(t.meta_template_names)}</span>`;
+        } else {
+            descText = `<span class="text-muted">(No message text)</span>`;
         }
 
         html += `
-            <a class="dropdown-item py-2 px-3 d-flex align-items-start gap-2 template-suggestion-item ${idx === 0 ? 'active' : ''}" 
+            <a class="list-group-item list-group-item-action py-2 px-3 d-flex align-items-start gap-2 template-suggestion-item ${idx === 0 ? 'active' : ''}" 
                href="javascript:void(0)" 
                data-template-id="${t.id}" 
                onclick="applyQuickReplyTemplate(${t.id})">
-                <span class="badge bg-success-subtle text-success mt-1 font-monospace">/${escapeHtml(t.keyword)}</span>
+                <span class="badge bg-success-subtle text-success mt-1 font-monospace">/${escapeHTML(t.keyword)}</span>
                 <div class="flex-grow-1 min-w-0">
                     <div class="fw-bold text-body-emphasis text-truncate d-flex align-items-center justify-content-between">
-                        <span>${escapeHtml(t.title)}</span>
-                        ${mediaTag}
+                        <span>${escapeHTML(t.title)}</span>
+                        <div class="d-flex align-items-center gap-1">${mediaTag}</div>
                     </div>
-                    <div class="text-body-tertiary fs-11 text-truncate">${escapeHtml((t.message || '').slice(0, 80))}</div>
+                    <div class="text-body-tertiary fs-11 text-truncate">${descText}</div>
                 </div>
             </a>
         `;
@@ -1043,6 +1096,7 @@ function handleKeywordAutocomplete(val) {
 
     itemsContainer.innerHTML = html;
     suggestionsBox.classList.remove('d-none');
+    suggestionsBox.style.display = 'block';
 }
 
 function updateActiveSuggestion() {
@@ -1265,9 +1319,19 @@ function togglePdfAttachment(forceState) {
     updateWaWebDirectLink();
 }
 
+function clearEmployeeMetaTemplateChip() {
+    const metaChip = document.getElementById('attachedMetaTemplateChip');
+    const metaTemplatesInput = document.getElementById('employeeQuickReplyMetaTemplates');
+    if (metaChip) metaChip.classList.add('d-none');
+    if (metaTemplatesInput) metaTemplatesInput.value = '';
+}
+
 function hideKeywordSuggestions() {
     const suggestionsBox = document.getElementById('keywordSuggestionsBox');
-    if (suggestionsBox) suggestionsBox.classList.add('d-none');
+    if (suggestionsBox) {
+        suggestionsBox.classList.add('d-none');
+        suggestionsBox.style.display = 'none';
+    }
 }
 
 function updateWaWebDirectLink() {
@@ -1702,10 +1766,36 @@ function submitMessage(e) {
     if (!currentCustomerId) return;
 
     const input = document.getElementById('messageInput');
-    const msg = input.value.trim();
-    const qrMediaIds = (document.getElementById('employeeQuickReplyMediaIds')?.value || '').trim();
-        const qrMetaTemplates = (document.getElementById('employeeQuickReplyMetaTemplates')?.value || '').trim();
-    if (!msg && !isPdfAttached && !employeeCustomFile && !qrMediaIds) return;
+    let msg = input.value.trim();
+    let qrMediaIds = (document.getElementById('employeeQuickReplyMediaIds')?.value || '').trim();
+    let qrMetaTemplates = (document.getElementById('employeeQuickReplyMetaTemplates')?.value || '').trim();
+
+    // Auto-resolve keyword command if user typed "/start", "start", "/seller", etc. directly
+    const cleanKw = msg.toLowerCase().trim().replace(/^\/+/, '');
+    const matchedTpl = (window.quickReplyTemplates || []).find(t => 
+        t.keyword.toLowerCase() === cleanKw || 
+        ('/' + t.keyword.toLowerCase()) === msg.toLowerCase().trim()
+    );
+
+    if (matchedTpl && !qrMetaTemplates && !qrMediaIds) {
+        if (matchedTpl.meta_template_names) {
+            qrMetaTemplates = matchedTpl.meta_template_names;
+            const metaIn = document.getElementById('employeeQuickReplyMetaTemplates');
+            if (metaIn) metaIn.value = qrMetaTemplates;
+        }
+        if (matchedTpl.media && matchedTpl.media.length > 0) {
+            qrMediaIds = matchedTpl.media.map(m => m.id).join(',');
+            const mediaIn = document.getElementById('employeeQuickReplyMediaIds');
+            if (mediaIn) mediaIn.value = qrMediaIds;
+        }
+        if (matchedTpl.keyword === 'seller') {
+            togglePdfAttachment(true);
+        }
+        msg = replaceTemplateVariables(matchedTpl.message || '');
+        input.value = msg;
+    }
+
+    if (!msg && !isPdfAttached && !employeeCustomFile && !qrMediaIds && !qrMetaTemplates) return;
 
     const sendBtn = document.getElementById('sendMsgBtn');
     const sendBtnText = document.getElementById('sendMsgBtnText');
@@ -1738,6 +1828,7 @@ function submitMessage(e) {
         if (data.status === 'success') {
             input.value = '';
             input.style.height = 'auto';
+            clearEmployeeMetaTemplateChip();
             togglePdfAttachment(false);
             removeEmployeeCustomAttachment();
             hideKeywordSuggestions();

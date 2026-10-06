@@ -96,13 +96,23 @@
         </button>
     </div>
 
+    <!-- Attached Meta Template Chip -->
+    <div id="coreAttachedMetaTemplateChip" class="d-none alert alert-success py-1 px-3 mb-2 fs-10 d-flex align-items-center border-0 rounded-pill shadow-sm w-fit-content">
+        <i class="fab fa-whatsapp text-success fs-8 me-2"></i>
+        <div class="me-3">
+            <span>Meta Template: <strong id="coreAttachedMetaTemplateName">template_name</strong></span>
+            <span class="badge bg-success text-white ms-1">Approved Template</span>
+        </div>
+        <button type="button" class="btn-close fs-11" onclick="clearCoreMetaTemplateChip()"></button>
+    </div>
+
     <!-- Keyword Dropdown Suggestions Box -->
-    <div id="coreKeywordSuggestionsBox" class="dropdown-menu shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none" style="bottom: 100%; left: 15px; z-index: 1050; min-width: 360px; max-width: 460px; max-height: 280px; overflow-y: auto; margin-bottom: 8px;">
+    <div id="coreKeywordSuggestionsBox" class="card shadow-lg p-0 fs-10 border border-primary-subtle position-absolute d-none bg-white rounded-3" style="bottom: 100%; left: 15px; z-index: 1090; min-width: 360px; max-width: 480px; max-height: 280px; overflow-y: auto; margin-bottom: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.18) !important;">
         <div class="px-3 py-2 text-muted fw-bold border-bottom fs-11 text-uppercase d-flex align-items-center justify-content-between sticky-top bg-body">
             <span><i class="fas fa-bolt text-warning me-1"></i> Matching Quick Replies</span>
             <span class="badge bg-light text-secondary">↑↓ Navigate • Enter to Insert</span>
         </div>
-        <div id="coreKeywordSuggestionsItems">
+        <div id="coreKeywordSuggestionsItems" class="list-group list-group-flush">
             <!-- Injected dynamically -->
         </div>
     </div>
@@ -222,6 +232,21 @@
 </div>
 
 <script>
+function escapeHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>'"]/g, 
+        tag => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            "'": '&#39;',
+            '"': '&quot;'
+        }[tag] || tag)
+    );
+}
+window.escapeHTML = escapeHTML;
+window.escapeHtml = escapeHTML;
+
 const CORE_SELLER_ONBOARDING_TEMPLATE = `🌟 *Welcome to Apni Factory!* 🌟
 
 Dear Sir/Madam,
@@ -423,10 +448,22 @@ function applyCoreQuickReplyTemplate(templateId) {
         input.focus();
     }
 
-    // 2. Stage media attachments
+    // 2. Stage Meta Templates
+    if (t.meta_template_names) {
+        if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names;
+        const metaChip = document.getElementById('coreAttachedMetaTemplateChip');
+        const metaNameEl = document.getElementById('coreAttachedMetaTemplateName');
+        if (metaChip && metaNameEl) {
+            metaNameEl.textContent = t.meta_template_names;
+            metaChip.classList.remove('d-none');
+        }
+    } else {
+        clearCoreMetaTemplateChip();
+    }
+
+    // 3. Stage media attachments
     if (t.media && t.media.length > 0) {
         if (mediaIdsInput) mediaIdsInput.value = t.media.map(m => m.id).join(',');
-        if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names || '';
         coreCustomFile = null; // Staged server files take precedence
 
         const tray = document.getElementById('coreCustomAttachmentTray');
@@ -495,9 +532,13 @@ function handleCoreKeywordAutocomplete(val) {
     const itemsContainer = document.getElementById('coreKeywordSuggestionsItems');
     if (!suggestionsBox || !itemsContainer) return;
 
+    if (!window.coreQuickReplyTemplates || window.coreQuickReplyTemplates.length === 0) {
+        fetchCoreQuickReplyTemplates();
+    }
+
     const trimmed = (val || '').trim().toLowerCase();
     if (!trimmed) {
-        suggestionsBox.classList.add('d-none');
+        hideCoreKeywordSuggestions();
         return;
     }
 
@@ -512,7 +553,7 @@ function handleCoreKeywordAutocomplete(val) {
     }
 
     if (query === null) {
-        suggestionsBox.classList.add('d-none');
+        hideCoreKeywordSuggestions();
         return;
     }
 
@@ -522,7 +563,7 @@ function handleCoreKeywordAutocomplete(val) {
     });
 
     if (matches.length === 0) {
-        suggestionsBox.classList.add('d-none');
+        hideCoreKeywordSuggestions();
         return;
     }
 
@@ -531,11 +572,23 @@ function handleCoreKeywordAutocomplete(val) {
     matches.forEach((t, idx) => {
         let mediaTag = '';
         if (t.media && t.media.length > 0) {
-            mediaTag = `<span class="badge bg-secondary-subtle text-secondary ms-1 fs-11">${t.media.length} 📎</span>`;
+            mediaTag += `<span class="badge bg-secondary-subtle text-secondary ms-1 fs-11">${t.media.length} 📎</span>`;
+        }
+        if (t.meta_template_names) {
+            mediaTag += `<span class="badge bg-success-subtle text-success ms-1 fs-11"><i class="fab fa-whatsapp me-1"></i>Meta</span>`;
+        }
+
+        let descText = '';
+        if (t.message) {
+            descText = escapeHTML(t.message.slice(0, 80));
+        } else if (t.meta_template_names) {
+            descText = `<span class="text-success fw-semibold"><i class="fab fa-whatsapp me-1"></i>Meta Template: ${escapeHTML(t.meta_template_names)}</span>`;
+        } else {
+            descText = `<span class="text-muted">(No message text)</span>`;
         }
 
         html += `
-            <a class="dropdown-item py-2 px-3 d-flex align-items-start gap-2 core-template-suggestion-item ${idx === 0 ? 'active' : ''}" 
+            <a class="list-group-item list-group-item-action py-2 px-3 d-flex align-items-start gap-2 core-template-suggestion-item ${idx === 0 ? 'active' : ''}" 
                href="javascript:void(0)" 
                data-template-id="${t.id}" 
                onclick="applyCoreQuickReplyTemplate(${t.id})">
@@ -543,9 +596,9 @@ function handleCoreKeywordAutocomplete(val) {
                 <div class="flex-grow-1 min-w-0">
                     <div class="fw-bold text-body-emphasis text-truncate d-flex align-items-center justify-content-between">
                         <span>${escapeHTML(t.title)}</span>
-                        ${mediaTag}
+                        <div class="d-flex align-items-center gap-1">${mediaTag}</div>
                     </div>
-                    <div class="text-body-tertiary fs-11 text-truncate">${escapeHTML((t.message || '').slice(0, 80))}</div>
+                    <div class="text-body-tertiary fs-11 text-truncate">${descText}</div>
                 </div>
             </a>
         `;
@@ -553,6 +606,7 @@ function handleCoreKeywordAutocomplete(val) {
 
     itemsContainer.innerHTML = html;
     suggestionsBox.classList.remove('d-none');
+    suggestionsBox.style.display = 'block';
 }
 
 function updateCoreActiveSuggestion() {
@@ -621,9 +675,19 @@ function toggleCorePdfAttachment(forceState) {
     updateCoreWaWebDirectLink();
 }
 
+function clearCoreMetaTemplateChip() {
+    const metaChip = document.getElementById('coreAttachedMetaTemplateChip');
+    const metaTemplatesInput = document.getElementById('coreQuickReplyMetaTemplates');
+    if (metaChip) metaChip.classList.add('d-none');
+    if (metaTemplatesInput) metaTemplatesInput.value = '';
+}
+
 function hideCoreKeywordSuggestions() {
     const box = document.getElementById('coreKeywordSuggestionsBox');
-    if (box) box.classList.add('d-none');
+    if (box) {
+        box.classList.add('d-none');
+        box.style.display = 'none';
+    }
 }
 
 function updateCoreWaWebDirectLink() {
@@ -1074,9 +1138,36 @@ document.addEventListener('DOMContentLoaded', function() {
     chatForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const customerId = activeCustomerIdInput.value;
-        const msg = chatInput.value.trim();
-        const qrMediaIds = (document.getElementById('coreQuickReplyMediaIds')?.value || '').trim();
-        const qrMetaTemplates = (document.getElementById('coreQuickReplyMetaTemplates')?.value || '').trim();
+        let msg = chatInput.value.trim();
+        let qrMediaIds = (document.getElementById('coreQuickReplyMediaIds')?.value || '').trim();
+        let qrMetaTemplates = (document.getElementById('coreQuickReplyMetaTemplates')?.value || '').trim();
+
+        // Auto-resolve keyword command if user typed "/start", "start", "/seller", etc. directly
+        const cleanKw = msg.toLowerCase().trim().replace(/^\/+/, '');
+        const matchedTpl = (window.coreQuickReplyTemplates || []).find(t => 
+            t.keyword.toLowerCase() === cleanKw || 
+            ('/' + t.keyword.toLowerCase()) === msg.toLowerCase().trim()
+        );
+
+        if (matchedTpl && !qrMetaTemplates && !qrMediaIds) {
+            if (matchedTpl.meta_template_names) {
+                qrMetaTemplates = matchedTpl.meta_template_names;
+                const metaIn = document.getElementById('coreQuickReplyMetaTemplates');
+                if (metaIn) metaIn.value = qrMetaTemplates;
+            }
+            if (matchedTpl.media && matchedTpl.media.length > 0) {
+                qrMediaIds = matchedTpl.media.map(m => m.id).join(',');
+                const mediaIn = document.getElementById('coreQuickReplyMediaIds');
+                if (mediaIn) mediaIn.value = qrMediaIds;
+            }
+            if (matchedTpl.keyword === 'seller') {
+                toggleCorePdfAttachment(true);
+            }
+            // Replace message with formatted template message (or blank if template only dispatches Meta template/media)
+            msg = replaceCoreTemplateVariables(matchedTpl.message || '');
+            chatInput.value = msg;
+        }
+
         if(!msg && !isCorePdfAttached && !coreCustomFile && !qrMediaIds && !qrMetaTemplates) return;
         if(!customerId) return;
 
@@ -1113,6 +1204,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if(data.status === 'success') {
                 chatInput.value = '';
                 chatInput.style.height = 'auto';
+                clearCoreMetaTemplateChip();
                 toggleCorePdfAttachment(false);
                 removeCoreCustomAttachment();
                 hideCoreKeywordSuggestions();
@@ -1214,6 +1306,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }[tag] || tag)
         );
     }
+    // Dismiss keyword suggestions on click outside
+    document.addEventListener('click', function(e) {
+        const box = document.getElementById('coreKeywordSuggestionsBox');
+        const input = document.getElementById('chat-input');
+        if (box && !box.classList.contains('d-none')) {
+            if (!box.contains(e.target) && e.target !== input) {
+                hideCoreKeywordSuggestions();
+            }
+        }
+    });
 });
 </script>
 
