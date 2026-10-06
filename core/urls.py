@@ -113,6 +113,8 @@ urlpatterns = [
     path('files/api/<int:customer_id>/folders/', file_views.get_customer_folders_api, name='get_customer_folders_api'),
     path('files/api/<int:customer_id>/create-folder/', file_views.create_folder_api, name='create_folder_api'),
     path('files/api/<int:customer_id>/upload/', file_views.upload_file_api, name='upload_file_api'),
+    path('files/api/file/<int:file_id>/rename/', file_views.rename_file_api, name='rename_file_api'),
+    path('files/api/file/<int:file_id>/delete/', file_views.delete_file_api, name='delete_file_api'),
 
     # Employee Onboarding Routes (Admin)
     path('onboarding/', views.onboarding_list, name='onboarding_list'),

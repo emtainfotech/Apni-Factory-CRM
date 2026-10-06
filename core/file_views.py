@@ -114,31 +114,60 @@ def upload_file_api(request, customer_id):
         return JsonResponse({'error': 'Folder ID is required'}, status=400)
         
     folder = get_object_or_404(CustomerFolder, id=folder_id, customer=customer)
-    uploaded_file = request.FILES.get('file')
+    files = request.FILES.getlist('file')
 
-    if not uploaded_file:
+    if not files:
         return JsonResponse({'error': 'No file uploaded'}, status=400)
 
-    size = uploaded_file.size
-    mime_type = uploaded_file.content_type
+    uploaded_data = []
+    for uploaded_file in files:
+        size = uploaded_file.size
+        mime_type = uploaded_file.content_type
 
-    customer_file = CustomerFile.objects.create(
-        folder=folder,
-        file=uploaded_file,
-        name=uploaded_file.name,
-        file_type=mime_type,
-        size=size,
-        uploaded_by=request.user
-    )
-
-    return JsonResponse({
-        'success': True, 
-        'file': {
+        customer_file = CustomerFile.objects.create(
+            folder=folder,
+            file=uploaded_file,
+            name=uploaded_file.name,
+            file_type=mime_type,
+            size=size,
+            uploaded_by=request.user
+        )
+        uploaded_data.append({
             'id': customer_file.id,
             'name': customer_file.name,
             'url': customer_file.file.url,
             'size': customer_file.size,
             'type': customer_file.file_type,
             'uploaded_at': customer_file.uploaded_at.strftime('%Y-%m-%d %H:%M')
-        }
+        })
+
+    return JsonResponse({
+        'success': True, 
+        'files': uploaded_data
     })
+
+@login_required
+@require_POST
+def rename_file_api(request, file_id):
+    customer_file = get_object_or_404(CustomerFile, id=file_id)
+    if request.user.role == 'employee' and not request.user.is_superuser and customer_file.folder.customer.assigned_to != request.user:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    new_name = request.POST.get('name')
+    if not new_name:
+        return JsonResponse({'error': 'Name is required'}, status=400)
+        
+    customer_file.name = new_name
+    customer_file.save()
+    return JsonResponse({'success': True})
+
+@login_required
+@require_POST
+def delete_file_api(request, file_id):
+    customer_file = get_object_or_404(CustomerFile, id=file_id)
+    if request.user.role == 'employee' and not request.user.is_superuser and customer_file.folder.customer.assigned_to != request.user:
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+        
+    customer_file.file.delete() # Deletes actual file from storage
+    customer_file.delete()
+    return JsonResponse({'success': True})
