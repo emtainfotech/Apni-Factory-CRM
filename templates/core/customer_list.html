@@ -134,6 +134,19 @@
                                 </optgroup>
                             </select>
                         </div>
+
+                        <!-- Registered By Filter -->
+                        <div class="col-6 col-md-3">
+                            <select class="form-select form-select-sm" name="created_by" id="filter-created-by"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="">All Registrars</option>
+                                {% for emp in employees %}
+                                    <option value="{{ emp.id }}" {% if selected_creator == emp.id|stringformat:"i" %}selected{% endif %}>
+                                        Registered by {{ emp.get_full_name|default:emp.username }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
                         
                         <!-- Pipeline Status Filter -->
                         <div class="col-6 col-md-2">

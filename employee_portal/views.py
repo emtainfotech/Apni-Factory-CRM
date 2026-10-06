@@ -1,4 +1,4 @@
-import json
+﻿import json
 from functools import wraps
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
@@ -308,7 +308,7 @@ def punch_in(request):
 
     # --- Sunday Block ---
     if today.weekday() == 6:  # Sunday
-        messages.error(request, "🚫 Today is Sunday — a weekly off. Punch-in is not allowed.")
+        messages.error(request, "ðŸš« Today is Sunday â€” a weekly off. Punch-in is not allowed.")
         return redirect('employee_portal:dashboard')
 
     # --- Missed Punch-Out Check ---
@@ -335,7 +335,7 @@ def punch_in(request):
         request.session['missed_punchout_date'] = str(yesterday)
         messages.warning(
             request,
-            f"⚠️ You forgot to punch out on {yesterday.strftime('%d %b %Y')}. "
+            f"âš ï¸ You forgot to punch out on {yesterday.strftime('%d %b %Y')}. "
             "Please provide your exit time and reason before punching in today."
         )
         return redirect('employee_portal:missed_punchout_form')
@@ -364,19 +364,19 @@ def punch_in(request):
         if is_late:
             Notification.objects.create(
                 recipient=request.user,
-                message=f"⏰ Late punch-in recorded today at {now_local.strftime('%H:%M')} IST.",
+                message=f"â° Late punch-in recorded today at {now_local.strftime('%H:%M')} IST.",
             )
             admins = User.objects.filter(Q(role='admin') | Q(is_superuser=True))
             for admin in admins:
                 Notification.objects.create(
                     recipient=admin,
                     message=(
-                        f"🔴 Late Punch Alert: {request.user.get_display_name()} punched in "
+                        f"ðŸ”´ Late Punch Alert: {request.user.get_display_name()} punched in "
                         f"at {now_local.strftime('%H:%M')} IST from IP {ip}."
                     ),
                 )
 
-        messages.success(request, f"✅ Punched-in successfully at {now_local.strftime('%H:%M')} IST.")
+        messages.success(request, f"âœ… Punched-in successfully at {now_local.strftime('%H:%M')} IST.")
     else:
         messages.info(request, "You are already punched-in.")
 
@@ -444,8 +444,8 @@ def missed_punchout_form(request):
             Notification.objects.create(
                 recipient=admin,
                 message=(
-                    f"📋 {request.user.get_display_name()} submitted a missed punch-out record for "
-                    f"{missed_date.strftime('%d %b %Y')} — exit at {exit_time_str}."
+                    f"ðŸ“‹ {request.user.get_display_name()} submitted a missed punch-out record for "
+                    f"{missed_date.strftime('%d %b %Y')} â€” exit at {exit_time_str}."
                 ),
             )
 
@@ -453,7 +453,7 @@ def missed_punchout_form(request):
         request.session.pop('missed_punchout_date', None)
         messages.success(
             request,
-            f"✅ Missed punch-out for {missed_date.strftime('%d %b %Y')} recorded. You can now punch in."
+            f"âœ… Missed punch-out for {missed_date.strftime('%d %b %Y')} recorded. You can now punch in."
         )
         return redirect('employee_portal:punch_in')
 
@@ -465,9 +465,9 @@ def missed_punchout_form(request):
 def punch_out(request):
     """Handles Punch Out.
     Rules:
-    - If hours worked < 8 AND no approved leave/half-day → require early punch-out approval from admin
-    - If early_out_approval_status == 'pending' → block, show awaiting message
-    - If early_out_approval_status == 'approved' OR hours >= 8 OR approved leave → allow punch-out
+    - If hours worked < 8 AND no approved leave/half-day â†’ require early punch-out approval from admin
+    - If early_out_approval_status == 'pending' â†’ block, show awaiting message
+    - If early_out_approval_status == 'approved' OR hours >= 8 OR approved leave â†’ allow punch-out
     """
     from zoneinfo import ZoneInfo
     kolkata_tz = ZoneInfo('Asia/Kolkata')
@@ -491,7 +491,7 @@ def punch_out(request):
     if approved_leave and approved_leave.is_half_day:
         required_seconds = 4 * 3600  # Half-day = 4h
     elif approved_leave:
-        required_seconds = 0  # Full-day leave — no hour requirement
+        required_seconds = 0  # Full-day leave â€” no hour requirement
 
     worked_seconds = attendance.get_worked_seconds()
     hours_short = worked_seconds < required_seconds
@@ -499,19 +499,19 @@ def punch_out(request):
     # Check early-out approval state
     if hours_short and required_seconds > 0:
         if attendance.early_out_approval_status == 'approved':
-            # Admin has approved — allow punch-out
+            # Admin has approved â€” allow punch-out
             pass
         elif attendance.early_out_approval_status == 'pending':
             messages.warning(
                 request,
-                "⏳ Your early punch-out request is awaiting admin approval. Please wait."
+                "â³ Your early punch-out request is awaiting admin approval. Please wait."
             )
             return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
         else:
-            # No request yet — redirect employee to submit one
+            # No request yet â€” redirect employee to submit one
             messages.warning(
                 request,
-                "⚠️ You have worked less than 8 hours. Please submit an early punch-out request for admin approval."
+                "âš ï¸ You have worked less than 8 hours. Please submit an early punch-out request for admin approval."
             )
             return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
 
@@ -536,7 +536,7 @@ def punch_out(request):
         attendance.status = 'present'
 
     attendance.save()
-    messages.success(request, "✅ Punched-out successfully. Have a great evening!")
+    messages.success(request, "âœ… Punched-out successfully. Have a great evening!")
     return redirect(request.META.get('HTTP_REFERER', reverse('employee_portal:dashboard')))
 
 
@@ -582,15 +582,15 @@ def request_early_punchout(request):
         Notification.objects.create(
             recipient=admin,
             message=(
-                f"🚪 Early Punch-Out Request: {request.user.get_display_name()} wants to leave after "
-                f"{worked_hours:.1f}h. Reason: {reason[:80]}{'…' if len(reason) > 80 else ''}"
+                f"ðŸšª Early Punch-Out Request: {request.user.get_display_name()} wants to leave after "
+                f"{worked_hours:.1f}h. Reason: {reason[:80]}{'â€¦' if len(reason) > 80 else ''}"
             ),
             url=f'/admin-attendance/',
         )
 
     return JsonResponse({
         'status': 'success',
-        'message': '✅ Early punch-out request submitted. Awaiting admin approval.'
+        'message': 'âœ… Early punch-out request submitted. Awaiting admin approval.'
     })
 
 
@@ -681,7 +681,7 @@ def add_customer(request):
             display_name = customer.first_name or customer.company_name or customer.phone
             messages.success(
                 request,
-                f"🎉 Successfully added new {party_label} '{display_name}' ({customer.phone})! The lead has been automatically assigned to your pipeline."
+                f"ðŸŽ‰ Successfully added new {party_label} '{display_name}' ({customer.phone})! The lead has been automatically assigned to your pipeline."
             )
             return redirect(redirect_url)
         else:
@@ -859,6 +859,7 @@ def customer_list(request):
 
     # 3. Filters
     customer_type_filter = request.GET.get('customer_type', '').strip()
+    creator_filter = request.GET.get('created_by', '').strip()
     connection_status_filter = request.GET.get('connection_status', '').strip()
     query = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '').strip()
@@ -938,6 +939,7 @@ def customer_list(request):
         'city_filter': city_filter,
         'pincode_filter': pincode_filter,
         'current_customer_type': customer_type_filter,
+        'selected_creator': creator_filter,
         'connection_status_filter': connection_status_filter,
         'call_status_choices': CallLog.CALL_STATUS_CHOICES,
         'assigned_filter': assigned_filter,
@@ -2677,3 +2679,4 @@ def whatsapp_start_new_chat(request):
         'sent_chat': sent_chat,
         'redirect_url': f"/employee/whatsapp/?customer_id={customer.id}"
     })
+

@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
@@ -388,7 +388,7 @@ def _process_single_reassignment_approval(reassign_req, admin_user, admin_notes=
     try:
         Notification.objects.create(
             recipient=new_assignee,
-            message=f"✅ Reassignment Approved: Customer '{party_name}' has been assigned to you by Admin.",
+            message=f"âœ… Reassignment Approved: Customer '{party_name}' has been assigned to you by Admin.",
             url=reverse('employee_portal:customer_detail', kwargs={'customer_id': cust.id})
         )
     except Exception:
@@ -609,7 +609,7 @@ def admin_attendance_dashboard(request):
         date__lte=last_day
     ).select_related('user')
 
-    # Working days in the month (Mon–Sat, skip Sundays)
+    # Working days in the month (Monâ€“Sat, skip Sundays)
     total_working_days = sum(
         1 for d in range(1, last_day.day + 1)
         if date_cls(report_year, report_month, d).weekday() != 6
@@ -681,7 +681,7 @@ def approve_early_punchout(request, pk):
     # Notify employee
     Notification.objects.create(
         recipient=attendance.user,
-        message="✅ Your early punch-out request has been approved. You may punch out now.",
+        message="âœ… Your early punch-out request has been approved. You may punch out now.",
     )
     messages.success(request, f"Early punch-out approved for {attendance.user.get_display_name()}.")
     return redirect('admin_attendance_dashboard')
@@ -699,7 +699,7 @@ def reject_early_punchout(request, pk):
         attendance.save()
         Notification.objects.create(
             recipient=attendance.user,
-            message=f"❌ Early punch-out request rejected. Reason: {rejection_reason or 'No reason given.'}",
+            message=f"âŒ Early punch-out request rejected. Reason: {rejection_reason or 'No reason given.'}",
         )
         messages.warning(request, f"Early punch-out rejected for {attendance.user.get_display_name()}.")
     return redirect('admin_attendance_dashboard')
@@ -752,7 +752,7 @@ def toggle_employee_active(request, user_id):
 
         Notification.objects.create(
             recipient=employee,
-            message="⛔ Your CRM portal account has been deactivated by admin.",
+            message="â›” Your CRM portal account has been deactivated by admin.",
         )
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1534,6 +1534,7 @@ def customer_list(request):
     status_filter = request.GET.get('status', '').strip()
     source_filter = request.GET.get('lead_source', '').strip()
     assignee_filter = request.GET.get('assigned_to', '').strip()
+    creator_filter = request.GET.get('created_by', '').strip()
     customer_type_filter = request.GET.get('customer_type', '').strip()
     connection_status_filter = request.GET.get('connection_status', '').strip()
     state_filter = request.GET.get('state', '').strip()
@@ -1607,6 +1608,7 @@ def customer_list(request):
         'selected_status': status_filter,
         'selected_source': source_filter,
         'selected_assignee': assignee_filter,
+        'selected_creator': creator_filter,
         'selected_customer_type': customer_type_filter,
         'selected_connection_status': connection_status_filter,
         'call_status_choices': CallLog.CALL_STATUS_CHOICES,
@@ -2011,7 +2013,7 @@ def process_import(data, request, filename="Uploaded File"):
             if has_any_data:
                 failed_records.append({
                     'row': index + 2,
-                    'phone': '—',
+                    'phone': 'â€”',
                     'reason': 'Missing mobile / phone number'
                 })
             continue
@@ -2098,7 +2100,7 @@ def process_import(data, request, filename="Uploaded File"):
                     success_count += 1
                 except Exception as row_err:
                     failed_records.append({
-                        'row': '—',
+                        'row': 'â€”',
                         'phone': c.phone,
                         'reason': f"Database error: {str(row_err)[:100]}"
                     })
@@ -2401,14 +2403,14 @@ def app_user_detail(request, user_id):
                     res = send_seller_welcome_communications(h_user, send_whatsapp=True, send_email=True)
                     feedback = [f"Seller Onboarding status updated to <strong>Onboarded</strong>."]
                     if res['whatsapp_success']:
-                        feedback.append("🎉 Welcome WhatsApp sent successfully.")
+                        feedback.append("ðŸŽ‰ Welcome WhatsApp sent successfully.")
                     elif res['whatsapp_error']:
-                        feedback.append(f"⚠️ WhatsApp: {res['whatsapp_error']}")
+                        feedback.append(f"âš ï¸ WhatsApp: {res['whatsapp_error']}")
 
                     if res['email_success']:
-                        feedback.append("✉️ Welcome Email sent successfully.")
+                        feedback.append("âœ‰ï¸ Welcome Email sent successfully.")
                     elif res['email_error']:
-                        feedback.append(f"⚠️ Email: {res['email_error']}")
+                        feedback.append(f"âš ï¸ Email: {res['email_error']}")
 
                     messages.success(request, " ".join(feedback))
                 else:
@@ -2442,12 +2444,12 @@ def app_user_detail(request, user_id):
                 res = send_seller_welcome_communications(h_user, send_whatsapp=send_wa, send_email=send_em, force=force)
                 if send_wa:
                     if res['whatsapp_success']:
-                        messages.success(request, "🎉 Welcome WhatsApp sent successfully.")
+                        messages.success(request, "ðŸŽ‰ Welcome WhatsApp sent successfully.")
                     else:
                         messages.warning(request, f"WhatsApp dispatch issue: {res['whatsapp_error']}")
                 if send_em:
                     if res['email_success']:
-                        messages.success(request, "✉️ Welcome Email sent successfully.")
+                        messages.success(request, "âœ‰ï¸ Welcome Email sent successfully.")
                     else:
                         messages.warning(request, f"Email dispatch issue: {res['email_error']}")
             return redirect('app_user_detail', user_id=user_id)
@@ -2913,7 +2915,7 @@ def send_invoice_email(request, invoice_id):
     # Render the invoice HTML for the email body or as an attachment
     # For now, we send a link and basic details
     subject = f"Tax Invoice {invoice.invoice_no} from ApniFactory"
-    body = f"Dear {h_user.name},\n\nPlease find attached your tax invoice {invoice.invoice_no} for marketing services.\n\nTotal Amount: ₹{invoice.total_amount}\n\nThank you for choosing ApniFactory!"
+    body = f"Dear {h_user.name},\n\nPlease find attached your tax invoice {invoice.invoice_no} for marketing services.\n\nTotal Amount: â‚¹{invoice.total_amount}\n\nThank you for choosing ApniFactory!"
     
     email = EmailMessage(
         subject,
@@ -2951,7 +2953,7 @@ def send_invoice_whatsapp(request, invoice_id):
         f"*TAX INVOICE: {invoice.invoice_no}*\n\n"
         f"Dear {h_user.name},\n"
         f"Your invoice for marketing services is ready.\n\n"
-        f"*Total Amount:* ₹{invoice.total_amount}\n"
+        f"*Total Amount:* â‚¹{invoice.total_amount}\n"
         f"*Status:* {invoice.payment_status.upper()}\n\n"
         f"Thank you for choosing ApniFactory!"
     )
@@ -3900,7 +3902,7 @@ def tracking_dashboard(request):
             'timestamp': o.created_at,
             'source': 'CAPI / Google Ads',
             'event': 'Purchase',
-            'details': f"Order #{o.orderno} - Value: ₹{o.grandtotal}",
+            'details': f"Order #{o.orderno} - Value: â‚¹{o.grandtotal}",
             'status': 'Success'
         })
 
@@ -4742,25 +4744,25 @@ def ensure_default_quick_replies():
         return
     
     seller_msg = (
-        "🎉 *Welcome to Apni Factory!* 🎉\n\n"
+        "ðŸŽ‰ *Welcome to Apni Factory!* ðŸŽ‰\n\n"
         "Dear {{customer_name}},\n\n"
         "We are pleased to welcome *{{company_name}}* as a Partner on Apni Factory.\n\n"
         "Your company has been successfully onboarded on our platform.\n\n"
         "*What happens next?*\n"
         "Our team will take care of setting up your products and brands on Apni Factory. "
         "You may simply coordinate with our team for:\n"
-        "• Product & brand information\n"
-        "• Price updates & special deals\n"
-        "• Order fulfillment & dispatch\n\n"
+        "â€¢ Product & brand information\n"
+        "â€¢ Price updates & special deals\n"
+        "â€¢ Order fulfillment & dispatch\n\n"
         "To get started, please complete your partner registration using this link:\n"
-        "👉 https://apnifactory.com/be-a-vendor/\n\n"
-        "📄 We have attached the *Apni Factory Seller Onboarding Guide* for your quick reference.\n\n"
+        "ðŸ‘‰ https://apnifactory.com/be-a-vendor/\n\n"
+        "ðŸ“„ We have attached the *Apni Factory Seller Onboarding Guide* for your quick reference.\n\n"
         "Warm regards,\n"
         "*Team Apni Factory*\n"
-        "🌐 https://apnifactory.com"
+        "ðŸŒ https://apnifactory.com"
     )
     qr = WhatsAppQuickReply.objects.create(
-        title="🌟 Welcome to Apni Factory (Seller Onboarding)",
+        title="ðŸŒŸ Welcome to Apni Factory (Seller Onboarding)",
         keyword="seller",
         content_type="document",
         message=seller_msg,
@@ -5373,7 +5375,7 @@ def _send_onboarding_email(request, candidate):
     host = request.get_host()
     public_link = f"{scheme}://{host}{candidate.get_public_link()}"
 
-    subject = f"Welcome to APNI FACTORY – Complete Your Onboarding Documentation"
+    subject = f"Welcome to APNI FACTORY â€“ Complete Your Onboarding Documentation"
     body = f"""Dear {candidate.candidate_name},
 
 Congratulations! You have been invited to join APNI FACTORY.
@@ -5387,7 +5389,7 @@ This link is personal and unique to you. Please do NOT share it with anyone.
 If you have any questions, please contact HR at {request.user.email or 'hr@apnifactory.com'}.
 
 Best Regards,
-HR Team – APNI FACTORY
+HR Team â€“ APNI FACTORY
 """
     try:
         send_mail(
@@ -5695,4 +5697,5 @@ def whatsapp_meta_templates_api(request):
     from .utils import get_approved_meta_templates
     templates = get_approved_meta_templates()
     return JsonResponse({'status': 'success', 'templates': templates})
+
 

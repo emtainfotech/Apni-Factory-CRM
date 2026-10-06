@@ -166,6 +166,17 @@
                     </select>
                 </div>
 
+                <div class="col-6 col-md-2">
+                    <select name="created_by" class="form-select form-select-sm fs-9">
+                        <option value="">All Registrars</option>
+                        {% for emp in employees %}
+                            <option value="{{ emp.id }}" {% if selected_creator == emp.id|stringformat:"i" %}selected{% endif %}>
+                                Registered by {{ emp.get_full_name|default:emp.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
                 <div class="col-6 col-md-2 d-flex gap-1">
                     <button type="submit" class="btn btn-primary btn-sm w-100 fs-9 fw-semibold">
                         <i class="fas fa-filter me-1"></i> Filter
@@ -394,10 +405,15 @@
                                         {% csrf_token %}
                                         <input type="hidden" name="action" value="claim_single">
                                         <input type="hidden" name="customer_id" value="{{ customer.id }}">
-                                        <button type="submit" class="btn btn-warning btn-xs py-0 px-2 fs-11 shadow-sm" title="Claim lead to your pipeline">
+                                        <button type="submit" class="btn btn-warning btn-xs py-0 px-2 fs-11 mb-1 shadow-sm d-inline-block" title="Claim lead to your pipeline">
                                             <i class="fas fa-hand-holding-usd me-1"></i>Claim Lead
                                         </button>
                                     </form>
+                                {% endif %}
+                                {% if customer.created_by %}
+                                    <div class="text-body-tertiary fs-11 mt-1 pt-1 border-top" title="Registered By">
+                                        <i class="fas fa-user-edit me-1"></i>Reg: <strong>{{ customer.created_by.get_full_name|default:customer.created_by.username }}</strong>
+                                    </div>
                                 {% endif %}
                             </td>
 

@@ -161,9 +161,14 @@
                             </div>
                         </div>
                     {% else %}
-                        <span class="badge badge-phoenix badge-phoenix-warning fs-10">
+                        <span class="badge badge-phoenix badge-phoenix-warning fs-10 mb-1 d-inline-block">
                             <i class="fas fa-user-clock me-1"></i>Unassigned
                         </span>
+                    {% endif %}
+                    {% if customer.created_by %}
+                        <div class="text-body-tertiary fs-11 mt-1 pt-1 border-top" title="Registered By">
+                            <i class="fas fa-user-edit me-1"></i>Reg: <strong>{{ customer.created_by.get_full_name|default:customer.created_by.username }}</strong>
+                        </div>
                     {% endif %}
                 </td>
 
