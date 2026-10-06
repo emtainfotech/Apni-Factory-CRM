@@ -29,6 +29,20 @@
         </span>
     </td>
     <td>
+        {% if cust.crm_assigned_to %}
+            <div class="fs-10 text-body-highlight fw-medium">
+                <i class="fas fa-user-tie text-body-tertiary me-1"></i>{{ cust.crm_assigned_to.get_full_name|default:cust.crm_assigned_to.username }}
+            </div>
+            {% if cust.crm_created_by %}
+                <div class="fs-11 text-body-quaternary mt-1">
+                    Reg: {{ cust.crm_created_by.get_full_name|default:cust.crm_created_by.username }}
+                </div>
+            {% endif %}
+        {% else %}
+            <span class="badge badge-phoenix badge-phoenix-warning fs-11">Unassigned</span>
+        {% endif %}
+    </td>
+    <td>
         <span class="text-body-highlight fw-medium fs-10">
             {{ cust.gstorpan|default:"-" }}
         </span>

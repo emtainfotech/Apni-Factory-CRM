@@ -2197,6 +2197,12 @@ def app_user_list(request):
         VerifiedGST.objects.filter(gst_number__in=all_page_gsts).values_list('gst_number', flat=True)
     )
 
+    # Pre-fetch CRM mapping data to get Employee assignment
+    page_user_emails = [u.email.lower() for u in page_obj if u.email]
+    from .models import Customer
+    crm_customers = Customer.objects.select_related('assigned_to', 'created_by').filter(email__in=page_user_emails)
+    crm_mapping = {c.email.lower(): c for c in crm_customers if c.email}
+
     for h_user in page_obj:
         if 'admin' in h_user.name.lower() or 'admin' in h_user.email.lower():
             h_user.computed_role = 'Admin'
@@ -2205,6 +2211,11 @@ def app_user_list(request):
             h_user.computed_role = 'Seller'
             user_gsts = [c.gst.strip().upper() for c in companies_by_user.get(h_user.id, []) if c.gst]
             h_user.gst_verified = any(g in verified_gst_set for g in user_gsts)
+
+        # Map CRM employee data
+        crm_cust = crm_mapping.get(h_user.email.lower() if h_user.email else '')
+        h_user.crm_assigned_to = crm_cust.assigned_to if crm_cust else None
+        h_user.crm_created_by = crm_cust.created_by if crm_cust else None
 
         # Attach tracker and status attributes
         tracker = trackers.get(h_user.id)
@@ -2261,12 +2272,23 @@ def app_customer_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
+    # Pre-fetch CRM mapping data to get Employee assignment
+    page_user_emails = [u.email.lower() for u in page_obj if u.email]
+    from .models import Customer
+    crm_customers = Customer.objects.select_related('assigned_to', 'created_by').filter(email__in=page_user_emails)
+    crm_mapping = {c.email.lower(): c for c in crm_customers if c.email}
+
     # Compute GST verification status for the current page
     for cust in page_obj:
         if cust.gstorpan:
             cust.gst_verified = VerifiedGST.objects.filter(gst_number=cust.gstorpan.strip().upper()).exists()
         else:
             cust.gst_verified = False
+            
+        # Map CRM employee data
+        crm_cust = crm_mapping.get(cust.email.lower() if cust.email else '')
+        cust.crm_assigned_to = crm_cust.assigned_to if crm_cust else None
+        cust.crm_created_by = crm_cust.created_by if crm_cust else None
 
     context = {
         'page_obj': page_obj,

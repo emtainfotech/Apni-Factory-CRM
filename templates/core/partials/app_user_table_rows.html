@@ -29,6 +29,20 @@
         {% endif %}
     </td>
     <td>
+        {% if h_user.crm_assigned_to %}
+            <div class="fs-10 text-body-highlight fw-medium">
+                <i class="fas fa-user-tie text-body-tertiary me-1"></i>{{ h_user.crm_assigned_to.get_full_name|default:h_user.crm_assigned_to.username }}
+            </div>
+            {% if h_user.crm_created_by %}
+                <div class="fs-11 text-body-quaternary mt-1">
+                    Reg: {{ h_user.crm_created_by.get_full_name|default:h_user.crm_created_by.username }}
+                </div>
+            {% endif %}
+        {% else %}
+            <span class="badge badge-phoenix badge-phoenix-warning fs-11">Unassigned</span>
+        {% endif %}
+    </td>
+    <td>
         {% if h_user.computed_role == 'Seller' %}
             {% if h_user.onboarding_status == 'onboarded' %}
             <span class="badge badge-phoenix badge-phoenix-success fs-11">
