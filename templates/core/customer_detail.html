@@ -2,6 +2,11 @@
 
 {% block content %}
 <div class="mb-9">
+    <style>
+        .folder-item, .file-item { transition: all 0.2s ease-in-out; }
+        .folder-item:hover, .file-item:hover { background-color: #f8f9fa !important; border-color: #dee2e6 !important; transform: translateY(-2px); }
+        .border-dashed { border-style: dashed !important; }
+    </style>
     <div class="row g-3 mb-4 align-items-center">
         <div class="col-auto">
             <a href="{% url 'customer_list' %}" class="btn btn-sm btn-phoenix-secondary">
@@ -674,6 +679,8 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+</script>
+
 <!-- Create Folder Modal -->
 <div class="modal fade" id="createFolderModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -834,6 +841,26 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('file-upload-input');
     if (fileInput) {
         fileInput.addEventListener('change', (e) => uploadFiles(e.target.files));
+    }
+
+    const dropZone = document.getElementById('drop-zone');
+    const documentsTab = document.getElementById('documents');
+    if (documentsTab && dropZone) {
+        documentsTab.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if(currentFolderId) dropZone.classList.remove('d-none');
+        });
+        
+        documentsTab.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            if(e.target === dropZone) dropZone.classList.add('d-none');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('d-none');
+            uploadFiles(e.dataTransfer.files);
+        });
     }
 
     function uploadFiles(files) {
