@@ -741,7 +741,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function loadFolderContents(folderId = null) {
         currentFolderId = folderId;
         
-        let url = `/files/api/${customerId}/folders/`;
+        let url = `/core/files/api/${customerId}/folders/`;
         if (folderId) url += `?parent_id=${folderId}`;
 
         fetch(url)
@@ -822,7 +822,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentFolderId) formData.append('parent_id', currentFolderId);
         formData.append('csrfmiddlewaretoken', getCsrfToken());
 
-        fetch(`/files/api/${customerId}/create-folder/`, {
+        fetch(`/core/files/api/${customerId}/create-folder/`, {
             method: 'POST',
             body: formData
         })
@@ -931,7 +931,7 @@ document.addEventListener('DOMContentLoaded', function() {
             toast.hide();
         }, false);
 
-        xhr.open("POST", `/files/api/${customerId}/upload/`);
+        xhr.open("POST", `/core/files/api/${customerId}/upload/`);
         xhr.send(formData);
         
         if(fileInput) fileInput.value = '';
