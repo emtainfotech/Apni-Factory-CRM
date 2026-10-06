@@ -190,7 +190,7 @@
         if (!currentCustomerId) return;
         currentFolderId = folderId;
         
-        let url = `/files/api/${currentCustomerId}/folders/`;
+        let url = `/core/files/api/${currentCustomerId}/folders/`;
         if (folderId) url += `?parent_id=${folderId}`;
 
         fetch(url)
@@ -278,7 +278,7 @@
         if (currentFolderId) formData.append('parent_id', currentFolderId);
         formData.append('csrfmiddlewaretoken', getCsrfToken());
 
-        fetch(`/files/api/${currentCustomerId}/create-folder/`, {
+        fetch(`/core/files/api/${currentCustomerId}/create-folder/`, {
             method: 'POST',
             body: formData
         })
@@ -389,7 +389,7 @@
             toast.hide();
         }, false);
 
-        xhr.open("POST", `/files/api/${currentCustomerId}/upload/`);
+        xhr.open("POST", `/core/files/api/${currentCustomerId}/upload/`);
         xhr.send(formData);
         
         fileInput.value = ''; // Reset input
