@@ -131,10 +131,36 @@
     .file-item:hover, .folder-item:hover { background-color: #e9ecef; border-color: #dee2e6; border-radius: 8px; }
     .border-dashed { border-style: dashed !important; }
 </style>
+<!-- Upload Progress Toast -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080">
+    <div id="uploadProgressToast" class="toast hide" role="alert" aria-live="assertive" aria-atomic="true" data-bs-autohide="false">
+        <div class="toast-header">
+            <i class="fas fa-cloud-upload-alt text-primary me-2"></i>
+            <strong class="me-auto">Uploading File...</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body">
+            <div class="mb-2 text-truncate" id="upload-filename"></div>
+            <div class="progress mb-2" style="height: 10px;">
+                <div id="upload-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+            </div>
+            <div class="d-flex justify-content-between fs-10 text-muted">
+                <span id="upload-percentage">0%</span>
+                <span id="upload-time-left">Calculating...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     let currentCustomerId = null;
     let currentFolderId = null;
     let breadcrumbs = [];
+
+    function getCsrfToken() {
+        const tokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        return tokenElement ? tokenElement.value : '{{ csrf_token }}';
+    }
 
     // Select Customer
     document.querySelectorAll('.customer-item').forEach(item => {
@@ -250,7 +276,7 @@
         const formData = new FormData();
         formData.append('name', name);
         if (currentFolderId) formData.append('parent_id', currentFolderId);
-        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        formData.append('csrfmiddlewaretoken', getCsrfToken());
 
         fetch(`/files/api/${currentCustomerId}/create-folder/`, {
             method: 'POST',
@@ -301,25 +327,70 @@
             return;
         }
 
-        Array.from(files).forEach(file => {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('folder_id', currentFolderId);
-            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+        const file = files[0];
+        if (!file) return;
 
-            fetch(`/files/api/${currentCustomerId}/upload/`, {
-                method: 'POST',
-                body: formData
-            })
-            .then(res => res.json())
-            .then(data => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('folder_id', currentFolderId);
+        formData.append('csrfmiddlewaretoken', getCsrfToken());
+
+        const toastEl = document.getElementById('uploadProgressToast');
+        const toast = new bootstrap.Toast(toastEl);
+        document.getElementById('upload-filename').textContent = file.name;
+        const progressBar = document.getElementById('upload-progress-bar');
+        const percentText = document.getElementById('upload-percentage');
+        const timeLeftText = document.getElementById('upload-time-left');
+        
+        progressBar.style.width = '0%';
+        percentText.textContent = '0%';
+        timeLeftText.textContent = 'Calculating...';
+        toast.show();
+
+        const xhr = new XMLHttpRequest();
+        const startTime = Date.now();
+
+        xhr.upload.addEventListener("progress", function(evt) {
+            if (evt.lengthComputable) {
+                const percentComplete = (evt.loaded / evt.total) * 100;
+                progressBar.style.width = percentComplete + '%';
+                percentText.textContent = Math.round(percentComplete) + '%';
+
+                const timeElapsed = (Date.now() - startTime) / 1000;
+                const uploadSpeed = evt.loaded / timeElapsed;
+                const timeRemaining = (evt.total - evt.loaded) / uploadSpeed;
+                
+                if (timeRemaining > 0 && Number.isFinite(timeRemaining)) {
+                    timeLeftText.textContent = Math.round(timeRemaining) + 's left';
+                }
+            }
+        }, false);
+
+        xhr.addEventListener("load", function() {
+            if (xhr.status >= 200 && xhr.status < 300) {
+                const data = JSON.parse(xhr.responseText);
                 if (data.success) {
-                    loadFolderContents(currentFolderId);
+                    progressBar.style.width = '100%';
+                    percentText.textContent = '100%';
+                    timeLeftText.textContent = 'Upload Complete!';
+                    setTimeout(() => { toast.hide(); loadFolderContents(currentFolderId); }, 1000);
                 } else {
                     alert(data.error || 'Upload failed');
+                    toast.hide();
                 }
-            });
-        });
+            } else {
+                alert('Server error occurred during upload.');
+                toast.hide();
+            }
+        }, false);
+
+        xhr.addEventListener("error", function() {
+            alert('Upload failed due to network error.');
+            toast.hide();
+        }, false);
+
+        xhr.open("POST", `/files/api/${currentCustomerId}/upload/`);
+        xhr.send(formData);
         
         fileInput.value = ''; // Reset input
     }
