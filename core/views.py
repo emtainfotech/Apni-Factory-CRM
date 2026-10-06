@@ -2272,11 +2272,20 @@ def app_customer_list(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Pre-fetch CRM mapping data to get Employee assignment
-    page_user_emails = [u.email.lower() for u in page_obj if u.email]
+    # Pre-fetch CRM mapping data to get Employee assignment via phone
     from .models import Customer
-    crm_customers = Customer.objects.select_related('assigned_to', 'created_by').filter(email__in=page_user_emails)
-    crm_mapping = {c.email.lower(): c for c in crm_customers if c.email}
+    phones_to_check = []
+    for cust in page_obj:
+        for p in [cust.mobile, cust.whatsappno]:
+            if p:
+                phones_to_check.append(p)
+                if p.startswith('91') and len(p) == 12:
+                    phones_to_check.append(p[2:])
+                else:
+                    phones_to_check.append('91' + p)
+    
+    crm_customers = Customer.objects.select_related('assigned_to', 'created_by').filter(phone__in=phones_to_check)
+    crm_mapping = {c.phone: c for c in crm_customers if c.phone}
 
     # Compute GST verification status for the current page
     for cust in page_obj:
@@ -2285,8 +2294,18 @@ def app_customer_list(request):
         else:
             cust.gst_verified = False
             
-        # Map CRM employee data
-        crm_cust = crm_mapping.get(cust.email.lower() if cust.email else '')
+        # Map CRM employee data via phone
+        crm_cust = None
+        for p in [cust.mobile, cust.whatsappno]:
+            if p:
+                crm_cust = crm_mapping.get(p)
+                if not crm_cust and p.startswith('91') and len(p) == 12:
+                    crm_cust = crm_mapping.get(p[2:])
+                if not crm_cust and len(p) == 10:
+                    crm_cust = crm_mapping.get('91' + p)
+            if crm_cust:
+                break
+                
         cust.crm_assigned_to = crm_cust.assigned_to if crm_cust else None
         cust.crm_created_by = crm_cust.created_by if crm_cust else None
 
