@@ -201,7 +201,7 @@ class EmployeeCustomerCreateForm(forms.ModelForm):
             return ""
         return val or ""
 
-from hostinger_data.models import Advertisements, Sliders, Categories
+from hostinger_data.models import Advertisements, Sliders, Categories, MainCategories, ShadeCards, Users
 
 class BannerForm(forms.ModelForm):
     category = forms.ModelChoiceField(
@@ -357,9 +357,132 @@ class CustomerEditForm(forms.ModelForm):
         if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
             return ''
         return val.strip() if val else ''
-
     def clean_company_name(self):
         val = self.cleaned_data.get('company_name', '')
         if val and str(val).strip().lower() in ('none', 'null', 'undefined', '-', '--'):
             return ''
-        return val.strip() if val else ''
+        return val.strip() if val else ''
+
+
+class ShadeCardForm(forms.ModelForm):
+    maincategory = forms.ModelChoiceField(
+        queryset=MainCategories.objects.all().order_by('name'),
+        required=True,
+        empty_label="Select a maincategory",
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_maincategory'})
+    )
+    category = forms.ModelChoiceField(
+        queryset=Categories.objects.all().order_by('name'),
+        required=True,
+        empty_label="Select a category",
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_category'})
+    )
+    user_choice = forms.ChoiceField(
+        label="User",
+        required=True,
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_user_choice'})
+    )
+    image_file = forms.ImageField(
+        label="Shade Image",
+        required=False,
+        widget=forms.FileInput(attrs={'class': 'form-control', 'id': 'id_image_file', 'accept': 'image/*'})
+    )
+
+    class Meta:
+        model = ShadeCards
+        fields = ['name', 'hexcode', 'adminmsg', 'status']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Hazel nut -8569', 'required': 'true'}),
+            'hexcode': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '#ffffff or #be9d7c', 'id': 'id_hexcode'}),
+            'adminmsg': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional admin message (e.g. Done)'}),
+            'status': forms.Select(choices=((1, 'Active'), (0, 'Inactive')), attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        try:
+            users = Users.objects.all().order_by('name')
+            self.fields['user_choice'].choices = [(u.id, f"{u.name} ({u.email})") for u in users]
+        except Exception:
+            self.fields['user_choice'].choices = [(1, 'admin')]
+
+        if not self.initial.get('user_choice'):
+            self.fields['user_choice'].initial = 1
+        if not self.initial.get('status'):
+            self.fields['status'].initial = 1
+
+        if self.instance and self.instance.pk:
+            if self.instance.maincategory_id:
+                self.fields['maincategory'].initial = self.instance.maincategory_id
+                self.fields['category'].queryset = Categories.objects.filter(maincategory_id=self.instance.maincategory_id).order_by('name')
+            if self.instance.category_id:
+                self.fields['category'].initial = self.instance.category_id
+            if self.instance.user_id:
+                self.fields['user_choice'].initial = self.instance.user_id
+            if self.instance.status is not None:
+                self.fields['status'].initial = self.instance.status
+
+        if self.data and self.data.get('maincategory'):
+            try:
+                main_id = int(self.data.get('maincategory'))
+                self.fields['category'].queryset = Categories.objects.filter(maincategory_id=main_id).order_by('name')
+            except (ValueError, TypeError):
+                pass
+
+    def clean_hexcode(self):
+        hexcode = self.cleaned_data.get('hexcode')
+        if hexcode:
+            hexcode = hexcode.strip()
+            if not hexcode.startswith('#') and len(hexcode) in (3, 6) and all(c in '0123456789abcdefABCDEF' for c in hexcode):
+                hexcode = '#' + hexcode
+            clean_hex = hexcode.lstrip('#')
+            if not (len(clean_hex) in (3, 6, 8) and all(c in '0123456789abcdefABCDEF' for c in clean_hex)):
+                raise forms.ValidationError("Invalid hex code format. Example: #fffdf1 or #123456")
+        return hexcode or None
+
+    def clean(self):
+        cleaned_data = super().clean()
+        hexcode = cleaned_data.get('hexcode')
+        image_file = cleaned_data.get('image_file')
+        existing_image = getattr(self.instance, 'image', None) if (self.instance and self.instance.pk) else None
+
+        has_hex = bool(hexcode and hexcode.strip())
+        has_img = bool(image_file or (existing_image and str(existing_image).strip()))
+
+        if not has_hex and not has_img:
+            raise forms.ValidationError("Either Shade Image or Hex Code is mandatory. Please provide at least one.")
+
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        maincat = self.cleaned_data.get('maincategory')
+        cat = self.cleaned_data.get('category')
+        instance.maincategory_id = maincat.id if maincat else 0
+        instance.category_id = cat.id if cat else 0
+        instance.user_id = int(self.cleaned_data.get('user_choice', 1))
+        instance.status = int(self.cleaned_data.get('status', 1))
+
+        image_file = self.cleaned_data.get('image_file')
+        if image_file:
+            import os, uuid
+            from django.conf import settings
+            ext = os.path.splitext(image_file.name)[1].lower()
+            unique_name = f"shadecard_{uuid.uuid4().hex[:12]}{ext}"
+            save_path = os.path.join(settings.MEDIA_ROOT, 'shadecard', unique_name)
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            with open(save_path, 'wb+') as destination:
+                for chunk in image_file.chunks():
+                    destination.write(chunk)
+            instance.image = f"shadecard/{unique_name}"
+
+        from django.utils import timezone
+        now = timezone.now()
+        if not instance.created_at:
+            instance.created_at = now
+        instance.updated_at = now
+
+        if commit:
+            instance.save()
+        return instance
+

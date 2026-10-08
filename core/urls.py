@@ -66,6 +66,16 @@ urlpatterns = [
     path('sliders/add/', views.add_slider, name='add_slider'),
     path('sliders/<int:slider_id>/edit/', views.edit_slider, name='edit_slider'),
 
+    # Shade Cards Management Routes
+    path('shade-cards/', views.shade_card_list, name='shade_card_list'),
+    path('shade-cards/add/', views.add_shade_card, name='add_shade_card'),
+    path('shade-cards/<int:pk>/edit/', views.edit_shade_card, name='edit_shade_card'),
+    path('shade-cards/<int:pk>/delete/', views.delete_shade_card, name='delete_shade_card'),
+    path('shade-cards/<int:pk>/toggle-status/', views.toggle_shade_card_status, name='toggle_shade_card_status'),
+    path('shade-cards/download-sample/', views.download_shade_card_sample, name='download_shade_card_sample'),
+    path('shade-cards/bulk-upload/', views.bulk_upload_shade_cards, name='bulk_upload_shade_cards'),
+    path('api/categories-by-maincategory/', views.api_categories_by_maincategory, name='api_categories_by_maincategory'),
+
     path('categories/', views.app_category_list, name='app_category_list'),
     path('categories/main/<int:main_category_id>/', views.app_category_detail, name='app_category_detail'),
     path('categories/category/<int:category_id>/', views.app_subcategory_list, name='app_subcategory_list'),

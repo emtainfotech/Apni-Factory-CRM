@@ -1,0 +1,500 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} | ApniFactory CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Filament-style Clean Aesthetic */
+    .form-card {
+        background: #ffffff;
+        border-radius: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .filament-field-label {
+        font-size: 0.82rem;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.35rem;
+    }
+    .filament-field-label .required-star {
+        color: #ef4444;
+        margin-left: 2px;
+    }
+    .color-picker-input {
+        width: 44px;
+        height: 38px;
+        padding: 2px;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        cursor: pointer;
+        background: none;
+    }
+    .color-preview-box {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+        display: inline-block;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    /* Drag & Drop File Upload Area */
+    .file-dropzone-box {
+        border: 2px dashed #cbd5e1;
+        border-radius: 10px;
+        padding: 1.5rem 1rem;
+        text-align: center;
+        background: #f8fafc;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+    }
+    .file-dropzone-box:hover, .file-dropzone-box.dragover {
+        border-color: #f59e0b;
+        background-color: #fffbeb;
+    }
+    .btn-filament-primary {
+        background-color: #d97706;
+        border-color: #d97706;
+        color: #ffffff;
+        font-weight: 600;
+        padding: 0.5rem 1.4rem;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+    }
+    .btn-filament-primary:hover {
+        background-color: #b45309;
+        border-color: #b45309;
+        color: #ffffff;
+    }
+    .btn-filament-secondary {
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        font-weight: 600;
+        padding: 0.5rem 1.2rem;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+    }
+    .btn-filament-secondary:hover {
+        background-color: #f1f5f9;
+        color: #0f172a;
+    }
+    .sample-excel-banner {
+        background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%);
+        border: 1px solid #86efac;
+        border-radius: 10px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 mb-6" style="max-width: 1100px;">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-1 fs-9">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}" class="text-decoration-none">Dashboard</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'shade_card_list' %}" class="text-decoration-none">Shade Cards</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% if is_edit %}Edit #{{ shade.id }}{% else %}Create{% endif %}</li>
+        </ol>
+    </nav>
+
+    <!-- Header Title -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <h2 class="mb-0 fw-bolder text-body-emphasis">{{ title }}</h2>
+            <p class="text-body-tertiary mb-0 fs-9">Configure shade card parameters, visual hex color, image, and category mapping.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'shade_card_list' %}" class="btn btn-phoenix-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i>Back to List
+            </a>
+            <a href="{% url 'bulk_upload_shade_cards' %}" class="btn btn-phoenix-info btn-sm">
+                <i class="fas fa-file-import me-1"></i>Bulk Importer
+            </a>
+        </div>
+    </div>
+
+    <!-- Prominent Attached Sample Excel Card (Requirement: "and also in add shade card also attach the sample excel file") -->
+    <div class="sample-excel-banner p-3 p-md-4 mb-4 shadow-sm">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="avatar avatar-l bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center flex-shrink-0">
+                    <i class="fas fa-file-excel fs-4"></i>
+                </div>
+                <div>
+                    <h6 class="mb-1 text-success fw-bold">Need to Bulk Upload Multiple Shades?</h6>
+                    <p class="text-body-secondary mb-0 fs-9">
+                        Download the pre-configured sample Excel template with all fields (<strong>Name</strong>, <strong>Maincategory</strong>, <strong>Category</strong>, <strong>Hexcode</strong>, <strong>Image</strong>, <strong>Status</strong>, <strong>User</strong>, <strong>Adminmsg</strong>) and live categories reference sheet.
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                <a href="{% url 'download_shade_card_sample' %}" class="btn btn-success btn-sm d-flex align-items-center shadow-sm fw-bold px-3">
+                    <i class="fas fa-download me-2"></i>Download Sample Excel
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mandate Alert Callout (Requirement: "and also one is manadte from shade image and hex code") -->
+    <div class="alert alert-subtle-warning d-flex align-items-center p-3 mb-4 rounded-3 border border-warning-subtle" role="alert">
+        <i class="fas fa-info-circle fs-3 text-warning me-3 flex-shrink-0"></i>
+        <div class="fs-9">
+            <strong class="text-body-emphasis">Mandatory Field Requirement:</strong>
+            At least <strong class="text-warning">ONE</strong> of <strong>Shade Image</strong> OR <strong>Hex Code</strong> is mandatory. You can provide either a hex color swatch, an uploaded shade card image, or both.
+        </div>
+    </div>
+
+    <!-- Error Summary if any -->
+    {% if form.errors %}
+    <div class="alert alert-danger alert-dismissible fade show p-3 mb-4 rounded-3" role="alert">
+        <div class="d-flex align-items-center mb-1">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Please resolve the following errors:</strong>
+        </div>
+        <ul class="mb-0 fs-9 ps-3">
+            {% for field, errors in form.errors.items %}
+                {% for error in errors %}
+                    <li><strong>{{ field|capfirst }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endfor %}
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+
+    <!-- Main Create / Edit Form Card -->
+    <div class="form-card p-4 p-md-5 mb-5 shadow-sm">
+        <form method="post" enctype="multipart/form-data" id="shadeCardForm">
+            {% csrf_token %}
+
+            <div class="row g-4">
+                <!-- ROW 1: Name & Hexcode -->
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_name">
+                        Name <span class="required-star">*</span>
+                    </label>
+                    <input type="text" name="name" id="id_name" value="{{ form.name.value|default:'' }}" class="form-control {% if form.name.errors %}is-invalid{% endif %}" placeholder="e.g. Hazel nut -8569" required maxlength="100">
+                    {% if form.name.errors %}
+                    <div class="invalid-feedback">{{ form.name.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Unique or descriptive name for this paint shade.</small>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_hexcode">
+                        Hexcode
+                    </label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="color" id="nativeColorPicker" class="color-picker-input" value="{{ form.hexcode.value|default:'#ffffff' }}" title="Click to pick a color">
+                        <div id="colorPreviewBox" class="color-preview-box flex-shrink-0" style="background-color: {{ form.hexcode.value|default:'#ffffff' }};" title="Live Color Preview"></div>
+                        <input type="text" name="hexcode" id="id_hexcode" value="{{ form.hexcode.value|default:'' }}" class="form-control {% if form.hexcode.errors %}is-invalid{% endif %}" placeholder="#fffdf1 or #be9d7c" maxlength="100">
+                    </div>
+                    {% if form.hexcode.errors %}
+                    <div class="invalid-feedback d-block">{{ form.hexcode.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Type a 6-digit hex code or use the color picker swatch on the left.</small>
+                    {% endif %}
+                </div>
+
+                <!-- ROW 2: Maincategory & Category (Subcategory) -->
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_maincategory">
+                        Maincategory <span class="required-star">*</span>
+                    </label>
+                    {{ form.maincategory }}
+                    {% if form.maincategory.errors %}
+                    <div class="invalid-feedback d-block">{{ form.maincategory.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Select the parent category (e.g. Paint & Distemper).</small>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_category">
+                        Category id <span class="required-star">*</span>
+                    </label>
+                    {{ form.category }}
+                    {% if form.category.errors %}
+                    <div class="invalid-feedback d-block">{{ form.category.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Subcategory dynamically filtered by your Maincategory selection.</small>
+                    {% endif %}
+                </div>
+
+                <!-- ROW 3: Image & Status -->
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_image_file">
+                        Image
+                    </label>
+                    
+                    <!-- File Drag & Drop Area -->
+                    <div class="file-dropzone-box" id="imageDropzone">
+                        <input type="file" name="image_file" id="id_image_file" class="d-none" accept="image/*">
+                        
+                        <!-- When file is chosen or existing image -->
+                        <div id="imagePreviewContainer" class="{% if not shade_image_url %}d-none{% endif %} mb-2">
+                            <div class="d-flex align-items-center justify-content-center gap-3">
+                                <img id="previewImg" src="{{ shade_image_url|default:'' }}" alt="Preview" class="rounded border shadow-sm" style="max-height: 90px; max-width: 160px; object-fit: contain;">
+                                <div class="text-start">
+                                    <span id="previewFileName" class="d-block fw-bold fs-9 text-truncate" style="max-width: 180px;">{% if shade.image %}{{ shade.image }}{% else %}New Image Selected{% endif %}</span>
+                                    <button type="button" class="btn btn-subtle-danger btn-sm p-1 fs-10 mt-1" id="btnRemoveImage">
+                                        <i class="fas fa-trash me-1"></i>Remove / Change
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Prompt state -->
+                        <div id="dropzonePrompt" class="{% if shade_image_url %}d-none{% endif %}">
+                            <i class="fas fa-cloud-arrow-up fs-2 text-warning mb-2 d-block"></i>
+                            <div class="fw-semibold text-body-emphasis fs-9 mb-1">Drag & Drop your files or <span class="text-primary text-decoration-underline">Browse</span></div>
+                            <span class="fs-10 text-body-tertiary">PNG, JPG, JPEG, WEBP up to 10MB</span>
+                        </div>
+                    </div>
+                    {% if form.image_file.errors %}
+                    <div class="invalid-feedback d-block">{{ form.image_file.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_status">
+                        Status <span class="required-star">*</span>
+                    </label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                    <div class="invalid-feedback d-block">{{ form.status.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Active shades will be visible to buyers and mobile app users.</small>
+                    {% endif %}
+                </div>
+
+                <!-- ROW 4: User & Adminmsg -->
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_user_choice">
+                        User <span class="required-star">*</span>
+                    </label>
+                    {{ form.user_choice }}
+                    {% if form.user_choice.errors %}
+                    <div class="invalid-feedback d-block">{{ form.user_choice.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Select creator or responsible admin account.</small>
+                    {% endif %}
+                </div>
+
+                <div class="col-12 col-md-6">
+                    <label class="filament-field-label" for="id_adminmsg">
+                        Adminmsg
+                    </label>
+                    {{ form.adminmsg }}
+                    {% if form.adminmsg.errors %}
+                    <div class="invalid-feedback d-block">{{ form.adminmsg.errors.0 }}</div>
+                    {% else %}
+                    <small class="text-body-tertiary fs-10">Optional operational note (e.g. Done, Approved, Batch 2026).</small>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Form Action Buttons (Matching Screenshot) -->
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-5 pt-4 border-top">
+                <button type="submit" name="save_action" value="save" class="btn btn-filament-primary">
+                    {% if is_edit %}Save changes{% else %}Create{% endif %}
+                </button>
+
+                {% if not is_edit %}
+                <button type="submit" name="save_and_add_another" value="1" class="btn btn-filament-secondary">
+                    Create & create another
+                </button>
+                {% endif %}
+
+                <a href="{% url 'shade_card_list' %}" class="btn btn-subtle-secondary ms-md-2">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Embedded category mapping for instant dynamic category filtering
+    const CATEGORY_MAP = {{ category_map_json|safe }};
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const mainCatSelect = document.getElementById('id_maincategory');
+        const catSelect = document.getElementById('id_category');
+        const hexInput = document.getElementById('id_hexcode');
+        const colorPicker = document.getElementById('nativeColorPicker');
+        const colorPreviewBox = document.getElementById('colorPreviewBox');
+        const fileInput = document.getElementById('id_image_file');
+        const dropzone = document.getElementById('imageDropzone');
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const dropzonePrompt = document.getElementById('dropzonePrompt');
+        const previewImg = document.getElementById('previewImg');
+        const previewFileName = document.getElementById('previewFileName');
+        const btnRemoveImage = document.getElementById('btnRemoveImage');
+
+        // Dynamic Category filtering by Main Category
+        function updateCategories() {
+            const selectedMainId = mainCatSelect.value;
+            const currentCatVal = catSelect.value;
+
+            // Preserve current selection if valid
+            catSelect.innerHTML = '<option value="">Select a category</option>';
+
+            if (selectedMainId && CATEGORY_MAP[selectedMainId]) {
+                CATEGORY_MAP[selectedMainId].forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.id;
+                    opt.textContent = cat.name;
+                    if (String(cat.id) === String(currentCatVal)) {
+                        opt.selected = true;
+                    }
+                    catSelect.appendChild(opt);
+                });
+            } else if (!selectedMainId) {
+                // If no main category selected, offer all
+                for (const mId in CATEGORY_MAP) {
+                    CATEGORY_MAP[mId].forEach(cat => {
+                        const opt = document.createElement('option');
+                        opt.value = cat.id;
+                        opt.textContent = cat.name;
+                        if (String(cat.id) === String(currentCatVal)) {
+                            opt.selected = true;
+                        }
+                        catSelect.appendChild(opt);
+                    });
+                }
+            }
+        }
+
+        if (mainCatSelect) {
+            mainCatSelect.addEventListener('change', updateCategories);
+            // Run on initial load if maincategory is pre-selected and category is empty
+            if (mainCatSelect.value && catSelect.options.length <= 1) {
+                updateCategories();
+            }
+        }
+
+        // Color Picker & Hex Code Synchronization
+        function updateColorFromPicker() {
+            const hexVal = colorPicker.value;
+            hexInput.value = hexVal;
+            colorPreviewBox.style.backgroundColor = hexVal;
+        }
+
+        function updateColorFromText() {
+            let val = hexInput.value.trim();
+            if (val) {
+                if (!val.startsWith('#') && (val.length === 3 || val.length === 6)) {
+                    val = '#' + val;
+                }
+                if (/^#[0-9A-F]{6}$/i.test(val) || /^#[0-9A-F]{3}$/i.test(val)) {
+                    colorPreviewBox.style.backgroundColor = val;
+                    if (/^#[0-9A-F]{6}$/i.test(val)) {
+                        colorPicker.value = val;
+                    }
+                }
+            } else {
+                colorPreviewBox.style.backgroundColor = 'transparent';
+            }
+        }
+
+        if (colorPicker && hexInput) {
+            colorPicker.addEventListener('input', updateColorFromPicker);
+            hexInput.addEventListener('input', updateColorFromText);
+            // Initial sync
+            if (hexInput.value) {
+                updateColorFromText();
+            }
+        }
+
+        // File Drag & Drop Handling
+        if (dropzone && fileInput) {
+            dropzone.addEventListener('click', function(e) {
+                if (e.target !== btnRemoveImage && !btnRemoveImage.contains(e.target)) {
+                    fileInput.click();
+                }
+            });
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropzone.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.add('dragover');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropzone.addEventListener(eventName, function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropzone.classList.remove('dragover');
+                }, false);
+            });
+
+            dropzone.addEventListener('drop', function(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    fileInput.files = files;
+                    handleFileSelect(files[0]);
+                }
+            });
+
+            fileInput.addEventListener('change', function() {
+                if (fileInput.files.length > 0) {
+                    handleFileSelect(fileInput.files[0]);
+                }
+            });
+
+            if (btnRemoveImage) {
+                btnRemoveImage.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fileInput.value = '';
+                    previewContainer.classList.add('d-none');
+                    dropzonePrompt.classList.remove('d-none');
+                    previewImg.src = '';
+                });
+            }
+        }
+
+        function handleFileSelect(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Please upload a valid image file (PNG, JPG, WEBP).');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewImg.src = e.target.result;
+                previewFileName.textContent = file.name;
+                previewContainer.classList.remove('d-none');
+                dropzonePrompt.classList.add('d-none');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Client-side Mandate Validation Check before submitting
+        const form = document.getElementById('shadeCardForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                const hexVal = hexInput ? hexInput.value.trim() : '';
+                const hasFile = fileInput && fileInput.files.length > 0;
+                const hasExistingImg = previewImg && previewImg.src && !previewImg.src.includes('data:') && !previewContainer.classList.contains('d-none');
+
+                if (!hexVal && !hasFile && !hasExistingImg) {
+                    e.preventDefault();
+                    alert('Validation error: Either Shade Image or Hex Code is mandatory. Please provide at least one.');
+                    hexInput.focus();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

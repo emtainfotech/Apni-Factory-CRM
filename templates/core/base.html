@@ -408,6 +408,16 @@
                                         </li>
 
                                         <li class="nav-item">
+                                            <a class="nav-link {% if 'shade-card' in request.path %}active{% endif %}"
+                                                href="{% url 'shade_card_list' %}">
+                                                <div class="d-flex align-items-center">
+                                                    <span class="nav-link-icon"><span data-feather="droplet"></span></span>
+                                                    <span class="nav-link-text">App Shade Cards</span>
+                                                </div>
+                                            </a>
+                                        </li>
+
+                                        <li class="nav-item">
                                             <a class="nav-link {% if url_name == 'app_brand_list' %}active{% endif %}"
                                                 href="{% url 'app_brand_list' %}">
                                                 <div class="d-flex align-items-center">

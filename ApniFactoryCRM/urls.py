@@ -49,6 +49,9 @@ urlpatterns = [
     path('api/telegram/webhook/', telegram_views.telegram_webhook_view, name='telegram_webhook'),
     path('api/telegram/quick-approve/<int:request_id>/', telegram_views.quick_approve_view, name='telegram_quick_approve'),
 
+    path('shade-cards/', lambda request: redirect('shade_card_list', permanent=False)),
+    path('admin/shade-cards/', lambda request: redirect('shade_card_list', permanent=False)),
+    path('admin/shade-cards/create/', lambda request: redirect('add_shade_card', permanent=False)),
     path('health/', health_check, name='health_check'),
     path('', lambda request: redirect('dashboard_admin', permanent=False)),
     path('authentication/', include('authentication.urls')),

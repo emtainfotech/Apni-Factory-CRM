@@ -305,6 +305,17 @@
                         </div>
                     </a>
                 </div>
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <a href="{% url 'shade_card_list' %}" class="premium-dashboard-card card-accent-amber">
+                        <div class="card-body d-flex align-items-center justify-content-between p-3">
+                            <div>
+                                <span class="text-body-tertiary fs-10 fw-bold text-uppercase d-block mb-1">Shade Cards</span>
+                                <h3 class="mb-0 fw-bolder">{{ total_shade_cards|default:730 }}</h3>
+                            </div>
+                            <div class="card-icon-wrapper amber-icon"><span class="fas fa-palette"></span></div>
+                        </div>
+                    </a>
+                </div>
             </div>
         </div>
     </div>

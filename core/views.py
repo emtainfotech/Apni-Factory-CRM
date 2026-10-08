@@ -17,7 +17,7 @@ from django.utils import timezone
 # Import Models & Forms
 from authentication.models import User, Notification
 from authentication.tokens import account_activation_token
-from .forms import UserInviteForm, BannerForm, SliderForm
+from .forms import UserInviteForm, BannerForm, SliderForm, ShadeCardForm
 from .models import Customer, WhatsAppLead, LoginApprovalRequest, ApprovedIPAddress, ScheduledAppointment
 
 # Import Hostinger Data Models
@@ -288,6 +288,7 @@ def admin_dashboard(request):
         'payu_details_count': payu_details_count,
         'total_advertisements': total_advertisements,
         'ad_invoices_count': ad_invoices_count,
+        'total_shade_cards': ShadeCards.objects.count(),
         'total_leads': total_leads,
         'scheduled_appointments_count': ScheduledAppointment.objects.count(),
     }
@@ -5770,5 +5771,628 @@ def whatsapp_meta_templates_api(request):
     from .utils import get_approved_meta_templates
     templates = get_approved_meta_templates()
     return JsonResponse({'status': 'success', 'templates': templates})
+
+
+# ==============================================================================
+#                      SHADE CARDS MANAGEMENT (CRM / APP DB)
+# ==============================================================================
+
+def get_shade_image_url(image_field):
+    """
+    Resolves shade card image to an accessible URL.
+    Supports remote Hostinger storage, local CRM media storage, and full URLs.
+    """
+    if not image_field:
+        return None
+    image_str = str(image_field).strip()
+    if not image_str:
+        return None
+    if image_str.startswith(('http://', 'https://')):
+        return image_str
+    if image_str.startswith('/media/'):
+        return image_str
+    if image_str.startswith('media/'):
+        return f"/{image_str}"
+
+    import os
+    from django.conf import settings
+    local_path = os.path.join(settings.MEDIA_ROOT, image_str.lstrip('/'))
+    if os.path.exists(local_path):
+        return f"{settings.MEDIA_URL}{image_str.lstrip('/')}"
+
+    IMAGE_PREFIX = "https://panel.apnifactory.co.in/storage/app/public/"
+    return f"{IMAGE_PREFIX}{image_str.lstrip('/')}"
+
+
+def get_shade_contrast_color(hex_str):
+    """
+    Calculates contrast text color (#1e293b dark or #ffffff light) for a hex badge.
+    """
+    if not hex_str:
+        return '#000000'
+    clean_hex = str(hex_str).strip().lstrip('#')
+    if len(clean_hex) == 3:
+        clean_hex = ''.join([c * 2 for c in clean_hex])
+    if len(clean_hex) != 6:
+        return '#000000'
+    try:
+        r, g, b = int(clean_hex[0:2], 16), int(clean_hex[2:4], 16), int(clean_hex[4:6], 16)
+        luminance = (r * 299 + g * 587 + b * 114) / 1000
+        return '#1e293b' if luminance > 165 else '#ffffff'
+    except ValueError:
+        return '#000000'
+
+
+@login_required
+def shade_card_list(request):
+    """
+    View to display Shade Cards with filters, search, image preview,
+    hex color badges, status toggles, and table / grid views.
+    """
+    import json
+    search_q = request.GET.get('q', '').strip()
+    main_cat_id = request.GET.get('maincategory_id', '').strip()
+    cat_id = request.GET.get('category_id', '').strip()
+    status_filter = request.GET.get('status', '').strip()
+    format_type = request.GET.get('format_type', '').strip()
+    view_mode = request.GET.get('view_mode', 'table').strip()
+
+    qs = ShadeCards.objects.all().order_by('-id')
+
+    # Apply search filter
+    if search_q:
+        q_filter = Q(name__icontains=search_q) | Q(hexcode__icontains=search_q) | Q(adminmsg__icontains=search_q)
+        if search_q.isdigit():
+            q_filter |= Q(id=int(search_q))
+        qs = qs.filter(q_filter)
+
+    # Apply category filters
+    if main_cat_id and main_cat_id.isdigit():
+        qs = qs.filter(maincategory_id=int(main_cat_id))
+
+    if cat_id and cat_id.isdigit():
+        qs = qs.filter(category_id=int(cat_id))
+
+    # Apply status filter
+    if status_filter in ('1', '0'):
+        qs = qs.filter(status=int(status_filter))
+
+    # Apply format type filter
+    if format_type == 'image_only':
+        qs = qs.filter(image__isnull=False).exclude(image='').filter(Q(hexcode__isnull=True) | Q(hexcode=''))
+    elif format_type == 'hex_only':
+        qs = qs.filter(hexcode__isnull=False).exclude(hexcode='').filter(Q(image__isnull=True) | Q(image=''))
+    elif format_type == 'both':
+        qs = qs.filter(image__isnull=False).exclude(image='').filter(hexcode__isnull=False).exclude(hexcode='')
+    elif format_type == 'has_image':
+        qs = qs.filter(image__isnull=False).exclude(image='')
+    elif format_type == 'has_hex':
+        qs = qs.filter(hexcode__isnull=False).exclude(hexcode='')
+
+    # Preload Category maps
+    main_categories = list(MainCategories.objects.all().order_by('sequence', 'name'))
+    categories = list(Categories.objects.all().order_by('name'))
+
+    main_cat_map = {m.id: m.name for m in main_categories}
+    cat_map = {c.id: c.name for c in categories}
+
+    # Category map for instant client-side dropdown filter
+    category_map_data = {}
+    for c in categories:
+        m_id = c.maincategory_id
+        if m_id not in category_map_data:
+            category_map_data[m_id] = []
+        category_map_data[m_id].append({'id': c.id, 'name': c.name})
+    category_map_json = json.dumps(category_map_data)
+
+    # Summary statistics
+    total_count = ShadeCards.objects.count()
+    active_count = ShadeCards.objects.filter(status=1).count()
+    with_image_count = ShadeCards.objects.filter(image__isnull=False).exclude(image='').count()
+    with_hex_count = ShadeCards.objects.filter(hexcode__isnull=False).exclude(hexcode='').count()
+
+    try:
+        users_map = {u.id: u.name for u in HostingerUser.objects.all()}
+    except Exception:
+        users_map = {}
+
+    # Pagination
+    try:
+        per_page = int(request.GET.get('per_page', 20))
+    except (ValueError, TypeError):
+        per_page = 20
+    paginator = Paginator(qs, per_page)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    for item in page_obj:
+        item.main_category_name = main_cat_map.get(item.maincategory_id, f"Main #{item.maincategory_id}")
+        item.category_name = cat_map.get(item.category_id, f"Category #{item.category_id}")
+        item.image_url = get_shade_image_url(item.image)
+        item.contrast_color = get_shade_contrast_color(item.hexcode)
+        item.user_name = users_map.get(item.user_id, f"User #{item.user_id}")
+
+    context = {
+        'shades': page_obj,
+        'page_obj': page_obj,
+        'main_categories': main_categories,
+        'categories': categories,
+        'category_map_json': category_map_json,
+        'search_q': search_q,
+        'selected_main_cat': int(main_cat_id) if main_cat_id.isdigit() else '',
+        'selected_cat': int(cat_id) if cat_id.isdigit() else '',
+        'status_filter': status_filter,
+        'format_type': format_type,
+        'view_mode': view_mode,
+        'per_page': per_page,
+        'total_count': total_count,
+        'active_count': active_count,
+        'with_image_count': with_image_count,
+        'with_hex_count': with_hex_count,
+        'filtered_count': qs.count(),
+    }
+    return render(request, 'core/shade_card_list.html', context)
+
+
+@login_required
+def add_shade_card(request):
+    """
+    View to create a new Shade Card with validation, dynamic category dropdowns,
+    and attached sample Excel file download link.
+    """
+    import json
+    categories = list(Categories.objects.all().order_by('name'))
+    category_map_data = {}
+    for c in categories:
+        m_id = c.maincategory_id
+        if m_id not in category_map_data:
+            category_map_data[m_id] = []
+        category_map_data[m_id].append({'id': c.id, 'name': c.name})
+    category_map_json = json.dumps(category_map_data)
+
+    if request.method == 'POST':
+        form = ShadeCardForm(request.POST, request.FILES)
+        if form.is_valid():
+            shade = form.save()
+            messages.success(request, f"Shade Card '{shade.name}' created successfully!")
+            if 'save_and_add_another' in request.POST:
+                return redirect('add_shade_card')
+            return redirect('shade_card_list')
+        else:
+            messages.error(request, "Please correct the errors in the form below.")
+    else:
+        form = ShadeCardForm()
+
+    context = {
+        'form': form,
+        'category_map_json': category_map_json,
+        'title': 'Create Shade Card',
+        'is_edit': False,
+    }
+    return render(request, 'core/shade_card_form.html', context)
+
+
+@login_required
+def edit_shade_card(request, pk):
+    """
+    View to edit an existing Shade Card.
+    """
+    import json
+    shade = get_object_or_404(ShadeCards, pk=pk)
+    categories = list(Categories.objects.all().order_by('name'))
+    category_map_data = {}
+    for c in categories:
+        m_id = c.maincategory_id
+        if m_id not in category_map_data:
+            category_map_data[m_id] = []
+        category_map_data[m_id].append({'id': c.id, 'name': c.name})
+    category_map_json = json.dumps(category_map_data)
+
+    if request.method == 'POST':
+        form = ShadeCardForm(request.POST, request.FILES, instance=shade)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"Shade Card '{shade.name}' updated successfully!")
+            return redirect('shade_card_list')
+        else:
+            messages.error(request, "Please correct the errors in the form below.")
+    else:
+        form = ShadeCardForm(instance=shade)
+
+    shade_image_url = get_shade_image_url(shade.image)
+
+    context = {
+        'form': form,
+        'shade': shade,
+        'shade_image_url': shade_image_url,
+        'category_map_json': category_map_json,
+        'title': f"Edit Shade Card: {shade.name}",
+        'is_edit': True,
+    }
+    return render(request, 'core/shade_card_form.html', context)
+
+
+@login_required
+def delete_shade_card(request, pk):
+    """
+    View to delete a Shade Card.
+    """
+    shade = get_object_or_404(ShadeCards, pk=pk)
+    name = shade.name
+    shade.delete()
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({'status': 'success', 'message': f"Shade Card '{name}' deleted successfully."})
+    messages.success(request, f"Shade Card '{name}' deleted successfully.")
+    return redirect('shade_card_list')
+
+
+@login_required
+def toggle_shade_card_status(request, pk):
+    """
+    AJAX / POST endpoint to toggle shade card status between active (1) and inactive (0).
+    """
+    shade = get_object_or_404(ShadeCards, pk=pk)
+    shade.status = 0 if shade.status == 1 else 1
+    from django.utils import timezone
+    shade.updated_at = timezone.now()
+    shade.save()
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'status': 'success',
+            'new_status': shade.status,
+            'is_active': shade.status == 1,
+            'message': f"Status updated to {'Active' if shade.status == 1 else 'Inactive'}."
+        })
+    messages.success(request, f"Status updated for '{shade.name}'.")
+    return redirect('shade_card_list')
+
+
+@login_required
+def download_shade_card_sample(request):
+    """
+    Generates and downloads a rich sample Excel sheet (.xlsx) with:
+    1. Sample shade card data showing all fields from the image
+    2. Reference sheet with all live Main Categories & Categories
+    3. Clear instructions on mandatory image or hex code requirement
+    """
+    import io, openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from django.http import HttpResponse
+
+    wb = openpyxl.Workbook()
+
+    # --- SHEET 1: Shade Cards ---
+    ws = wb.active
+    ws.title = "Shade Cards"
+
+    headers = [
+        "Name",
+        "Maincategory",
+        "Category",
+        "Hexcode",
+        "Image",
+        "Status",
+        "User",
+        "Adminmsg"
+    ]
+    ws.append(headers)
+
+    sample_rows = [
+        ["Hazel nut -8569", "Paint & Distemper", "Exterior Emulsion Water Based", "#fffdf1", "", 1, "admin", "Done"],
+        ["scarlet -8085", "Paint & Distemper", "Exterior Emulsion Water Based", "#be9d7c", "", 1, "admin", "Done"],
+        ["Silver Ash", "Paint & Distemper", "Hammertone Finish", "", "shadecard/KK2h4P5m34LH4kWlzcFAAEux4omyW6-metaU2lsdmVyIEFzaCBIYW1tZXJ0b25lLnBuZw==-.png", 1, "admin", "Done"],
+        ["Apricot illusion -7979", "Paint & Distemper", "Exterior Emulsion Water Based", "#fcefc5", "", 1, "admin", "Done"],
+        ["Tree Of Life -7691", "Paint & Distemper", "Exterior Emulsion Water Based", "#d1e7c3", "", 1, "admin", "Done"],
+    ]
+    for row in sample_rows:
+        ws.append(row)
+
+    # Styling Sheet 1
+    header_fill = PatternFill(start_color="1E3A8A", end_color="1E3A8A", fill_type="solid")
+    header_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    data_font = Font(name="Segoe UI", size=10)
+    border_side = Side(border_style="thin", color="CBD5E1")
+    cell_border = Border(left=border_side, right=border_side, top=border_side, bottom=border_side)
+
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    for row in ws.iter_rows(min_row=2, max_row=len(sample_rows) + 1, min_col=1, max_col=len(headers)):
+        for cell in row:
+            cell.font = data_font
+            cell.border = cell_border
+            if cell.column in [6, 7]:
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    col_widths = {
+        'A': 28, 'B': 25, 'C': 32, 'D': 16,
+        'E': 35, 'F': 12, 'G': 15, 'H': 20,
+    }
+    for col_letter, width in col_widths.items():
+        ws.column_dimensions[col_letter].width = width
+
+    # --- SHEET 2: Categories Reference ---
+    ws_ref = wb.create_sheet(title="Categories Reference")
+    ref_headers = ["Main Category ID", "Main Category Name", "Category ID", "Category Name (Subcategory)"]
+    ws_ref.append(ref_headers)
+
+    ref_fill = PatternFill(start_color="0D9488", end_color="0D9488", fill_type="solid")
+    ref_font = Font(name="Segoe UI", size=11, bold=True, color="FFFFFF")
+    for cell in ws_ref[1]:
+        cell.fill = ref_fill
+        cell.font = ref_font
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    main_cats = {m.id: m.name for m in MainCategories.objects.all()}
+    categories = Categories.objects.all().order_by('maincategory_id', 'name')
+    for cat in categories:
+        ws_ref.append([
+            cat.maincategory_id,
+            main_cats.get(cat.maincategory_id, "Unknown"),
+            cat.id,
+            cat.name
+        ])
+
+    for row in ws_ref.iter_rows(min_row=2, max_col=4):
+        for cell in row:
+            cell.font = data_font
+            cell.border = cell_border
+
+    ws_ref.column_dimensions['A'].width = 20
+    ws_ref.column_dimensions['B'].width = 30
+    ws_ref.column_dimensions['C'].width = 18
+    ws_ref.column_dimensions['D'].width = 35
+
+    # --- SHEET 3: Instructions & Rules ---
+    ws_rules = wb.create_sheet(title="Instructions")
+    rules = [
+        ["RULE & FIELD SPECIFICATIONS FOR BULK SHADE CARD IMPORT"],
+        [""],
+        ["1. Name (Mandatory)", "Shade name (e.g. 'Hazel nut -8569'). Max 100 characters."],
+        ["2. Maincategory (Mandatory)", "Main category Name (e.g. 'Paint & Distemper') or Main Category ID (e.g. 2). See 'Categories Reference' sheet."],
+        ["3. Category (Mandatory)", "Category Name (e.g. 'Exterior Emulsion Water Based') or Category ID (e.g. 40). Must belong to the selected Main Category."],
+        ["4. MANDATE: Hexcode OR Image", "AT LEAST ONE must be provided. Both cannot be empty!"],
+        ["   - Hexcode", "Color hex code like #fffdf1 or #be9d7c. If '#' is omitted, it will be added automatically."],
+        ["   - Image", "Filename, path or URL (e.g. 'shadecard/image.png' or full URL)."],
+        ["5. Status (Optional)", "1 for Active (Default), 0 for Inactive."],
+        ["6. User (Optional)", "Username or User ID (e.g. 'admin' or '1'). Default is admin (1)."],
+        ["7. Adminmsg (Optional)", "Short message or note (e.g. 'Done'). Max 255 characters."]
+    ]
+    for r in rules:
+        ws_rules.append(r)
+
+    ws_rules.column_dimensions['A'].width = 35
+    ws_rules.column_dimensions['B'].width = 65
+
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    response['Content-Disposition'] = 'attachment; filename="shade_cards_sample_template.xlsx"'
+    return response
+
+
+@login_required
+def bulk_upload_shade_cards(request):
+    """
+    Bulk uploads Shade Cards from an Excel (.xlsx / .xls) sheet.
+    Validates all rows, enforces mandate (Either Shade Image or Hex Code),
+    and creates records on hostinger_db.
+    """
+    import openpyxl
+    from django.utils import timezone
+
+    if request.method == 'POST':
+        excel_file = request.FILES.get('excel_file')
+        if not excel_file:
+            messages.error(request, "Please select an Excel file to upload.")
+            return redirect('bulk_upload_shade_cards')
+
+        filename = excel_file.name.lower()
+        if not (filename.endswith('.xlsx') or filename.endswith('.xls')):
+            messages.error(request, "Invalid file format. Please upload an Excel (.xlsx or .xls) file.")
+            return redirect('bulk_upload_shade_cards')
+
+        try:
+            wb = openpyxl.load_workbook(excel_file, data_only=True)
+            sheet = wb.active
+
+            header_row = [str(cell.value).strip().lower() if cell.value is not None else '' for cell in sheet[1]]
+
+            col_map = {}
+            for idx, h in enumerate(header_row):
+                if not h:
+                    continue
+                if any(k in h for k in ['name', 'shade_name', 'shadename', 'title']):
+                    col_map.setdefault('name', idx)
+                elif any(k in h for k in ['maincategory', 'main category', 'main_category', 'maincat']):
+                    col_map.setdefault('maincategory', idx)
+                elif any(k in h for k in ['category', 'sub category', 'subcategory', 'cat']):
+                    col_map.setdefault('category', idx)
+                elif any(k in h for k in ['hexcode', 'hex code', 'hex', 'colour', 'color']):
+                    col_map.setdefault('hexcode', idx)
+                elif any(k in h for k in ['image', 'photo', 'picture', 'file']):
+                    col_map.setdefault('image', idx)
+                elif 'status' in h:
+                    col_map.setdefault('status', idx)
+                elif any(k in h for k in ['user', 'admin']):
+                    col_map.setdefault('user', idx)
+                elif any(k in h for k in ['adminmsg', 'admin message', 'msg', 'note']):
+                    col_map.setdefault('adminmsg', idx)
+
+            if 'name' not in col_map:
+                messages.error(request, "Could not find a 'Name' column in the uploaded Excel file.")
+                return redirect('bulk_upload_shade_cards')
+
+            main_cats = list(MainCategories.objects.all())
+            main_cat_by_id = {m.id: m for m in main_cats}
+            main_cat_by_name = {m.name.strip().lower(): m for m in main_cats}
+
+            cats = list(Categories.objects.all())
+            cat_by_id = {c.id: c for c in cats}
+            cat_by_name = {c.name.strip().lower(): c for c in cats}
+
+            try:
+                users_by_name = {u.name.strip().lower(): u.id for u in HostingerUser.objects.all()}
+                users_by_id = {u.id: u.id for u in HostingerUser.objects.all()}
+            except Exception:
+                users_by_name, users_by_id = {}, {1: 1}
+
+            total_rows = 0
+            created_count = 0
+            updated_count = 0
+            errors = []
+            now = timezone.now()
+
+            for row_idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
+                if not any(row):
+                    continue
+
+                total_rows += 1
+
+                def get_val(key):
+                    if key in col_map and col_map[key] < len(row):
+                        v = row[col_map[key]]
+                        return str(v).strip() if v is not None else ''
+                    return ''
+
+                shade_name = get_val('name')
+                raw_main = get_val('maincategory')
+                raw_cat = get_val('category')
+                hexcode = get_val('hexcode')
+                image_val = get_val('image')
+                status_val = get_val('status')
+                user_val = get_val('user')
+                adminmsg = get_val('adminmsg') or 'Done'
+
+                if not shade_name:
+                    errors.append({'row': row_idx, 'shade': '—', 'error': "Shade Name cannot be empty."})
+                    continue
+
+                has_hex = bool(hexcode)
+                has_image = bool(image_val)
+                if not has_hex and not has_image:
+                    errors.append({'row': row_idx, 'shade': shade_name, 'error': "Mandate failed: Either Hex Code or Image must be provided."})
+                    continue
+
+                if has_hex:
+                    hexcode = hexcode.strip()
+                    if not hexcode.startswith('#') and len(hexcode) in (3, 6) and all(c in '0123456789abcdefABCDEF' for c in hexcode):
+                        hexcode = '#' + hexcode
+                    clean_hex = hexcode.lstrip('#')
+                    if not (len(clean_hex) in (3, 6, 8) and all(c in '0123456789abcdefABCDEF' for c in clean_hex)):
+                        errors.append({'row': row_idx, 'shade': shade_name, 'error': f"Invalid Hex Code format '{hexcode}'. Must be like #fffdf1."})
+                        continue
+
+                cat_obj = None
+                if raw_cat:
+                    if raw_cat.isdigit() and int(raw_cat) in cat_by_id:
+                        cat_obj = cat_by_id[int(raw_cat)]
+                    elif raw_cat.lower() in cat_by_name:
+                        cat_obj = cat_by_name[raw_cat.lower()]
+
+                if not cat_obj:
+                    errors.append({'row': row_idx, 'shade': shade_name, 'error': f"Category '{raw_cat}' not found. Check 'Categories Reference' sheet."})
+                    continue
+
+                main_cat_obj = None
+                if raw_main:
+                    if raw_main.isdigit() and int(raw_main) in main_cat_by_id:
+                        main_cat_obj = main_cat_by_id[int(raw_main)]
+                    elif raw_main.lower() in main_cat_by_name:
+                        main_cat_obj = main_cat_by_name[raw_main.lower()]
+
+                if not main_cat_obj:
+                    main_cat_id = cat_obj.maincategory_id
+                    main_cat_obj = main_cat_by_id.get(main_cat_id)
+
+                maincategory_id = main_cat_obj.id if main_cat_obj else cat_obj.maincategory_id
+                category_id = cat_obj.id
+
+                if status_val.lower() in ['0', 'inactive', 'false', 'no']:
+                    status = 0
+                else:
+                    status = 1
+
+                user_id = 1
+                if user_val:
+                    if user_val.isdigit() and int(user_val) in users_by_id:
+                        user_id = int(user_val)
+                    elif user_val.lower() in users_by_name:
+                        user_id = users_by_name[user_val.lower()]
+
+                existing = ShadeCards.objects.filter(name__iexact=shade_name, category_id=category_id).first()
+                if existing:
+                    existing.maincategory_id = maincategory_id
+                    existing.category_id = category_id
+                    if has_hex:
+                        existing.hexcode = hexcode
+                    if has_image:
+                        existing.image = image_val
+                    existing.status = status
+                    existing.user_id = user_id
+                    existing.adminmsg = adminmsg
+                    existing.updated_at = now
+                    existing.save()
+                    updated_count += 1
+                else:
+                    ShadeCards.objects.create(
+                        name=shade_name,
+                        maincategory_id=maincategory_id,
+                        category_id=category_id,
+                        hexcode=hexcode if has_hex else None,
+                        image=image_val if has_image else None,
+                        status=status,
+                        user_id=user_id,
+                        adminmsg=adminmsg,
+                        created_at=now,
+                        updated_at=now
+                    )
+                    created_count += 1
+
+            if created_count > 0 or updated_count > 0:
+                messages.success(request, f"Bulk upload completed: {created_count} shade(s) created, {updated_count} updated.")
+            if errors:
+                messages.warning(request, f"{len(errors)} row(s) had errors and were skipped. Details shown below.")
+
+            context = {
+                'total_rows': total_rows,
+                'created_count': created_count,
+                'updated_count': updated_count,
+                'errors': errors,
+                'has_results': True,
+            }
+            return render(request, 'core/shade_card_bulk_upload.html', context)
+
+        except Exception as e:
+            messages.error(request, f"Error processing Excel file: {str(e)}")
+            return redirect('bulk_upload_shade_cards')
+
+    return render(request, 'core/shade_card_bulk_upload.html', {'has_results': False})
+
+
+@login_required
+def api_categories_by_maincategory(request):
+    """
+    API endpoint returning subcategories/categories for a given maincategory_id.
+    """
+    main_id = request.GET.get('maincategory_id')
+    if not main_id or not str(main_id).isdigit():
+        return JsonResponse({'categories': []})
+
+    categories = list(
+        Categories.objects.filter(maincategory_id=int(main_id))
+        .order_by('name')
+        .values('id', 'name')
+    )
+    return JsonResponse({'status': 'success', 'categories': categories})
+
 
 

@@ -1,0 +1,877 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Shade Cards Management | ApniFactory CRM{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Shade Card Custom Styles */
+    .color-swatch-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.35rem 0.85rem;
+        border-radius: 9999px;
+        font-family: 'SF Mono', Monaco, Consolas, monospace;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+        cursor: pointer;
+        min-width: 90px;
+    }
+    .color-swatch-badge:hover {
+        transform: translateY(-1px) scale(1.02);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
+    .color-preview-circle {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 1px solid rgba(0,0,0,0.2);
+        display: inline-block;
+        margin-right: 6px;
+    }
+    .shade-thumbnail-wrap {
+        width: 64px;
+        height: 48px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--phoenix-border-color, #e2e8f0);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f8fafc;
+        position: relative;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    .shade-thumbnail-wrap:hover {
+        transform: scale(1.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    }
+    .shade-thumbnail-wrap img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .filament-toggle-switch {
+        width: 2.6rem;
+        height: 1.4rem;
+        cursor: pointer;
+    }
+    .filament-toggle-switch:checked {
+        background-color: #f59e0b;
+        border-color: #f59e0b;
+    }
+    .metric-card-gradient-1 {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(37, 99, 235, 0.02) 100%);
+        border-left: 4px solid #3b82f6 !important;
+    }
+    .metric-card-gradient-2 {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.02) 100%);
+        border-left: 4px solid #10b981 !important;
+    }
+    .metric-card-gradient-3 {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(217, 119, 6, 0.02) 100%);
+        border-left: 4px solid #f59e0b !important;
+    }
+    .metric-card-gradient-4 {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(124, 58, 237, 0.02) 100%);
+        border-left: 4px solid #8b5cf6 !important;
+    }
+    /* Visual Grid Card */
+    .shade-grid-card {
+        transition: all 0.2s ease;
+        border: 1px solid rgba(0,0,0,0.08);
+    }
+    .shade-grid-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    }
+    .shade-grid-visual-top {
+        height: 140px;
+        position: relative;
+        overflow: hidden;
+        border-top-left-radius: inherit;
+        border-top-right-radius: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #f1f5f9;
+    }
+    .shade-grid-visual-top img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .shade-action-btn {
+        padding: 0.25rem 0.55rem;
+        font-size: 0.78rem;
+        border-radius: 6px;
+        transition: all 0.15s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0 mb-6">
+    <!-- Breadcrumb & Top Bar -->
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1 fs-9">
+                    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}" class="text-decoration-none">Dashboard</a></li>
+                    <li class="breadcrumb-item">App Database</li>
+                    <li class="breadcrumb-item active" aria-current="page">Shade Cards</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="mb-0 fw-bolder text-body-emphasis">Shade Cards</h2>
+                <span class="badge badge-phoenix badge-phoenix-primary fs-9 rounded-pill">{{ filtered_count }} / {{ total_count }}</span>
+            </div>
+            <p class="text-body-tertiary mb-0 fs-9">Browse, filter, add new shades, and bulk upload shade catalogs using Excel templates.</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <a href="{% url 'download_shade_card_sample' %}" class="btn btn-phoenix-secondary btn-sm d-flex align-items-center shadow-sm" title="Download Excel template with live categories reference">
+                <i class="fas fa-file-excel text-success me-2 fs-8"></i>
+                <span>Sample Excel</span>
+            </a>
+            <a href="{% url 'bulk_upload_shade_cards' %}" class="btn btn-phoenix-info btn-sm d-flex align-items-center shadow-sm" title="Upload spreadsheet of shade cards">
+                <i class="fas fa-file-import text-info me-2 fs-8"></i>
+                <span>Bulk Upload</span>
+            </a>
+            <a href="{% url 'add_shade_card' %}" class="btn btn-warning btn-sm d-flex align-items-center shadow-sm fw-bold px-3 text-dark" style="background-color: #f59e0b; border-color: #f59e0b;">
+                <i class="fas fa-plus me-2 fs-9"></i>
+                <span>New shade card</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Metrics Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card metric-card-gradient-1 border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="fs-10 text-body-tertiary fw-bold text-uppercase d-block mb-1">Total Shades</span>
+                        <h4 class="mb-0 fw-bold text-primary">{{ total_count }}</h4>
+                    </div>
+                    <div class="avatar avatar-m bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-layer-group fs-8"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card metric-card-gradient-2 border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="fs-10 text-body-tertiary fw-bold text-uppercase d-block mb-1">Active Shades</span>
+                        <h4 class="mb-0 fw-bold text-success">{{ active_count }}</h4>
+                    </div>
+                    <div class="avatar avatar-m bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-check-circle fs-8"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card metric-card-gradient-3 border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="fs-10 text-body-tertiary fw-bold text-uppercase d-block mb-1">With Hex Color</span>
+                        <h4 class="mb-0 fw-bold text-warning">{{ with_hex_count }}</h4>
+                    </div>
+                    <div class="avatar avatar-m bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-palette fs-8"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card metric-card-gradient-4 border-0 shadow-sm h-100">
+                <div class="card-body p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        <span class="fs-10 text-body-tertiary fw-bold text-uppercase d-block mb-1">With Image</span>
+                        <h4 class="mb-0 fw-bold text-info">{{ with_image_count }}</h4>
+                    </div>
+                    <div class="avatar avatar-m bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-image fs-8"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters & Search Toolbar -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-body p-3 p-md-4">
+            <form method="get" id="filterForm" class="row g-2 align-items-center">
+                <!-- Search input -->
+                <div class="col-12 col-md-3">
+                    <div class="position-relative">
+                        <input type="text" name="q" value="{{ search_q }}" class="form-control form-control-sm ps-5 rounded-pill" placeholder="Search by name, hex, msg...">
+                        <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-body-tertiary fs-9"></i>
+                        {% if search_q %}
+                        <a href="{% url 'shade_card_list' %}" class="position-absolute top-50 end-0 translate-middle-y me-3 text-body-tertiary text-decoration-none fs-9" title="Clear search">
+                            <i class="fas fa-times"></i>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Main Category Filter -->
+                <div class="col-6 col-md-2">
+                    <select name="maincategory_id" id="filterMainCategory" class="form-select form-select-sm rounded-pill">
+                        <option value="">All Main Categories</option>
+                        {% for mc in main_categories %}
+                        <option value="{{ mc.id }}" {% if selected_main_cat == mc.id %}selected{% endif %}>{{ mc.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Category (Subcategory) Filter -->
+                <div class="col-6 col-md-2">
+                    <select name="category_id" id="filterCategory" class="form-select form-select-sm rounded-pill">
+                        <option value="">All Subcategories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}" data-main="{{ cat.maincategory_id }}" {% if selected_cat == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Status Filter -->
+                <div class="col-6 col-md-2">
+                    <select name="status" class="form-select form-select-sm rounded-pill">
+                        <option value="">All Statuses</option>
+                        <option value="1" {% if status_filter == '1' %}selected{% endif %}>Active</option>
+                        <option value="0" {% if status_filter == '0' %}selected{% endif %}>Inactive</option>
+                    </select>
+                </div>
+
+                <!-- Format Filter -->
+                <div class="col-6 col-md-2">
+                    <select name="format_type" class="form-select form-select-sm rounded-pill">
+                        <option value="">All Formats</option>
+                        <option value="has_image" {% if format_type == 'has_image' %}selected{% endif %}>Has Image</option>
+                        <option value="has_hex" {% if format_type == 'has_hex' %}selected{% endif %}>Has Hex Code</option>
+                        <option value="both" {% if format_type == 'both' %}selected{% endif %}>Both Image & Hex</option>
+                        <option value="image_only" {% if format_type == 'image_only' %}selected{% endif %}>Image Only</option>
+                        <option value="hex_only" {% if format_type == 'hex_only' %}selected{% endif %}>Hex Code Only</option>
+                    </select>
+                </div>
+
+                <!-- Filter Actions & View Toggle -->
+                <div class="col-12 col-md-1 d-flex gap-1 justify-content-end align-items-center">
+                    <input type="hidden" name="view_mode" id="viewModeInput" value="{{ view_mode }}">
+                    <button type="submit" class="btn btn-phoenix-primary btn-sm rounded-pill px-3 w-100" title="Apply Filters">
+                        <i class="fas fa-filter me-1"></i>Filter
+                    </button>
+                    {% if search_q or selected_main_cat or selected_cat or status_filter or format_type %}
+                    <a href="{% url 'shade_card_list' %}" class="btn btn-phoenix-secondary btn-sm rounded-pill px-2" title="Reset Filters">
+                        <i class="fas fa-rotate-left"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+
+            <!-- Bottom bar inside card: view switch & active filters summary -->
+            <div class="d-flex flex-wrap justify-content-between align-items-center pt-3 mt-3 border-top gap-2">
+                <div class="d-flex align-items-center gap-2 fs-9 text-body-tertiary">
+                    <span>Showing <strong class="text-body-highlight">{{ shades.start_index|default:0 }}</strong> to <strong class="text-body-highlight">{{ shades.end_index|default:0 }}</strong> of <strong class="text-body-highlight">{{ filtered_count }}</strong> results</span>
+                    {% if selected_main_cat or selected_cat or status_filter or format_type or search_q %}
+                    <span class="badge badge-phoenix badge-phoenix-warning fs-10">Filtered</span>
+                    {% endif %}
+                </div>
+                <div class="btn-group btn-group-sm" role="group" aria-label="View switch">
+                    <button type="button" class="btn {% if view_mode != 'grid' %}btn-primary{% else %}btn-phoenix-primary{% endif %}" onclick="switchView('table')" title="Table View">
+                        <i class="fas fa-table-list me-1"></i> Table
+                    </button>
+                    <button type="button" class="btn {% if view_mode == 'grid' %}btn-primary{% else %}btn-phoenix-primary{% endif %}" onclick="switchView('grid')" title="Visual Image Cards">
+                        <i class="fas fa-grip me-1"></i> Image Grid
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT VIEW -->
+    {% if view_mode == 'grid' %}
+    <!-- ==================== 1. VISUAL IMAGE / CARD GRID VIEW ==================== -->
+    <div class="row g-3 mb-4">
+        {% for shade in shades %}
+        <div class="col-12 col-sm-6 col-md-4 col-xl-3" id="shade-card-{{ shade.id }}">
+            <div class="card h-100 shadow-sm border-0 shade-grid-card">
+                <!-- Top Visual Preview Area -->
+                <div class="shade-grid-visual-top position-relative" style="{% if shade.hexcode %}background-color: {{ shade.hexcode }};{% endif %}">
+                    {% if shade.image_url %}
+                    <img src="{{ shade.image_url }}" alt="{{ shade.name }}" loading="lazy" onerror="this.style.display='none';" onclick="openImageModal('{{ shade.image_url }}', '{{ shade.name|escapejs }}')">
+                    {% endif %}
+
+                    {% if shade.hexcode %}
+                    <div class="position-absolute bottom-0 start-0 m-2">
+                        <span class="color-swatch-badge" style="background-color: {{ shade.hexcode }}; color: {{ shade.contrast_color }};" onclick="copyHex('{{ shade.hexcode }}')" title="Click to copy hex">
+                            <span class="color-preview-circle" style="background-color: {{ shade.hexcode }};"></span>
+                            {{ shade.hexcode }}
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Status toggle overlay -->
+                    <div class="position-absolute top-0 end-0 m-2">
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input filament-toggle-switch status-toggle" type="checkbox" role="switch" data-id="{{ shade.id }}" {% if shade.status == 1 %}checked{% endif %} title="Toggle Status">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-3 d-flex flex-column justify-content-between">
+                    <div>
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h6 class="fw-bolder text-body-highlight mb-0 text-truncate" title="{{ shade.name }}">{{ shade.name }}</h6>
+                            <span class="badge bg-secondary-subtle text-body-secondary fs-10">#{{ shade.id }}</span>
+                        </div>
+                        <div class="mb-2">
+                            <span class="badge badge-phoenix badge-phoenix-primary fs-10 text-truncate mw-100 d-inline-block" title="{{ shade.category_name }}">
+                                <i class="fas fa-tag me-1"></i>{{ shade.category_name }}
+                            </span>
+                        </div>
+                        <div class="fs-10 text-body-tertiary mb-2">
+                            <span class="d-block text-truncate"><i class="fas fa-folder me-1 text-info"></i>{{ shade.main_category_name }}</span>
+                            {% if shade.adminmsg %}
+                            <span class="d-block text-truncate text-muted mt-1"><i class="fas fa-comment-dots me-1"></i>{{ shade.adminmsg }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top gap-1">
+                        <span class="fs-10 text-body-quaternary">{{ shade.created_at|date:"M d, Y"|default:"—" }}</span>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-subtle-secondary shade-action-btn" onclick="openDetailModal('{{ shade.id }}', '{{ shade.name|escapejs }}', '{{ shade.hexcode|default:'' }}', '{{ shade.image_url|default:'' }}', '{{ shade.category_name|escapejs }}', '{{ shade.main_category_name|escapejs }}', '{{ shade.status }}', '{{ shade.created_at|date:'M d, Y H:i'|default:'—' }}', '{{ shade.user_name|escapejs }}', '{{ shade.adminmsg|escapejs|default:'—' }}')" title="View Details">
+                                <i class="fas fa-eye text-primary"></i>
+                            </button>
+                            <a href="{% url 'edit_shade_card' shade.id %}" class="btn btn-subtle-secondary shade-action-btn" title="Edit Shade Card">
+                                <i class="fas fa-pen text-warning"></i>
+                            </a>
+                            <button type="button" class="btn btn-subtle-danger shade-action-btn" onclick="confirmDelete('{{ shade.id }}', '{{ shade.name|escapejs }}')" title="Delete Shade Card">
+                                <i class="fas fa-trash text-danger"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12 py-5 text-center">
+            <div class="avatar avatar-xl bg-primary-subtle text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                <i class="fas fa-palette fs-2"></i>
+            </div>
+            <h5 class="fw-bold text-body-highlight">No Shade Cards Found</h5>
+            <p class="text-body-tertiary fs-9 mb-3">No shade cards match your current search or filter criteria.</p>
+            <a href="{% url 'shade_card_list' %}" class="btn btn-phoenix-secondary btn-sm me-2">Clear Filters</a>
+            <a href="{% url 'add_shade_card' %}" class="btn btn-warning btn-sm fw-bold">Create New Shade</a>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- ==================== 2. TABLE VIEW (MATCHING USER SCREENSHOT) ==================== -->
+    <div class="card shadow-sm border-0 mb-4 overflow-hidden">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover fs-9 mb-0 align-middle">
+                    <thead class="bg-body-tertiary text-uppercase fs-10 text-body-tertiary">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 40px;">
+                                <div class="form-check m-0">
+                                    <input class="form-check-input" type="checkbox" id="selectAllCheckbox">
+                                </div>
+                            </th>
+                            <th class="py-3" style="width: 80px;">Image</th>
+                            <th class="py-3">Name</th>
+                            <th class="py-3" style="width: 140px;">Hexcode</th>
+                            <th class="py-3">Category</th>
+                            <th class="py-3" style="width: 130px;">Created at</th>
+                            <th class="py-3 text-center" style="width: 90px;">Status</th>
+                            <th class="text-end pe-4 py-3" style="width: 180px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="list">
+                        {% for shade in shades %}
+                        <tr id="shade-row-{{ shade.id }}">
+                            <!-- Checkbox -->
+                            <td class="ps-4 py-3">
+                                <div class="form-check m-0">
+                                    <input class="form-check-input shade-row-check" type="checkbox" value="{{ shade.id }}">
+                                </div>
+                            </td>
+
+                            <!-- Image Preview -->
+                            <td class="py-3">
+                                {% if shade.image_url %}
+                                <div class="shade-thumbnail-wrap" onclick="openImageModal('{{ shade.image_url }}', '{{ shade.name|escapejs }}')" title="Click to view full image">
+                                    <img src="{{ shade.image_url }}" alt="{{ shade.name }}" loading="lazy" onerror="this.onerror=null; this.src='https://placehold.co/100x100?text=No+Img';">
+                                </div>
+                                {% elif shade.hexcode %}
+                                <div class="shade-thumbnail-wrap" style="background-color: {{ shade.hexcode }};" title="Color swatch: {{ shade.hexcode }}">
+                                    <span class="fs-10 fw-bold" style="color: {{ shade.contrast_color }};">●</span>
+                                </div>
+                                {% else %}
+                                <div class="shade-thumbnail-wrap">
+                                    <i class="fas fa-image text-body-quaternary fs-8"></i>
+                                </div>
+                                {% endif %}
+                            </td>
+
+                            <!-- Shade Name -->
+                            <td class="py-3">
+                                <div class="fw-bold text-body-emphasis mb-0">{{ shade.name }}</div>
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <span class="badge bg-secondary-subtle text-body-secondary fs-10">ID: #{{ shade.id }}</span>
+                                    {% if shade.adminmsg %}
+                                    <small class="text-body-tertiary fs-10 text-truncate" style="max-width: 160px;" title="{{ shade.adminmsg }}">
+                                        <i class="fas fa-comment-dots me-1"></i>{{ shade.adminmsg }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Hexcode (Styled Swatch Pill) -->
+                            <td class="py-3">
+                                {% if shade.hexcode %}
+                                <span class="color-swatch-badge" style="background-color: {{ shade.hexcode }}; color: {{ shade.contrast_color }};" onclick="copyHex('{{ shade.hexcode }}')" title="Click to copy {{ shade.hexcode }}">
+                                    <span class="color-preview-circle" style="background-color: {{ shade.hexcode }};"></span>
+                                    {{ shade.hexcode }}
+                                </span>
+                                {% else %}
+                                <span class="text-body-quaternary fs-10 fst-italic">No Hex (Image)</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Category -->
+                            <td class="py-3">
+                                <div class="fw-semibold text-body-highlight">{{ shade.category_name }}</div>
+                                <small class="text-body-tertiary fs-10 d-block">
+                                    <i class="fas fa-folder me-1 text-primary"></i>{{ shade.main_category_name }}
+                                </small>
+                            </td>
+
+                            <!-- Created At -->
+                            <td class="py-3">
+                                <span class="text-body-secondary">{{ shade.created_at|date:"M d, Y"|default:"—" }}</span>
+                                <small class="text-body-quaternary fs-10 d-block">{{ shade.created_at|date:"h:i A"|default:"" }}</small>
+                            </td>
+
+                            <!-- Status Toggle Switch (Orange Filament Style) -->
+                            <td class="py-3 text-center">
+                                <div class="form-check form-switch d-inline-block m-0">
+                                    <input class="form-check-input filament-toggle-switch status-toggle" type="checkbox" role="switch" data-id="{{ shade.id }}" {% if shade.status == 1 %}checked{% endif %} title="Toggle Active/Inactive">
+                                </div>
+                            </td>
+
+                            <!-- Actions: Edit, View, Delete -->
+                            <td class="text-end pe-4 py-3">
+                                <div class="d-inline-flex align-items-center gap-1">
+                                    <a href="{% url 'edit_shade_card' shade.id %}" class="btn btn-sm btn-subtle-warning py-1 px-2 fs-10 text-warning d-inline-flex align-items-center" title="Edit">
+                                        <i class="fas fa-pen me-1"></i>Edit
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-subtle-primary py-1 px-2 fs-10 text-primary d-inline-flex align-items-center" onclick="openDetailModal('{{ shade.id }}', '{{ shade.name|escapejs }}', '{{ shade.hexcode|default:'' }}', '{{ shade.image_url|default:'' }}', '{{ shade.category_name|escapejs }}', '{{ shade.main_category_name|escapejs }}', '{{ shade.status }}', '{{ shade.created_at|date:'M d, Y H:i'|default:'—' }}', '{{ shade.user_name|escapejs }}', '{{ shade.adminmsg|escapejs|default:'—' }}')" title="View">
+                                        <i class="fas fa-eye me-1"></i>View
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-subtle-danger py-1 px-2 fs-10 text-danger d-inline-flex align-items-center" onclick="confirmDelete('{{ shade.id }}', '{{ shade.name|escapejs }}')" title="Delete">
+                                        <i class="fas fa-trash me-1"></i>Delete
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center py-5">
+                                <div class="py-4">
+                                    <div class="avatar avatar-xl bg-primary-subtle text-primary rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                                        <i class="fas fa-palette fs-2"></i>
+                                    </div>
+                                    <h5 class="fw-bold text-body-highlight">No Shade Cards Found</h5>
+                                    <p class="text-body-tertiary fs-9 mb-3">No shade cards match your current search or filter criteria.</p>
+                                    <a href="{% url 'shade_card_list' %}" class="btn btn-phoenix-secondary btn-sm me-2">Clear Filters</a>
+                                    <a href="{% url 'add_shade_card' %}" class="btn btn-warning btn-sm fw-bold">Create New Shade</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- PAGINATION -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div class="text-body-tertiary fs-9">
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} items
+        </div>
+        <nav aria-label="Shade Cards Pagination">
+            <ul class="pagination pagination-sm mb-0">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_main_cat %}&maincategory_id={{ selected_main_cat }}{% endif %}{% if selected_cat %}&category_id={{ selected_cat }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if format_type %}&format_type={{ format_type }}{% endif %}{% if view_mode %}&view_mode={{ view_mode }}{% endif %}" aria-label="First">
+                        <i class="fas fa-angles-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_main_cat %}&maincategory_id={{ selected_main_cat }}{% endif %}{% if selected_cat %}&category_id={{ selected_cat }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if format_type %}&format_type={{ format_type }}{% endif %}{% if view_mode %}&view_mode={{ view_mode }}{% endif %}" aria-label="Previous">
+                        <i class="fas fa-chevron-left"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-angles-left"></i></span></li>
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-left"></i></span></li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                    <li class="page-item active" aria-current="page"><span class="page-link">{{ num }}</span></li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_main_cat %}&maincategory_id={{ selected_main_cat }}{% endif %}{% if selected_cat %}&category_id={{ selected_cat }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if format_type %}&format_type={{ format_type }}{% endif %}{% if view_mode %}&view_mode={{ view_mode }}{% endif %}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_main_cat %}&maincategory_id={{ selected_main_cat }}{% endif %}{% if selected_cat %}&category_id={{ selected_cat }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if format_type %}&format_type={{ format_type }}{% endif %}{% if view_mode %}&view_mode={{ view_mode }}{% endif %}" aria-label="Next">
+                        <i class="fas fa-chevron-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_q %}&q={{ search_q }}{% endif %}{% if selected_main_cat %}&maincategory_id={{ selected_main_cat }}{% endif %}{% if selected_cat %}&category_id={{ selected_cat }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if format_type %}&format_type={{ format_type }}{% endif %}{% if view_mode %}&view_mode={{ view_mode }}{% endif %}" aria-label="Last">
+                        <i class="fas fa-angles-right"></i>
+                    </a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-chevron-right"></i></span></li>
+                <li class="page-item disabled"><span class="page-link"><i class="fas fa-angles-right"></i></span></li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- 1. IMAGE LIGHTBOX MODAL -->
+<div class="modal fade" id="imageLightboxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content bg-body-emphasis border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold" id="lightboxTitle">Shade Card Preview</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <div class="rounded-3 overflow-hidden shadow-sm d-inline-block bg-body-tertiary" style="max-height: 70vh;">
+                    <img id="lightboxImage" src="" alt="" style="max-width: 100%; max-height: 70vh; object-fit: contain;">
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-between">
+                <a id="lightboxDownloadBtn" href="" target="_blank" download class="btn btn-sm btn-phoenix-primary">
+                    <i class="fas fa-arrow-down me-1"></i>Open / Download Full Image
+                </a>
+                <button type="button" class="btn btn-sm btn-phoenix-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. DETAIL VIEW MODAL -->
+<div class="modal fade" id="shadeDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-bottom py-3">
+                <div class="d-flex align-items-center gap-2">
+                    <div id="modalColorCircle" class="color-preview-circle" style="width: 20px; height: 20px; border-radius: 50%;"></div>
+                    <h5 class="modal-title fw-bold" id="detailShadeName">Shade Name</h5>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Large Color / Image Header -->
+                <div id="modalVisualBanner" class="rounded-3 p-4 mb-3 text-center position-relative shadow-sm" style="min-height: 140px; display: flex; align-items: center; justify-content: center;">
+                    <div id="modalVisualContent"></div>
+                </div>
+
+                <!-- Attributes Table -->
+                <div class="table-responsive">
+                    <table class="table table-sm fs-9 mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="text-body-tertiary" style="width: 140px;">Shade ID:</th>
+                                <td id="detailShadeId" class="fw-bold">#</td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Main Category:</th>
+                                <td id="detailMainCat" class="fw-semibold text-primary"></td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Subcategory:</th>
+                                <td id="detailCategory" class="fw-semibold"></td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Hex Color Code:</th>
+                                <td id="detailHexCode"></td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Status:</th>
+                                <td id="detailStatus"></td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Created By (User):</th>
+                                <td id="detailUser"></td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Created At:</th>
+                                <td id="detailCreatedAt"></td>
+                            </tr>
+                            <tr>
+                                <th class="text-body-tertiary">Admin Message:</th>
+                                <td id="detailAdminMsg" class="text-muted"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-top py-2">
+                <a id="detailEditBtn" href="#" class="btn btn-warning btn-sm text-dark fw-bold">
+                    <i class="fas fa-pen me-1"></i>Edit Shade
+                </a>
+                <button type="button" class="btn btn-phoenix-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. DELETE CONFIRMATION MODAL -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body text-center p-4">
+                <div class="avatar avatar-xl bg-danger-subtle text-danger rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-trash-alt fs-2"></i>
+                </div>
+                <h5 class="fw-bold mb-2">Delete Shade Card?</h5>
+                <p class="text-body-tertiary fs-9 mb-4">Are you sure you want to delete <strong id="deleteTargetName">this shade</strong>? This action cannot be undone.</p>
+                <form id="deleteForm" method="post" action="">
+                    {% csrf_token %}
+                    <div class="d-flex justify-content-center gap-2">
+                        <button type="button" class="btn btn-phoenix-secondary btn-sm px-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger btn-sm px-3 fw-bold">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Embedded Category Map for instant client-side dropdown filtering
+    const CATEGORY_MAP = {{ category_map_json|safe }};
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const mainCatSelect = document.getElementById('filterMainCategory');
+        const catSelect = document.getElementById('filterCategory');
+
+        // Dynamic Subcategory filtering based on selected Main Category
+        function updateCategoryOptions() {
+            const mainId = mainCatSelect.value;
+            const currentSelectedCat = "{{ selected_cat }}";
+
+            // Clear current options except default
+            catSelect.innerHTML = '<option value="">All Subcategories</option>';
+
+            if (!mainId) {
+                // If no main category chosen, list all categories
+                for (const mId in CATEGORY_MAP) {
+                    CATEGORY_MAP[mId].forEach(cat => {
+                        const opt = document.createElement('option');
+                        opt.value = cat.id;
+                        opt.textContent = cat.name;
+                        if (String(cat.id) === String(currentSelectedCat)) opt.selected = true;
+                        catSelect.appendChild(opt);
+                    });
+                }
+            } else if (CATEGORY_MAP[mainId]) {
+                // Populate categories for the selected main category
+                CATEGORY_MAP[mainId].forEach(cat => {
+                    const opt = document.createElement('option');
+                    opt.value = cat.id;
+                    opt.textContent = cat.name;
+                    if (String(cat.id) === String(currentSelectedCat)) opt.selected = true;
+                    catSelect.appendChild(opt);
+                });
+            }
+        }
+
+        if (mainCatSelect) {
+            mainCatSelect.addEventListener('change', updateCategoryOptions);
+        }
+
+        // AJAX Status Toggle Switches
+        document.querySelectorAll('.status-toggle').forEach(toggle => {
+            toggle.addEventListener('change', function() {
+                const shadeId = this.getAttribute('data-id');
+                const isChecked = this.checked;
+                const toggleElem = this;
+
+                fetch(`/core/shade-cards/${shadeId}/toggle-status/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken'),
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showToast(`Status updated to ${data.is_active ? 'Active' : 'Inactive'}`);
+                    } else {
+                        // revert
+                        toggleElem.checked = !isChecked;
+                        showToast('Error updating status: ' + (data.message || 'Unknown error'), 'error');
+                    }
+                })
+                .catch(err => {
+                    toggleElem.checked = !isChecked;
+                    showToast('Network error updating status', 'error');
+                });
+            });
+        });
+
+        // Select all rows checkbox
+        const selectAll = document.getElementById('selectAllCheckbox');
+        if (selectAll) {
+            selectAll.addEventListener('change', function() {
+                document.querySelectorAll('.shade-row-check').forEach(cb => {
+                    cb.checked = selectAll.checked;
+                });
+            });
+        }
+    });
+
+    // View switcher (table vs grid)
+    function switchView(mode) {
+        document.getElementById('viewModeInput').value = mode;
+        document.getElementById('filterForm').submit();
+    }
+
+    // Copy Hexcode to clipboard
+    function copyHex(hex) {
+        if (!hex) return;
+        navigator.clipboard.writeText(hex).then(() => {
+            showToast(`Hex code ${hex} copied to clipboard!`);
+        });
+    }
+
+    // Lightbox modal
+    function openImageModal(imgUrl, name) {
+        document.getElementById('lightboxImage').src = imgUrl;
+        document.getElementById('lightboxTitle').textContent = name + ' - Image Preview';
+        document.getElementById('lightboxDownloadBtn').href = imgUrl;
+        const modal = new bootstrap.Modal(document.getElementById('imageLightboxModal'));
+        modal.show();
+    }
+
+    // Detail modal
+    function openDetailModal(id, name, hex, imgUrl, catName, mainCatName, status, createdAt, user, adminMsg) {
+        document.getElementById('detailShadeName').textContent = name;
+        document.getElementById('detailShadeId').textContent = '#' + id;
+        document.getElementById('detailMainCat').textContent = mainCatName;
+        document.getElementById('detailCategory').textContent = catName;
+        document.getElementById('detailUser').textContent = user;
+        document.getElementById('detailCreatedAt').textContent = createdAt;
+        document.getElementById('detailAdminMsg').textContent = adminMsg;
+        document.getElementById('detailEditBtn').href = `/core/shade-cards/${id}/edit/`;
+
+        // Hex Code Preview
+        const hexCell = document.getElementById('detailHexCode');
+        const colorCircle = document.getElementById('modalColorCircle');
+        if (hex) {
+            colorCircle.style.display = 'inline-block';
+            colorCircle.style.backgroundColor = hex;
+            hexCell.innerHTML = `<span class="color-swatch-badge" style="background-color: ${hex};" onclick="copyHex('${hex}')">${hex}</span>`;
+        } else {
+            colorCircle.style.display = 'none';
+            hexCell.innerHTML = `<span class="text-muted">None (Image based)</span>`;
+        }
+
+        // Status Badge
+        const statusCell = document.getElementById('detailStatus');
+        if (String(status) === '1') {
+            statusCell.innerHTML = `<span class="badge badge-phoenix badge-phoenix-success">Active</span>`;
+        } else {
+            statusCell.innerHTML = `<span class="badge badge-phoenix badge-phoenix-secondary">Inactive</span>`;
+        }
+
+        // Visual Banner
+        const banner = document.getElementById('modalVisualBanner');
+        const content = document.getElementById('modalVisualContent');
+        if (imgUrl) {
+            banner.style.backgroundColor = hex || '#f8fafc';
+            content.innerHTML = `<img src="${imgUrl}" alt="${name}" style="max-height: 160px; max-width: 100%; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);" onclick="openImageModal('${imgUrl}', '${name}')">`;
+        } else if (hex) {
+            banner.style.backgroundColor = hex;
+            content.innerHTML = `<h3 class="fw-bold mb-0" style="color: ${hex}; filter: invert(1);">${hex}</h3>`;
+        } else {
+            banner.style.backgroundColor = '#e2e8f0';
+            content.innerHTML = `<span class="text-muted">No preview visual available</span>`;
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('shadeDetailModal'));
+        modal.show();
+    }
+
+    // Delete confirmation
+    function confirmDelete(id, name) {
+        document.getElementById('deleteTargetName').textContent = name;
+        document.getElementById('deleteForm').action = `/core/shade-cards/${id}/delete/`;
+        const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+        modal.show();
+    }
+
+    // Helper: Toast notification
+    function showToast(msg, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `position-fixed bottom-0 end-0 m-3 alert alert-${type === 'error' ? 'danger' : 'success'} shadow-lg py-2 px-3 fs-9 rounded-pill z-index-50`;
+        toast.style.zIndex = '9999';
+        toast.innerHTML = `<i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'} me-2"></i>${msg}`;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.remove();
+        }, 3000);
+    }
+
+    // Helper: CSRF Cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
+{% endblock %}
