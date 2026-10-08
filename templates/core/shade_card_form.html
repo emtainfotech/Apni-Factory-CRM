@@ -222,7 +222,7 @@
 
                 <div class="col-12 col-md-6">
                     <label class="filament-field-label" for="id_category">
-                        Category id <span class="required-star">*</span>
+                        Category <span class="required-star">*</span>
                     </label>
                     {{ form.category }}
                     {% if form.category.errors %}
@@ -376,7 +376,7 @@
 
         if (mainCatSelect) {
             mainCatSelect.addEventListener('change', updateCategories);
-            if (mainCatSelect.value && catSelect.options.length <= 1) {
+            if (mainCatSelect.value) {
                 updateCategories();
             }
         }

@@ -368,12 +368,14 @@ class ShadeCardForm(forms.ModelForm):
     maincategory = forms.ModelChoiceField(
         queryset=MainCategories.objects.all().order_by('name'),
         required=True,
+        label="Maincategory",
         empty_label="Select a maincategory",
         widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_maincategory'})
     )
     category = forms.ModelChoiceField(
         queryset=Categories.objects.all().order_by('name'),
         required=True,
+        label="Category",
         empty_label="Select a category",
         widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_category'})
     )
@@ -400,6 +402,8 @@ class ShadeCardForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['maincategory'].label_from_instance = lambda obj: obj.name
+        self.fields['category'].label_from_instance = lambda obj: obj.name
         try:
             users = Users.objects.all().order_by('name')
             self.fields['user_choice'].choices = [(u.id, f"{u.name} ({u.email})") for u in users]

@@ -150,6 +150,9 @@ class Categories(models.Model):
         managed = False
         db_table = 'categories'
 
+    def __str__(self):
+        return self.name or f"Category #{self.id}"
+
 
 class Comments(models.Model):
     user_id = models.PositiveIntegerField()
@@ -384,6 +387,9 @@ class MainCategories(models.Model):
     class Meta:
         managed = False
         db_table = 'main_categories'
+
+    def __str__(self):
+        return self.name or f"MainCategory #{self.id}"
 
 
 class Migrations(models.Model):
@@ -709,6 +715,9 @@ class ShadeCards(models.Model):
         managed = False
         db_table = 'shade_cards'
 
+    def __str__(self):
+        return self.name or f"ShadeCard #{self.id}"
+
 
 class ShadeCardsOld(models.Model):
     id = models.BigAutoField(primary_key=True)
@@ -771,6 +780,9 @@ class SubCategories(models.Model):
     class Meta:
         managed = False
         db_table = 'sub_categories'
+
+    def __str__(self):
+        return self.name or f"SubCategory #{self.id}"
 
 
 class TblOtp(models.Model):
