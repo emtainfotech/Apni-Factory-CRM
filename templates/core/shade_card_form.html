@@ -3,7 +3,7 @@
 
 {% block title %}{{ title }} | ApniFactory CRM{% endblock %}
 
-{% block extra_css %}
+{% block content %}
 <style>
     /* Filament-style Clean Aesthetic */
     .form-card {
@@ -50,6 +50,11 @@
         cursor: pointer;
         transition: all 0.2s ease;
         position: relative;
+        min-height: 120px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     .file-dropzone-box:hover, .file-dropzone-box.dragover {
         border-color: #f59e0b;
@@ -87,10 +92,11 @@
         border: 1px solid #86efac;
         border-radius: 10px;
     }
+    .cursor-pointer {
+        cursor: pointer !important;
+    }
 </style>
-{% endblock %}
 
-{% block content %}
 <div class="container-fluid px-0 mb-6" style="max-width: 1100px;">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
@@ -117,7 +123,7 @@
         </div>
     </div>
 
-    <!-- Prominent Attached Sample Excel Card (Requirement: "and also in add shade card also attach the sample excel file") -->
+    <!-- Prominent Attached Sample Excel Card -->
     <div class="sample-excel-banner p-3 p-md-4 mb-4 shadow-sm">
         <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
             <div class="d-flex align-items-center gap-3">
@@ -139,7 +145,7 @@
         </div>
     </div>
 
-    <!-- Mandate Alert Callout (Requirement: "and also one is manadte from shade image and hex code") -->
+    <!-- Mandate Alert Callout -->
     <div class="alert alert-subtle-warning d-flex align-items-center p-3 mb-4 rounded-3 border border-warning-subtle" role="alert">
         <i class="fas fa-info-circle fs-3 text-warning me-3 flex-shrink-0"></i>
         <div class="fs-9">
@@ -232,17 +238,17 @@
                         Image
                     </label>
                     
-                    <!-- File Drag & Drop Area -->
-                    <div class="file-dropzone-box" id="imageDropzone">
-                        <input type="file" name="image_file" id="id_image_file" class="d-none" accept="image/*">
+                    <!-- File Drag & Drop Area with Native Transparent Overlay -->
+                    <div class="file-dropzone-box position-relative" id="imageDropzone">
+                        <input type="file" name="image_file" id="id_image_file" accept="image/*" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" style="z-index: 10; cursor: pointer;">
                         
                         <!-- When file is chosen or existing image -->
-                        <div id="imagePreviewContainer" class="{% if not shade_image_url %}d-none{% endif %} mb-2">
+                        <div id="imagePreviewContainer" class="{% if not shade_image_url %}d-none{% endif %} mb-2 w-100" style="position: relative; z-index: 15;">
                             <div class="d-flex align-items-center justify-content-center gap-3">
                                 <img id="previewImg" src="{{ shade_image_url|default:'' }}" alt="Preview" class="rounded border shadow-sm" style="max-height: 90px; max-width: 160px; object-fit: contain;">
                                 <div class="text-start">
                                     <span id="previewFileName" class="d-block fw-bold fs-9 text-truncate" style="max-width: 180px;">{% if shade.image %}{{ shade.image }}{% else %}New Image Selected{% endif %}</span>
-                                    <button type="button" class="btn btn-subtle-danger btn-sm p-1 fs-10 mt-1" id="btnRemoveImage">
+                                    <button type="button" class="btn btn-subtle-danger btn-sm p-1 fs-10 mt-1" id="btnRemoveImage" style="position: relative; z-index: 25;">
                                         <i class="fas fa-trash me-1"></i>Remove / Change
                                     </button>
                                 </div>
@@ -250,7 +256,7 @@
                         </div>
 
                         <!-- Prompt state -->
-                        <div id="dropzonePrompt" class="{% if shade_image_url %}d-none{% endif %}">
+                        <div id="dropzonePrompt" class="{% if shade_image_url %}d-none{% endif %}" style="pointer-events: none;">
                             <i class="fas fa-cloud-arrow-up fs-2 text-warning mb-2 d-block"></i>
                             <div class="fw-semibold text-body-emphasis fs-9 mb-1">Drag & Drop your files or <span class="text-primary text-decoration-underline">Browse</span></div>
                             <span class="fs-10 text-body-tertiary">PNG, JPG, JPEG, WEBP up to 10MB</span>
@@ -299,7 +305,7 @@
                 </div>
             </div>
 
-            <!-- Form Action Buttons (Matching Screenshot) -->
+            <!-- Form Action Buttons -->
             <div class="d-flex flex-wrap align-items-center gap-2 mt-5 pt-4 border-top">
                 <button type="submit" name="save_action" value="save" class="btn btn-filament-primary">
                     {% if is_edit %}Save changes{% else %}Create{% endif %}
@@ -318,14 +324,11 @@
         </form>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
-    // Embedded category mapping for instant dynamic category filtering
-    const CATEGORY_MAP = {{ category_map_json|safe }};
+    (function() {
+        const CATEGORY_MAP = {{ category_map_json|safe }};
 
-    document.addEventListener('DOMContentLoaded', function() {
         const mainCatSelect = document.getElementById('id_maincategory');
         const catSelect = document.getElementById('id_category');
         const hexInput = document.getElementById('id_hexcode');
@@ -344,7 +347,6 @@
             const selectedMainId = mainCatSelect.value;
             const currentCatVal = catSelect.value;
 
-            // Preserve current selection if valid
             catSelect.innerHTML = '<option value="">Select a category</option>';
 
             if (selectedMainId && CATEGORY_MAP[selectedMainId]) {
@@ -358,7 +360,6 @@
                     catSelect.appendChild(opt);
                 });
             } else if (!selectedMainId) {
-                // If no main category selected, offer all
                 for (const mId in CATEGORY_MAP) {
                     CATEGORY_MAP[mId].forEach(cat => {
                         const opt = document.createElement('option');
@@ -375,7 +376,6 @@
 
         if (mainCatSelect) {
             mainCatSelect.addEventListener('change', updateCategories);
-            // Run on initial load if maincategory is pre-selected and category is empty
             if (mainCatSelect.value && catSelect.options.length <= 1) {
                 updateCategories();
             }
@@ -408,76 +408,54 @@
         if (colorPicker && hexInput) {
             colorPicker.addEventListener('input', updateColorFromPicker);
             hexInput.addEventListener('input', updateColorFromText);
-            // Initial sync
             if (hexInput.value) {
                 updateColorFromText();
             }
         }
 
-        // File Drag & Drop Handling
-        if (dropzone && fileInput) {
-            dropzone.addEventListener('click', function(e) {
-                if (e.target !== btnRemoveImage && !btnRemoveImage.contains(e.target)) {
-                    fileInput.click();
-                }
-            });
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                dropzone.addEventListener(eventName, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.add('dragover');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                dropzone.addEventListener(eventName, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.remove('dragover');
-                }, false);
-            });
-
-            dropzone.addEventListener('drop', function(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    handleFileSelect(files[0]);
-                }
-            });
-
+        // Native Image File Input Handling
+        if (fileInput) {
             fileInput.addEventListener('change', function() {
-                if (fileInput.files.length > 0) {
-                    handleFileSelect(fileInput.files[0]);
+                if (fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please upload a valid image file (PNG, JPG, WEBP).');
+                        fileInput.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        previewImg.src = e.target.result;
+                        previewFileName.textContent = file.name;
+                        previewContainer.classList.remove('d-none');
+                        dropzonePrompt.classList.add('d-none');
+                        fileInput.style.zIndex = '5';
+                    };
+                    reader.readAsDataURL(file);
                 }
             });
 
-            if (btnRemoveImage) {
-                btnRemoveImage.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    fileInput.value = '';
-                    previewContainer.classList.add('d-none');
-                    dropzonePrompt.classList.remove('d-none');
-                    previewImg.src = '';
-                });
-            }
+            fileInput.addEventListener('dragenter', function() {
+                dropzone.classList.add('dragover');
+            });
+            fileInput.addEventListener('dragleave', function() {
+                dropzone.classList.remove('dragover');
+            });
+            fileInput.addEventListener('drop', function() {
+                dropzone.classList.remove('dragover');
+            });
         }
 
-        function handleFileSelect(file) {
-            if (!file.type.startsWith('image/')) {
-                alert('Please upload a valid image file (PNG, JPG, WEBP).');
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                previewImg.src = e.target.result;
-                previewFileName.textContent = file.name;
-                previewContainer.classList.remove('d-none');
-                dropzonePrompt.classList.add('d-none');
-            };
-            reader.readAsDataURL(file);
+        if (btnRemoveImage) {
+            btnRemoveImage.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                fileInput.value = '';
+                previewContainer.classList.add('d-none');
+                dropzonePrompt.classList.remove('d-none');
+                previewImg.src = '';
+                fileInput.style.zIndex = '10';
+            });
         }
 
         // Client-side Mandate Validation Check before submitting
@@ -495,6 +473,6 @@
                 }
             });
         }
-    });
+    })();
 </script>
 {% endblock %}

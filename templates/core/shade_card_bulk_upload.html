@@ -3,7 +3,7 @@
 
 {% block title %}Bulk Upload Shade Cards | ApniFactory CRM{% endblock %}
 
-{% block extra_css %}
+{% block content %}
 <style>
     .upload-step-card {
         border-radius: 12px;
@@ -33,6 +33,11 @@
         cursor: pointer;
         position: relative;
         transition: all 0.2s ease;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
     }
     .dropzone-upload-area:hover, .dropzone-upload-area.dragover {
         border-color: #d97706;
@@ -45,10 +50,11 @@
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
+    .cursor-pointer {
+        cursor: pointer !important;
+    }
 </style>
-{% endblock %}
 
-{% block content %}
 <div class="container-fluid px-0 mb-6" style="max-width: 1140px;">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-3">
@@ -237,29 +243,42 @@
         <form method="post" enctype="multipart/form-data" id="bulkUploadForm">
             {% csrf_token %}
 
-            <div class="dropzone-upload-area" id="bulkDropzone">
-                <input type="file" name="excel_file" id="id_excel_file" class="d-none" accept=".xlsx, .xls" required>
+            <div class="dropzone-upload-area position-relative" id="bulkDropzone">
+                <!-- Native transparent file input covering the entire dropzone -->
+                <input type="file" name="excel_file" id="id_excel_file" accept=".xlsx, .xls" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" style="z-index: 10; cursor: pointer;" required>
 
-                <!-- Initial Empty State -->
-                <div id="dropzoneEmptyState">
-                    <div class="avatar avatar-xl bg-warning-subtle text-warning rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center">
+                <!-- Initial Empty State (Visible by default) -->
+                <div id="dropzoneEmptyState" class="py-2" style="pointer-events: none;">
+                    <div class="avatar avatar-xl bg-warning-subtle text-warning rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center shadow-sm">
                         <i class="fas fa-file-excel fs-2"></i>
                     </div>
-                    <h5 class="fw-bold text-body-highlight mb-1">Drop your Excel file here, or <span class="text-primary text-decoration-underline">Browse</span></h5>
-                    <p class="text-body-tertiary fs-9 mb-0">Supports <strong>.xlsx</strong> and <strong>.xls</strong> spreadsheets up to 25MB</p>
+                    <h5 class="fw-bold text-body-highlight mb-1">
+                        Drop your Excel file here, or <span class="text-primary text-decoration-underline">Browse</span>
+                    </h5>
+                    <p class="text-body-tertiary fs-9 mb-3">Supports <strong>.xlsx</strong> and <strong>.xls</strong> spreadsheets up to 25MB</p>
+                    <span class="btn btn-outline-warning btn-sm px-3 py-1 fw-bold text-dark" style="pointer-events: none;">
+                        <i class="fas fa-folder-open me-1"></i> Choose File
+                    </span>
                 </div>
 
-                <!-- Selected State -->
-                <div id="dropzoneSelectedState" class="d-none">
-                    <div class="p-3 bg-body-tertiary rounded-3 border d-inline-flex align-items-center gap-3 text-start mx-auto shadow-sm" style="max-width: 460px;">
-                        <div class="avatar avatar-m bg-success-subtle text-success rounded-3 d-flex align-items-center justify-content-center flex-shrink-0">
-                            <i class="fas fa-file-excel fs-4"></i>
+                <!-- Selected State (Shown when file is picked) -->
+                <div id="dropzoneSelectedState" class="d-none py-2 w-100">
+                    <div class="p-3 bg-body-tertiary rounded-3 border d-flex align-items-center justify-content-between gap-3 text-start mx-auto shadow-sm" style="max-width: 520px; position: relative; z-index: 15;">
+                        <div class="d-flex align-items-center gap-3 overflow-hidden">
+                            <div class="avatar avatar-l bg-success-subtle text-success rounded-3 d-flex align-items-center justify-content-center flex-shrink-0">
+                                <i class="fas fa-file-excel fs-3"></i>
+                            </div>
+                            <div class="overflow-hidden">
+                                <h6 class="mb-0 text-truncate text-body-highlight fw-bold" id="selectedFileName">sheet.xlsx</h6>
+                                <div class="d-flex align-items-center gap-2 mt-1">
+                                    <span class="badge bg-secondary-subtle text-body-secondary fs-10" id="selectedFileSize">0 KB</span>
+                                    <span class="badge bg-success-subtle text-success fs-10">
+                                        <i class="fas fa-check me-1"></i>Ready for upload
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="overflow-hidden">
-                            <h6 class="mb-0 text-truncate text-body-highlight fw-bold" id="selectedFileName">sheet.xlsx</h6>
-                            <small class="text-body-tertiary fs-10" id="selectedFileSize">0 KB</small>
-                        </div>
-                        <button type="button" class="btn btn-subtle-danger btn-sm rounded-circle p-1 ms-2" id="btnRemoveExcel" title="Remove file">
+                        <button type="button" class="btn btn-subtle-danger btn-sm rounded-circle p-2 flex-shrink-0" id="btnRemoveExcel" title="Remove file" style="position: relative; z-index: 25;">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -281,11 +300,9 @@
         </form>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         const dropzone = document.getElementById('bulkDropzone');
         const fileInput = document.getElementById('id_excel_file');
         const emptyState = document.getElementById('dropzoneEmptyState');
@@ -296,65 +313,52 @@
         const form = document.getElementById('bulkUploadForm');
         const btnSubmit = document.getElementById('btnSubmitUpload');
 
-        if (dropzone && fileInput) {
-            dropzone.addEventListener('click', function(e) {
-                if (e.target !== btnRemove && !btnRemove.contains(e.target)) {
-                    fileInput.click();
-                }
-            });
-
-            ['dragenter', 'dragover'].forEach(name => {
-                dropzone.addEventListener(name, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.add('dragover');
-                }, false);
-            });
-
-            ['dragleave', 'drop'].forEach(name => {
-                dropzone.addEventListener(name, function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    dropzone.classList.remove('dragover');
-                }, false);
-            });
-
-            dropzone.addEventListener('drop', function(e) {
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    handleExcelFile(files[0]);
-                }
-            });
-
+        if (fileInput) {
             fileInput.addEventListener('change', function() {
-                if (fileInput.files.length > 0) {
-                    handleExcelFile(fileInput.files[0]);
-                }
-            });
-
-            if (btnRemove) {
-                btnRemove.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    fileInput.value = '';
+                if (fileInput.files && fileInput.files.length > 0) {
+                    const file = fileInput.files[0];
+                    const name = file.name.toLowerCase();
+                    if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
+                        alert('Please upload an Excel spreadsheet (.xlsx or .xls).');
+                        fileInput.value = '';
+                        emptyState.classList.remove('d-none');
+                        selectedState.classList.add('d-none');
+                        return;
+                    }
+                    fileNameElem.textContent = file.name;
+                    fileSizeElem.textContent = (file.size / 1024).toFixed(1) + ' KB';
+                    emptyState.classList.add('d-none');
+                    selectedState.classList.remove('d-none');
+                    // Bring file input back behind remove button
+                    fileInput.style.zIndex = '5';
+                } else {
                     emptyState.classList.remove('d-none');
                     selectedState.classList.add('d-none');
-                });
-            }
+                    fileInput.style.zIndex = '10';
+                }
+            });
+
+            // Drag over effects on the input
+            fileInput.addEventListener('dragenter', function() {
+                dropzone.classList.add('dragover');
+            });
+            fileInput.addEventListener('dragleave', function() {
+                dropzone.classList.remove('dragover');
+            });
+            fileInput.addEventListener('drop', function() {
+                dropzone.classList.remove('dragover');
+            });
         }
 
-        function handleExcelFile(file) {
-            const name = file.name.toLowerCase();
-            if (!name.endsWith('.xlsx') && !name.endsWith('.xls')) {
-                alert('Please upload an Excel spreadsheet (.xlsx or .xls).');
+        if (btnRemove) {
+            btnRemove.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 fileInput.value = '';
-                return;
-            }
-            fileNameElem.textContent = file.name;
-            fileSizeElem.textContent = (file.size / 1024).toFixed(1) + ' KB';
-            emptyState.classList.add('d-none');
-            selectedState.classList.remove('d-none');
+                emptyState.classList.remove('d-none');
+                selectedState.classList.add('d-none');
+                fileInput.style.zIndex = '10';
+            });
         }
 
         if (form && btnSubmit) {
@@ -363,6 +367,6 @@
                 btnSubmit.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Processing Spreadsheet...';
             });
         }
-    });
+    })();
 </script>
 {% endblock %}
