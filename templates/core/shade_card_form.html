@@ -232,6 +232,17 @@
                     {% endif %}
                 </div>
 
+                <!-- Live Duplicate Detection Banner -->
+                <div class="col-12 d-none" id="duplicateWarningBox">
+                    <div class="alert alert-subtle-danger d-flex align-items-center p-3 mb-0 rounded-3 border border-danger-subtle shadow-sm">
+                        <i class="fas fa-exclamation-triangle fs-4 text-danger me-3 flex-shrink-0"></i>
+                        <div class="fs-9">
+                            <strong class="text-danger fw-bold">Duplicate Detected:</strong>
+                            <span id="duplicateWarningMsg" class="text-body-emphasis ms-1"></span>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- ROW 3: Image & Status -->
                 <div class="col-12 col-md-6">
                     <label class="filament-field-label" for="id_image_file">
@@ -458,10 +469,71 @@
             });
         }
 
-        // Client-side Mandate Validation Check before submitting
+        // Real-time Duplicate Check via Name and Hex Code
+        const nameInput = document.getElementById('id_name');
+        const dupWarningBox = document.getElementById('duplicateWarningBox');
+        const dupWarningMsg = document.getElementById('duplicateWarningMsg');
+        let dupCheckTimer = null;
+        let isDuplicateDetected = false;
+
+        function checkDuplicateShade() {
+            const shadeName = nameInput ? nameInput.value.trim() : '';
+            const hexVal = hexInput ? hexInput.value.trim() : '';
+            const catId = catSelect ? catSelect.value : '';
+            const excludeId = '{{ shade.id|default:"" }}';
+
+            if (!shadeName || !catId) {
+                if (dupWarningBox) dupWarningBox.classList.add('d-none');
+                isDuplicateDetected = false;
+                return;
+            }
+
+            const params = new URLSearchParams({
+                name: shadeName,
+                hexcode: hexVal,
+                category_id: catId,
+                exclude_id: excludeId
+            });
+
+            fetch(`/api/shade-cards/check-duplicate/?${params.toString()}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.is_duplicate) {
+                    isDuplicateDetected = true;
+                    if (dupWarningMsg) dupWarningMsg.textContent = data.message;
+                    if (dupWarningBox) dupWarningBox.classList.remove('d-none');
+                } else {
+                    isDuplicateDetected = false;
+                    if (dupWarningBox) dupWarningBox.classList.add('d-none');
+                }
+            })
+            .catch(() => {
+                // Ignore network errors on background check
+            });
+        }
+
+        function triggerDuplicateCheck() {
+            clearTimeout(dupCheckTimer);
+            dupCheckTimer = setTimeout(checkDuplicateShade, 350);
+        }
+
+        if (nameInput) nameInput.addEventListener('input', triggerDuplicateCheck);
+        if (hexInput) hexInput.addEventListener('input', triggerDuplicateCheck);
+        if (colorPicker) colorPicker.addEventListener('input', triggerDuplicateCheck);
+        if (catSelect) catSelect.addEventListener('change', triggerDuplicateCheck);
+
+        // Client-side Mandate & Duplicate Validation Check before submitting
         const form = document.getElementById('shadeCardForm');
         if (form) {
             form.addEventListener('submit', function(e) {
+                if (isDuplicateDetected) {
+                    e.preventDefault();
+                    alert('Validation error: A shade card with this Name and Hex Code already exists in the selected category.');
+                    return;
+                }
+
                 const hexVal = hexInput ? hexInput.value.trim() : '';
                 const hasFile = fileInput && fileInput.files.length > 0;
                 const hasExistingImg = previewImg && previewImg.src && !previewImg.src.includes('data:') && !previewContainer.classList.contains('d-none');

@@ -6328,7 +6328,14 @@ def bulk_upload_shade_cards(request):
                     elif user_val.lower() in users_by_name:
                         user_id = users_by_name[user_val.lower()]
 
-                existing = ShadeCards.objects.filter(name__iexact=shade_name, category_id=category_id).first()
+                from django.db.models import Q
+                dup_qs = ShadeCards.objects.filter(name__iexact=shade_name, category_id=category_id)
+                if has_hex:
+                    dup_qs = dup_qs.filter(hexcode__iexact=hexcode)
+                else:
+                    dup_qs = dup_qs.filter(Q(hexcode__isnull=True) | Q(hexcode=''))
+
+                existing = dup_qs.first()
                 if existing:
                     existing.maincategory_id = maincategory_id
                     existing.category_id = category_id
@@ -6393,6 +6400,48 @@ def api_categories_by_maincategory(request):
         .values('id', 'name')
     )
     return JsonResponse({'status': 'success', 'categories': categories})
+
+
+@login_required
+def api_check_shade_card_duplicate(request):
+    """
+    Real-time AJAX validation to check if a shade card with given Name & Hex Code
+    already exists in the specified category.
+    """
+    from django.db.models import Q
+    name = (request.GET.get('name') or '').strip()
+    hexcode = (request.GET.get('hexcode') or '').strip()
+    category_id = request.GET.get('category_id')
+    exclude_id = request.GET.get('exclude_id')
+
+    if not name or not category_id or not str(category_id).isdigit():
+        return JsonResponse({'is_duplicate': False})
+
+    cat_id = int(category_id)
+    qs = ShadeCards.objects.filter(name__iexact=name, category_id=cat_id)
+    if exclude_id and str(exclude_id).isdigit():
+        qs = qs.exclude(pk=int(exclude_id))
+
+    if hexcode:
+        if not hexcode.startswith('#') and len(hexcode) in (3, 6):
+            hexcode = '#' + hexcode
+        qs = qs.filter(hexcode__iexact=hexcode)
+    else:
+        qs = qs.filter(Q(hexcode__isnull=True) | Q(hexcode=''))
+
+    existing = qs.first()
+    if existing:
+        hex_text = f" and Hex Code '{existing.hexcode}'" if existing.hexcode else ""
+        return JsonResponse({
+            'is_duplicate': True,
+            'existing_id': existing.id,
+            'existing_name': existing.name,
+            'existing_hex': existing.hexcode or '',
+            'message': f"A shade card with name '{existing.name}'{hex_text} already exists in this category (ID #{existing.id})."
+        })
+
+    return JsonResponse({'is_duplicate': False})
+
 
 
 

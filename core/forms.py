@@ -456,6 +456,36 @@ class ShadeCardForm(forms.ModelForm):
         if not has_hex and not has_img:
             raise forms.ValidationError("Either Shade Image or Hex Code is mandatory. Please provide at least one.")
 
+        # Check duplicacy via name and hex code both in the selected category
+        name = cleaned_data.get('name')
+        category = cleaned_data.get('category')
+        if name and category:
+            name_clean = name.strip()
+            cat_id = category.id
+
+            from django.db.models import Q
+            dup_qs = ShadeCards.objects.filter(name__iexact=name_clean, category_id=cat_id)
+            if self.instance and self.instance.pk:
+                dup_qs = dup_qs.exclude(pk=self.instance.pk)
+
+            if has_hex:
+                hex_clean = hexcode.strip()
+                dup_qs = dup_qs.filter(hexcode__iexact=hex_clean)
+            else:
+                dup_qs = dup_qs.filter(Q(hexcode__isnull=True) | Q(hexcode=''))
+
+            if dup_qs.exists():
+                existing_item = dup_qs.first()
+                hex_info = f" with hex code '{hexcode}'" if has_hex else " (without hex code)"
+                err_msg = (
+                    f"Duplicate detected: A shade card named '{name_clean}'{hex_info} "
+                    f"already exists in this category ({category.name}, Shade ID #{existing_item.id})."
+                )
+                self.add_error('name', err_msg)
+                if has_hex:
+                    self.add_error('hexcode', err_msg)
+                raise forms.ValidationError(err_msg)
+
         return cleaned_data
 
     def save(self, commit=True):

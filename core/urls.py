@@ -75,6 +75,7 @@ urlpatterns = [
     path('shade-cards/download-sample/', views.download_shade_card_sample, name='download_shade_card_sample'),
     path('shade-cards/bulk-upload/', views.bulk_upload_shade_cards, name='bulk_upload_shade_cards'),
     path('api/categories-by-maincategory/', views.api_categories_by_maincategory, name='api_categories_by_maincategory'),
+    path('api/shade-cards/check-duplicate/', views.api_check_shade_card_duplicate, name='api_check_shade_card_duplicate'),
 
     path('categories/', views.app_category_list, name='app_category_list'),
     path('categories/main/<int:main_category_id>/', views.app_category_detail, name='app_category_detail'),
