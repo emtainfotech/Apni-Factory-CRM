@@ -11,13 +11,13 @@ from .utils import send_text_message, format_whatsapp_phone
 
 def get_formatted_support_phone():
     """Returns a cleanly formatted support phone number."""
-    raw = getattr(settings, 'WHATSAPP_CLICK_TO_CHAT_PHONE', '9340547135')
+    raw = getattr(settings, 'WHATSAPP_CLICK_TO_CHAT_PHONE', '7648911811')
     digits = ''.join(c for c in str(raw) if c.isdigit())
     if len(digits) == 10:
         return f"+91 {digits[:5]} {digits[5:]}"
     elif len(digits) == 12 and digits.startswith('91'):
         return f"+91 {digits[2:7]} {digits[7:]}"
-    return f"+91 {digits}" if digits else "+91 93405 47135"
+    return f"+91 {digits}" if digits else "+91 76489 11811"
 
 
 def get_seller_contact_details(h_user):

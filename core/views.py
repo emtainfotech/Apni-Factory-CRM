@@ -4287,7 +4287,7 @@ def whatsapp_marketing_sample(request):
     sheet.append(['Phone', 'Name', 'Email'])
     
     # Sample row
-    sheet.append(['9340547135', 'John Doe', 'john@example.com'])
+    sheet.append(['7648911811', 'John Doe', 'john@example.com'])
 
     # Style header row
     for cell in sheet[1]:
