@@ -1,0 +1,417 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="pb-5">
+    <!-- Breadcrumb & Header -->
+    <nav class="mb-3" aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+            <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+            <li class="breadcrumb-item active" aria-current="page">WhatsApp Reports</li>
+        </ol>
+    </nav>
+
+    <div class="row align-items-center justify-content-between g-3 mb-4">
+        <div class="col-12 col-md-auto">
+            <h2 class="mb-0 text-bold text-body-highlight d-flex align-items-center gap-2">
+                <span class="fab fa-whatsapp text-success fs-2"></span>
+                WhatsApp Automated Dashboard Reports
+            </h2>
+            <p class="text-body-tertiary mb-0 mt-1">
+                Automated 6:00 AM daily reports, live employee scorecards, and interactive on-demand WhatsApp bot commands.
+            </p>
+        </div>
+        <div class="col-12 col-md-auto d-flex gap-2">
+            <a href="{% url 'dashboard_admin' %}" class="btn btn-phoenix-secondary btn-sm px-3">
+                <span class="fas fa-arrow-left me-2"></span>Back to Dashboard
+            </a>
+            <button class="btn btn-primary btn-sm px-3" data-bs-toggle="collapse" data-bs-target="#addRecipientCard">
+                <span class="fas fa-plus me-2"></span>Add New Number
+            </button>
+        </div>
+    </div>
+
+    <!-- Alert Messages -->
+    {% if messages %}
+    <div class="mb-4">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show d-flex align-items-center shadow-sm" role="alert">
+            <span class="fas fa-info-circle me-2 fs-5"></span>
+            <div>{{ message }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Top KPI Stats -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-body-highlight">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar avatar-m bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center">
+                            <span class="fas fa-users fs-6"></span>
+                        </div>
+                        <div>
+                            <div class="text-body-secondary fs-9 fw-semibold text-uppercase">Active Recipients</div>
+                            <h4 class="mb-0 fw-bold">{{ active_count }} <span class="fs-9 text-body-tertiary fw-normal">of {{ recipients.count }}</span></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-body-highlight">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar avatar-m bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center">
+                            <span class="fas fa-sun fs-6"></span>
+                        </div>
+                        <div>
+                            <div class="text-body-secondary fs-9 fw-semibold text-uppercase">Morning Dispatch</div>
+                            <h4 class="mb-0 fw-bold">6:00 AM <span class="fs-9 text-body-tertiary fw-normal">IST ({{ morning_count }})</span></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-body-highlight">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar avatar-m bg-info-subtle text-info rounded-circle d-flex align-items-center justify-content-center">
+                            <span class="fas fa-moon fs-6"></span>
+                        </div>
+                        <div>
+                            <div class="text-body-secondary fs-9 fw-semibold text-uppercase">Evening Dispatch</div>
+                            <h4 class="mb-0 fw-bold">8:00 PM <span class="fs-9 text-body-tertiary fw-normal">IST ({{ evening_count }})</span></h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card h-100 border-0 shadow-sm rounded-3 bg-body-highlight">
+                <div class="card-body p-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar avatar-m bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                            <span class="fas fa-terminal fs-6"></span>
+                        </div>
+                        <div>
+                            <div class="text-body-secondary fs-9 fw-semibold text-uppercase">Meta Cloud API</div>
+                            <h4 class="mb-0 fw-bold">
+                                {% if meta_api_configured %}
+                                <span class="badge bg-success-subtle text-success fs-9">Connected</span>
+                                {% else %}
+                                <span class="badge bg-danger-subtle text-danger fs-9">Token Missing</span>
+                                {% endif %}
+                            </h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Recipient Form (Collapsible / Default Shown if none) -->
+    <div class="collapse {% if not recipients.exists %}show{% endif %} mb-4" id="addRecipientCard">
+        <div class="card border border-primary border-opacity-25 shadow-sm rounded-4">
+            <div class="card-header bg-primary-subtle py-3 border-0 rounded-top-4">
+                <h5 class="mb-0 text-primary-emphasis d-flex align-items-center gap-2">
+                    <span class="fas fa-user-plus"></span> Register WhatsApp Number for Automated Reports
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{% url 'whatsapp_report_settings' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="add">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">Recipient Name / Label <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Sagar – Owner" required>
+                            <div class="form-text">A descriptive name to identify who receives this report.</div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">WhatsApp Mobile Number <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-body-highlight fw-semibold">+91</span>
+                                <input type="text" name="phone" class="form-control" placeholder="9340547135" maxlength="15" required>
+                            </div>
+                            <div class="form-text">10-digit Indian WhatsApp mobile number (e.g. 9340547135).</div>
+                        </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">Report Schedule</label>
+                            <select name="report_type" class="form-select">
+                                <option value="morning" selected>Morning Only (6:00 AM — Today Live Summary)</option>
+                                <option value="evening">Evening Only (8:00 PM — Today Summary)</option>
+                                <option value="both">Both Morning (6 AM) & Evening (8 PM)</option>
+                            </select>
+                            <div class="form-text">Choose when the automated push message is sent.</div>
+                        </div>
+
+                        <div class="col-12 col-md-6 pt-2">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="include_employee_detail" name="include_employee_detail">
+                                <label class="form-check-label fw-semibold" for="include_employee_detail">
+                                    Include Detailed Employee Scorecard & Punch Status
+                                </label>
+                            </div>
+                            <div class="text-body-tertiary fs-9 ps-4">
+                                Shows individual calls made, profiles created/updated, follow-ups due, and attendance for each employee (optional).
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 pt-2">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" id="allow_commands" name="allow_commands" checked>
+                                <label class="form-check-label fw-semibold" for="allow_commands">
+                                    Allow WhatsApp Interactive Commands (e.g. <code>/report</code>, <code>yesterday</code>, <code>overall</code>)
+                                </label>
+                            </div>
+                            <div class="text-body-tertiary fs-9 ps-4">
+                                Allows this number to trigger instant live reports by texting commands to the CRM WhatsApp number.
+                            </div>
+                        </div>
+
+                        <div class="col-12 d-flex justify-content-end gap-2 pt-3 border-top">
+                            <button type="button" class="btn btn-phoenix-secondary btn-sm px-3" data-bs-toggle="collapse" data-bs-target="#addRecipientCard">Cancel</button>
+                            <button type="submit" class="btn btn-success btn-sm px-4">
+                                <span class="fab fa-whatsapp me-2"></span>Save WhatsApp Recipient
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Registered Numbers Table -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4">
+        <div class="card-header bg-body-highlight py-3 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 text-bold text-body-highlight d-flex align-items-center gap-2">
+                <span class="fas fa-address-book text-primary"></span> Registered WhatsApp Report Recipients
+            </h5>
+            <span class="badge bg-phoenix-primary fs-9">{{ recipients.count }} Recipient{{ recipients.count|pluralize }}</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-body-secondary fs-9 text-uppercase text-body-tertiary">
+                        <tr>
+                            <th class="ps-4">Recipient Name</th>
+                            <th>WhatsApp Number</th>
+                            <th>Schedule</th>
+                            <th>Employee Scorecard</th>
+                            <th>Interactive Commands</th>
+                            <th>Status</th>
+                            <th class="text-end pe-4">Actions & Test</th>
+                        </tr>
+                    </thead>
+                    <tbody class="fs-9">
+                        {% for r in recipients %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="fw-bold text-body-highlight">{{ r.name }}</div>
+                                <div class="text-body-tertiary fs-10">Added {{ r.created_at|date:"d M Y, h:i A" }}</div>
+                            </td>
+                            <td>
+                                <a href="https://wa.me/91{{ r.clean_phone }}" target="_blank" class="fw-semibold text-success text-decoration-none d-flex align-items-center gap-1">
+                                    <span class="fab fa-whatsapp"></span> +91 {{ r.clean_phone }}
+                                </a>
+                            </td>
+                            <td>
+                                {% if r.report_type == 'morning' %}
+                                <span class="badge bg-warning-subtle text-warning fw-semibold"><span class="fas fa-sun me-1"></span>6:00 AM Daily</span>
+                                {% elif r.report_type == 'evening' %}
+                                <span class="badge bg-info-subtle text-info fw-semibold"><span class="fas fa-moon me-1"></span>8:00 PM Daily</span>
+                                {% else %}
+                                <span class="badge bg-primary-subtle text-primary fw-semibold"><span class="fas fa-sync-alt me-1"></span>Morning & Evening</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.include_employee_detail %}
+                                <span class="badge bg-success-subtle text-success"><span class="fas fa-check me-1"></span>Included</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary"><span class="fas fa-minus me-1"></span>Summary Only</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.allow_commands %}
+                                <span class="badge bg-success-subtle text-success"><span class="fas fa-check me-1"></span>Enabled (/report)</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary"><span class="fas fa-times me-1"></span>Disabled</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if r.is_active %}
+                                <span class="badge bg-success"><span class="fas fa-check-circle me-1"></span>Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary"><span class="fas fa-pause me-1"></span>Paused</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end pe-4">
+                                <div class="btn-group">
+                                    <!-- Test Send Button Dropdown -->
+                                    <button type="button" class="btn btn-phoenix-success btn-xs dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <span class="fas fa-paper-plane me-1"></span>Send Test
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                        <li><h6 class="dropdown-header">Select Report Period</h6></li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'whatsapp_report_test_send' r.id %}?period=yesterday">
+                                                <span class="fas fa-history text-warning me-2"></span>Yesterday's Report (Morning format)
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'whatsapp_report_test_send' r.id %}?period=today">
+                                                <span class="fas fa-bolt text-info me-2"></span>Today's Live Report (/report format)
+                                            </a>
+                                        </li>
+                                        <li>
+                                            <a class="dropdown-item" href="{% url 'whatsapp_report_test_send' r.id %}?period=overall">
+                                                <span class="fas fa-chart-pie text-primary me-2"></span>Overall All-Time Figures
+                                            </a>
+                                        </li>
+                                    </ul>
+
+                                    <!-- Toggle Pause/Active -->
+                                    <a href="{% url 'whatsapp_report_toggle' r.id %}" class="btn btn-phoenix-secondary btn-xs" title="{% if r.is_active %}Pause reports{% else %}Activate reports{% endif %}">
+                                        {% if r.is_active %}
+                                        <span class="fas fa-pause text-secondary"></span>
+                                        {% else %}
+                                        <span class="fas fa-play text-success"></span>
+                                        {% endif %}
+                                    </a>
+
+                                    <!-- Delete Button -->
+                                    <a href="{% url 'whatsapp_report_delete' r.id %}" class="btn btn-phoenix-danger btn-xs" onclick="return confirm('Are you sure you want to remove {{ r.name }} ({{ r.phone }}) from automated WhatsApp reports?');" title="Remove recipient">
+                                        <span class="fas fa-trash-alt"></span>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-body-tertiary">
+                                <div class="py-3">
+                                    <span class="fab fa-whatsapp fs-1 text-secondary opacity-50 mb-2 d-block"></span>
+                                    <h6>No WhatsApp Report Recipients Registered Yet</h6>
+                                    <p class="fs-9 mb-2">Click "Add New Number" above to add the first admin WhatsApp recipient (e.g. 9340547135).</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Commands Guide & Technical Documentation -->
+    <div class="row g-4">
+        <!-- Interactive Commands Guide -->
+        <div class="col-12 col-lg-7">
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+                <div class="card-header bg-body-highlight py-3">
+                    <h5 class="mb-0 text-bold text-body-highlight d-flex align-items-center gap-2">
+                        <span class="fas fa-terminal text-info"></span> Interactive Inbound WhatsApp Commands
+                    </h5>
+                    <div class="text-body-tertiary fs-9 mt-1">
+                        Any authorized number above can message the CRM WhatsApp bot at any time to get immediate responses:
+                    </div>
+                </div>
+                <div class="card-body p-3 p-md-4">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-borderless align-middle mb-0">
+                            <thead class="border-bottom fs-9 text-uppercase text-body-secondary">
+                                <tr>
+                                    <th style="width: 32%;">WhatsApp Message</th>
+                                    <th>Bot Action & Response</th>
+                                </tr>
+                            </thead>
+                            <tbody class="fs-9">
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">/report</code> or <code>today</code></td>
+                                    <td>Sends real-time today's CRM leads, invoice totals, app orders, live punch-in & break counts.</td>
+                                </tr>
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">yesterday</code> or <code>last day</code></td>
+                                    <td>Sends yesterday's final figures, revenue, order totals, and employee attendance summary.</td>
+                                </tr>
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">overall</code> or <code>all</code></td>
+                                    <td>Sends all-time metrics across CRM customers, orders, grand sales volume, and staff stats.</td>
+                                </tr>
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">week</code> or <code>this week</code></td>
+                                    <td>Sends figures from Monday to the current moment of the active week.</td>
+                                </tr>
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">month</code> or <code>this month</code></td>
+                                    <td>Sends month-to-date performance across sales and customer acquisition.</td>
+                                </tr>
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">custom 01-10-2026 to 10-10-2026</code></td>
+                                    <td>Calculates exact figures for any custom date range (supports <code>DD-MM-YYYY</code> or <code>YYYY-MM-DD</code>).</td>
+                                </tr>
+                                <tr class="border-bottom">
+                                    <td><code class="text-primary fw-bold">staff</code> or <code>team</code></td>
+                                    <td>Sends detailed per-employee scorecard (calls made, profiles updated, follow-ups due).</td>
+                                </tr>
+                                <tr>
+                                    <td><code class="text-primary fw-bold">help</code> or <code>/help</code></td>
+                                    <td>Sends a clean quick-reference menu of all commands directly on WhatsApp.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Meta WhatsApp Cloud API & Cron Schedule Guide -->
+        <div class="col-12 col-lg-5">
+            <div class="card h-100 border-0 shadow-sm rounded-4">
+                <div class="card-header bg-body-highlight py-3">
+                    <h5 class="mb-0 text-bold text-body-highlight d-flex align-items-center gap-2">
+                        <span class="fas fa-clock text-warning"></span> Automated 6:00 AM Cron Setup
+                    </h5>
+                    <div class="text-body-tertiary fs-9 mt-1">
+                        How to ensure the morning report dispatches automatically at 6:00 AM IST.
+                    </div>
+                </div>
+                <div class="card-body p-3 p-md-4 fs-9">
+                    <h6 class="fw-bold mb-2">Option 1: Windows Task Scheduler (Current Server)</h6>
+                    <p class="text-body-tertiary mb-2">
+                        Run this command daily at <strong>06:00 AM</strong>:
+                    </p>
+                    <div class="bg-body-secondary p-2 rounded-2 mb-3">
+                        <code class="user-select-all text-dark">python manage.py send_morning_report</code>
+                    </div>
+
+                    <h6 class="fw-bold mb-2">Option 2: Celery Beat Schedule</h6>
+                    <p class="text-body-tertiary mb-2">
+                        The task <code>core.tasks.send_morning_dashboard_report</code> is already registered in Celery:
+                    </p>
+                    <div class="bg-body-secondary p-2 rounded-2 mb-3">
+                        <code class="text-dark">
+                            'send-morning-dashboard-report': {<br>
+                            &nbsp;&nbsp;'task': 'core.tasks.send_morning_dashboard_report',<br>
+                            &nbsp;&nbsp;'schedule': crontab(hour=6, minute=0),<br>
+                            }
+                        </code>
+                    </div>
+
+                    <h6 class="fw-bold mb-2">Meta Cloud API 24-Hour Policy Note</h6>
+                    <p class="text-body-tertiary mb-0">
+                        When an admin sends <code>/report</code>, <code>yesterday</code>, or any message, WhatsApp opens a <strong>24-hour service conversation window</strong>. Inside this window, free-form rich reports are delivered instantly. For automated 6:00 AM reports outside the 24h window, standard utility templates can be registered in Meta Business Manager if required.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

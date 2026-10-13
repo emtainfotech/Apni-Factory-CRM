@@ -318,12 +318,14 @@ def admin_dashboard(request):
         status='pending'
     ).select_related('customer', 'requested_by', 'current_assignee').order_by('-created_at')
 
+    from .models import AdminReportRecipient
     context.update({
         'recent_invoices': recent_invoices,
         'ad_invoices_count': ad_invoices_count,
         'pending_login_requests': pending_login_requests,
         'pending_reassignments': pending_reassignments,
         'pending_reassignments_count': pending_reassignments.count(),
+        'active_report_recipients_count': AdminReportRecipient.objects.filter(is_active=True).count(),
     })
     return render(request, 'core/dashboard_admin.html', context)
 
@@ -3203,6 +3205,24 @@ def whatsapp_webhook(request):
                     media_id = media_obj.get('id')
                     text_body = media_obj.get('caption') or media_obj.get('filename') or f"[{msg_data['type'].capitalize()} received]"
 
+                # --- Intercept Admin WhatsApp Report Commands (/report, yesterday, overall, etc.) ---
+                try:
+                    from core.whatsapp_report_sender import (
+                        is_admin_report_recipient,
+                        handle_admin_whatsapp_command,
+                        get_help_message,
+                        send_whatsapp_chunks
+                    )
+                    if is_admin_report_recipient(phone_number):
+                        handled, handle_msg = handle_admin_whatsapp_command(phone_number, text_body)
+                        if not handled:
+                            # If admin sent 'help', 'hi', or unknown text, send the admin report help menu — NEVER customer bot!
+                            send_whatsapp_chunks(phone_number, get_help_message())
+                        return HttpResponse("EVENT_RECEIVED", status=200)
+                except Exception as cmd_err:
+                    import logging
+                    logging.getLogger(__name__).exception(f"Error checking admin report command: {cmd_err}")
+
                 process_conversation(phone_number, profile_name, text_body, media_id=media_id)
 
                 # --- Create real-time CRM Notification for assigned employee, creator & admins ---
@@ -3316,6 +3336,12 @@ def save_message_status(status_data):
     )
 
 def process_conversation(phone, profile_name, message, media_id=None):
+    from core.whatsapp_report_sender import is_admin_report_recipient
+    if is_admin_report_recipient(phone):
+        import logging
+        logging.getLogger(__name__).info(f"Skipping customer chatbot process_conversation for admin reporting number: {phone}")
+        return
+
     from django.db.models import Q
     from .bot_messages import BOT_RESPONSES
     from .utils import download_whatsapp_media
@@ -6443,5 +6469,126 @@ def api_check_shade_card_duplicate(request):
     return JsonResponse({'is_duplicate': False})
 
 
+# ==========================================
+#  ADMIN WHATSAPP REPORT MANAGEMENT VIEWS
+# ==========================================
+
+@login_required
+@user_passes_test(is_admin)
+def whatsapp_report_settings(request):
+    """
+    Control center for WhatsApp automated dashboard reports:
+    - Lists active and paused report recipients
+    - Form to register new WhatsApp numbers
+    - Test-send trigger
+    - Help guide on WhatsApp commands (/report, overall, yesterday, etc.)
+    """
+    from .models import AdminReportRecipient
+    from .whatsapp_report_sender import send_test_report_to_number
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'add')
+
+        if action == 'add':
+            name = request.POST.get('name', '').strip()
+            raw_phone = request.POST.get('phone', '').strip()
+            report_type = request.POST.get('report_type', 'morning')
+            include_emp = request.POST.get('include_employee_detail') == 'on'
+            allow_cmds = request.POST.get('allow_commands') == 'on'
+            is_active = request.POST.get('is_active', 'on') == 'on'
+
+            # Clean phone
+            digits = ''.join(c for c in raw_phone if c.isdigit())
+            if digits.startswith('91') and len(digits) == 12:
+                clean_phone = digits[2:]
+            elif len(digits) >= 10:
+                clean_phone = digits[-10:]
+            else:
+                clean_phone = digits
+
+            if not name or len(clean_phone) < 10:
+                messages.error(request, "Please provide a valid name and a 10-digit mobile number.")
+            else:
+                recipient, created = AdminReportRecipient.objects.update_or_create(
+                    phone=clean_phone,
+                    defaults={
+                        'name': name,
+                        'report_type': report_type,
+                        'include_employee_detail': include_emp,
+                        'allow_commands': allow_cmds,
+                        'is_active': is_active,
+                        'created_by': request.user,
+                    }
+                )
+                if created:
+                    messages.success(request, f"WhatsApp recipient '{name}' ({clean_phone}) added successfully!")
+                else:
+                    messages.success(request, f"WhatsApp recipient '{name}' ({clean_phone}) preferences updated!")
+
+            return redirect('whatsapp_report_settings')
+
+    recipients = AdminReportRecipient.objects.all().order_by('-is_active', 'name')
+    meta_api_configured = bool(getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', '')))
+
+    context = {
+        'recipients': recipients,
+        'meta_api_configured': meta_api_configured,
+        'active_count': recipients.filter(is_active=True).count(),
+        'morning_count': recipients.filter(is_active=True, report_type__in=['morning', 'both']).count(),
+        'evening_count': recipients.filter(is_active=True, report_type__in=['evening', 'both']).count(),
+    }
+    return render(request, 'core/whatsapp_report_settings.html', context)
 
 
+@login_required
+@user_passes_test(is_admin)
+def whatsapp_report_test_send(request, recipient_id):
+    """
+    Triggers an on-demand test report to a specific recipient.
+    Accepts GET or POST with ?period=yesterday|today|overall.
+    """
+    from .models import AdminReportRecipient
+    from .whatsapp_report_sender import send_test_report_to_number
+
+    recipient = get_object_or_404(AdminReportRecipient, id=recipient_id)
+    period = request.GET.get('period', request.POST.get('period', 'yesterday'))
+
+    ok, err = send_test_report_to_number(recipient.phone, report_type=period)
+
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest' or request.GET.get('ajax') == '1':
+        from django.http import JsonResponse
+        return JsonResponse({
+            'success': ok,
+            'message': f"Report successfully dispatched to {recipient.phone}!" if ok else f"Delivery failed: {err}"
+        })
+
+    if ok:
+        messages.success(request, f"Test {period.capitalize()} report dispatched to {recipient.name} ({recipient.phone})!")
+    else:
+        messages.error(request, f"Failed to send to {recipient.phone}: {err}")
+
+    return redirect('whatsapp_report_settings')
+
+
+@login_required
+@user_passes_test(is_admin)
+def whatsapp_report_toggle(request, recipient_id):
+    from .models import AdminReportRecipient
+    recipient = get_object_or_404(AdminReportRecipient, id=recipient_id)
+    recipient.is_active = not recipient.is_active
+    recipient.save(update_fields=['is_active'])
+    status_label = "activated" if recipient.is_active else "paused"
+    messages.info(request, f"Reports for {recipient.name} ({recipient.phone}) {status_label}.")
+    return redirect('whatsapp_report_settings')
+
+
+@login_required
+@user_passes_test(is_admin)
+def whatsapp_report_delete(request, recipient_id):
+    from .models import AdminReportRecipient
+    recipient = get_object_or_404(AdminReportRecipient, id=recipient_id)
+    name = recipient.name
+    phone = recipient.phone
+    recipient.delete()
+    messages.warning(request, f"Removed recipient {name} ({phone}) from WhatsApp reports.")
+    return redirect('whatsapp_report_settings')

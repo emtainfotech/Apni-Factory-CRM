@@ -1136,3 +1136,57 @@ class CustomerFile(models.Model):
     def __str__(self):
         return self.name
 
+
+# --- 17. ADMIN WHATSAPP REPORT RECIPIENTS ---
+
+class AdminReportRecipient(models.Model):
+    """
+    Stores phone numbers that should receive the automated WhatsApp
+    dashboard reports. Designed so the admin can add / remove numbers
+    from the CRM settings page without touching code.
+    """
+    REPORT_TYPE_CHOICES = (
+        ('morning',   'Morning Daily Report (6 AM)'),
+        ('evening',   'Evening Daily Report (8 PM)'),
+        ('both',      'Both Morning & Evening'),
+    )
+
+    name           = models.CharField(max_length=100, help_text="Label for this recipient (e.g. 'Sagar – Owner')")
+    phone          = models.CharField(
+        max_length=20,
+        unique=True,
+        help_text="10-digit Indian mobile number or full E.164 (e.g. 9340547135)"
+    )
+    report_type    = models.CharField(max_length=10, choices=REPORT_TYPE_CHOICES, default='morning')
+    include_employee_detail = models.BooleanField(
+        default=True,
+        help_text="Include per-employee scorecard in the report"
+    )
+    is_active      = models.BooleanField(default=True, help_text="Uncheck to pause reports for this number")
+    # Allow receiving on-demand commands (/report, overall, yesterday, etc.)
+    allow_commands = models.BooleanField(
+        default=True,
+        help_text="Allow this number to trigger reports by sending WhatsApp commands"
+    )
+    created_by     = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='report_recipients_created'
+    )
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Admin Report Recipient"
+        verbose_name_plural = "Admin Report Recipients"
+
+    def __str__(self):
+        return f"{self.name} ({self.phone}) — {self.get_report_type_display()}"
+
+    def clean_phone(self):
+        """Normalise to 10-digit string for display; actual sending uses format_whatsapp_phone()."""
+        digits = ''.join(c for c in str(self.phone) if c.isdigit())
+        if digits.startswith('91') and len(digits) == 12:
+            return digits[2:]
+        return digits[-10:] if len(digits) >= 10 else digits
+

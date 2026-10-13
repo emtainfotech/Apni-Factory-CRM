@@ -170,6 +170,18 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 
+from celery.schedules import crontab
+CELERY_BEAT_SCHEDULE = {
+    'send-morning-dashboard-report-6am': {
+        'task': 'core.tasks.send_morning_dashboard_report',
+        'schedule': crontab(hour=6, minute=0),  # 6:00 AM IST
+    },
+    'send-evening-dashboard-report-8pm': {
+        'task': 'core.tasks.send_evening_dashboard_report',
+        'schedule': crontab(hour=20, minute=0),  # 8:00 PM IST
+    },
+}
+
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.hostinger.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', 587))
