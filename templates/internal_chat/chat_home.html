@@ -560,19 +560,72 @@
   font-size: 0.8rem;
 }
 
-/* Attachments */
+/* Attachments & Media Cards */
+.msg-media-image-wrap {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 5px;
+  max-width: 260px;
+}
 .msg-attachment-img {
-  max-width: 240px;
+  max-width: 260px;
   max-height: 240px;
   border-radius: 8px;
   display: block;
-  margin-bottom: 4px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: transform 0.15s ease, filter 0.15s ease;
+  object-fit: cover;
+  width: 100%;
 }
-.msg-attachment-img:hover {
-  opacity: 0.92;
+.msg-media-image-wrap:hover .msg-attachment-img {
+  filter: brightness(0.95);
 }
+.msg-media-overlay-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #fff;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  font-size: 0.72rem;
+  margin-top: -28px;
+  position: relative;
+  backdrop-filter: blur(2px);
+}
+.msg-media-doc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #ffffff;
+  border: 1px solid var(--border-c, #e2e8f0);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  max-width: 320px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: all 0.15s ease;
+}
+.msg-media-doc-card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  border-color: #cbd5e1;
+}
+.msg-doc-icon-box {
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+}
+.msg-doc-icon-pdf { background: #fee2e2; color: #dc2626; }
+.msg-doc-icon-word { background: #e0f2fe; color: #0284c7; }
+.msg-doc-icon-sheet { background: #dcfce7; color: #16a34a; }
+.msg-doc-icon-file { background: #f1f5f9; color: #64748b; }
 .msg-attachment-file {
   display: flex;
   align-items: center;
@@ -1095,6 +1148,66 @@
   </div>
 </div>
 
+<!-- In-CRM WhatsApp Style Image Lightbox Modal -->
+<div class="modal fade" id="internalImageModal" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content bg-dark text-white border-0 shadow-lg" style="background: rgba(15, 23, 42, 0.96) !important;">
+      <div class="modal-header border-bottom border-secondary py-2 px-3 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <i class="fas fa-image text-info"></i>
+          <span class="fw-bold fs-10 text-truncate text-white" id="internalImageModalTitle" style="max-width: 350px;">Image Preview</span>
+          <span class="badge bg-secondary fs-11" id="internalImageModalTime"></span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-xs btn-outline-light" onclick="zoomInternalImg(-0.25)" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+          <button type="button" class="btn btn-xs btn-outline-light" onclick="zoomInternalImg(0.25)" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+          <button type="button" class="btn btn-xs btn-outline-light" onclick="resetInternalImgZoom()" title="Reset Zoom"><i class="fas fa-undo"></i></button>
+          <a id="internalImageDownloadBtn" href="" download class="btn btn-xs btn-primary px-3 shadow-sm">
+            <i class="fas fa-download me-1"></i> Download
+          </a>
+          <button type="button" class="btn btn-sm btn-outline-secondary text-white rounded-circle ms-2" data-bs-dismiss="modal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body p-2 text-center d-flex align-items-center justify-content-center overflow-auto" style="min-height: 400px; max-height: 82vh;">
+        <img id="internalImageModalImg" src="" class="img-fluid rounded shadow transition-base" style="max-height: 78vh; max-width: 95%; object-fit: contain; transform: scale(1);" alt="Preview">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- In-CRM WhatsApp Style PDF Viewer Modal -->
+<div class="modal fade" id="internalPdfModal" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 92vw; height: 92vh; margin: 4vh auto;">
+    <div class="modal-content h-100 shadow-lg border-0 overflow-hidden">
+      <div class="modal-header border-bottom py-2 px-3 bg-white d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <span class="badge bg-danger-subtle text-danger p-2 rounded">
+            <i class="fas fa-file-pdf fs-9"></i>
+          </span>
+          <div>
+            <h6 class="modal-title fs-10 fw-bold text-body-highlight mb-0 text-truncate" id="internalPdfModalTitle" style="max-width: 450px;">PDF Document Preview</h6>
+            <small class="text-body-tertiary fs-11">Apni Factory CRM Embedded Document Viewer</small>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <a id="internalPdfNewTabBtn" href="" target="_blank" class="btn btn-xs btn-phoenix-secondary">
+            <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
+          </a>
+          <a id="internalPdfDownloadBtn" href="" download class="btn btn-xs btn-danger text-white px-3 shadow-sm">
+            <i class="fas fa-download me-1"></i>Download PDF
+          </a>
+          <button type="button" class="btn-close fs-11 ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body p-0 flex-grow-1 bg-dark bg-opacity-10 position-relative" style="height: calc(92vh - 60px);">
+        <iframe id="internalPdfModalIframe" src="" width="100%" height="100%" style="border: none; display: block;" title="PDF Preview"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 5. FLOATING ACTION TOAST -->
 <div class="chat-toast" id="chatToast">
   <i class="fas fa-check-circle text-success me-1"></i>
@@ -1366,13 +1479,121 @@ function renderMessageElement(msg) {
     bubbleHtml += '<span class="msg-deleted"><i class="fas fa-ban me-1"></i> This message was deleted.</span>';
   } else {
     if (msg.attachment_url) {
-      if (msg.attachment_type === 'image') {
-        bubbleHtml += `<img class="msg-attachment-img" src="${msg.attachment_url}" onclick="window.open('${msg.attachment_url}')" alt="Image">`;
+      const attachUrl = msg.attachment_url;
+      const attachName = msg.attachment_name || attachUrl.split('/').pop() || 'Attachment';
+      const attachSize = msg.attachment_size || '';
+      const fnLower = attachName.toLowerCase();
+      const isImg = msg.attachment_type === 'image' || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fnLower) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(attachUrl);
+      const isPdf = msg.attachment_type === 'pdf' || fnLower.endsWith('.pdf') || attachUrl.toLowerCase().endsWith('.pdf');
+      const isWord = msg.attachment_type === 'word' || fnLower.endsWith('.doc') || fnLower.endsWith('.docx');
+      const isSheet = msg.attachment_type === 'spreadsheet' || fnLower.endsWith('.xls') || fnLower.endsWith('.xlsx') || fnLower.endsWith('.csv');
+      const isVideo = msg.attachment_type === 'video' || fnLower.endsWith('.mp4') || fnLower.endsWith('.webm') || fnLower.endsWith('.mov');
+      const isAudio = msg.attachment_type === 'audio' || fnLower.endsWith('.mp3') || fnLower.endsWith('.wav') || fnLower.endsWith('.ogg');
+
+      if (isImg) {
+        bubbleHtml += `
+          <div class="msg-media-image-wrap">
+            <img class="msg-attachment-img" src="${attachUrl}" alt="${escapeHtml(attachName)}" onclick="openInternalImageModal('${attachUrl}', '${escapeHtml(attachName)}', '${msg.time_display}')" title="Click to open preview in CRM">
+            <div class="msg-media-overlay-bar">
+              <span class="text-truncate" style="max-width: 160px;" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</span>
+              <div class="d-flex align-items-center gap-1 ms-auto">
+                <button type="button" class="btn btn-xs text-white p-0 px-1" onclick="openInternalImageModal('${attachUrl}', '${escapeHtml(attachName)}', '${msg.time_display}')" title="Preview in CRM"><i class="fas fa-expand-alt"></i></button>
+                <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs text-white p-0 px-1" title="Download image"><i class="fas fa-download"></i></a>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (isPdf) {
+        bubbleHtml += `
+          <div class="msg-media-doc-card">
+            <div class="msg-doc-icon-box msg-doc-icon-pdf">
+              <i class="fas fa-file-pdf"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+              <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+              <div class="fs-11 text-muted">PDF Document ${attachSize ? '• ' + attachSize : ''}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+              <button type="button" class="btn btn-xs btn-outline-danger py-1 px-2" onclick="openInternalPdfModal('${attachUrl}', '${escapeHtml(attachName)}')" title="Preview in CRM">
+                <i class="fas fa-eye me-1"></i>Open
+              </button>
+              <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-danger text-white py-1 px-2 shadow-sm" title="Download PDF">
+                <i class="fas fa-download"></i>
+              </a>
+            </div>
+          </div>
+        `;
+      } else if (isWord) {
+        bubbleHtml += `
+          <div class="msg-media-doc-card">
+            <div class="msg-doc-icon-box msg-doc-icon-word">
+              <i class="fas fa-file-word"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+              <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+              <div class="fs-11 text-muted">Word Document ${attachSize ? '• ' + attachSize : ''}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+              <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-primary text-white py-1 px-2 shadow-sm" title="Download Word Document">
+                <i class="fas fa-download me-1"></i>Download
+              </a>
+            </div>
+          </div>
+        `;
+      } else if (isSheet) {
+        bubbleHtml += `
+          <div class="msg-media-doc-card">
+            <div class="msg-doc-icon-box msg-doc-icon-sheet">
+              <i class="fas fa-file-excel"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+              <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+              <div class="fs-11 text-muted">Spreadsheet ${attachSize ? '• ' + attachSize : ''}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+              <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-success text-white py-1 px-2 shadow-sm" title="Download Spreadsheet">
+                <i class="fas fa-download me-1"></i>Download
+              </a>
+            </div>
+          </div>
+        `;
+      } else if (isVideo) {
+        bubbleHtml += `
+          <div class="mb-2" style="max-width: 280px;">
+            <video src="${attachUrl}" class="img-fluid rounded border shadow-sm w-100" controls></video>
+            <div class="d-flex align-items-center justify-content-between mt-1 fs-11 text-muted">
+              <span class="text-truncate" style="max-width: 180px;">${escapeHtml(attachName)}</span>
+              <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-outline-secondary py-0 px-2"><i class="fas fa-download me-1"></i>Download</a>
+            </div>
+          </div>
+        `;
+      } else if (isAudio) {
+        bubbleHtml += `
+          <div class="mb-2 p-2 rounded bg-white border shadow-sm" style="max-width: 280px;">
+            <audio src="${attachUrl}" class="w-100" controls></audio>
+            <div class="d-flex align-items-center justify-content-between mt-1 fs-11 text-muted">
+              <span class="text-truncate" style="max-width: 180px;">${escapeHtml(attachName)}</span>
+              <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-outline-secondary py-0 px-2"><i class="fas fa-download me-1"></i>Download</a>
+            </div>
+          </div>
+        `;
       } else {
-        bubbleHtml += `<a class="msg-attachment-file" href="${msg.attachment_url}" download target="_blank">
-          <i class="fas fa-file-download text-danger fs-8"></i>
-          <span class="text-truncate">${escapeHtml(msg.attachment_name || 'Download attachment')}</span>
-        </a>`;
+        bubbleHtml += `
+          <div class="msg-media-doc-card">
+            <div class="msg-doc-icon-box msg-doc-icon-file">
+              <i class="fas fa-file-alt"></i>
+            </div>
+            <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+              <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+              <div class="fs-11 text-muted">File Attachment ${attachSize ? '• ' + attachSize : ''}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+              <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-outline-primary py-1 px-2" title="Download File">
+                <i class="fas fa-download me-1"></i>Download
+              </a>
+            </div>
+          </div>
+        `;
       }
     }
     if (msg.content) {
@@ -1850,5 +2071,76 @@ function filterChatList() {
 function escapeHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+/* ---- In-CRM Media Preview Handlers (WhatsApp Style) ---- */
+let currentInternalImgScale = 1;
+
+function openInternalImageModal(url, name, timeStr) {
+  currentInternalImgScale = 1;
+  const modalEl = document.getElementById('internalImageModal');
+  const imgEl = document.getElementById('internalImageModalImg');
+  const titleEl = document.getElementById('internalImageModalTitle');
+  const timeEl = document.getElementById('internalImageModalTime');
+  const dlBtn = document.getElementById('internalImageDownloadBtn');
+  if (!modalEl || !imgEl) return;
+
+  imgEl.src = url;
+  imgEl.style.transform = 'scale(1)';
+  if (titleEl) titleEl.textContent = name || 'Image Preview';
+  if (timeEl) timeEl.textContent = timeStr || '';
+  if (dlBtn) {
+    dlBtn.href = url;
+    dlBtn.download = name || 'image';
+  }
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+function zoomInternalImg(delta) {
+  const imgEl = document.getElementById('internalImageModalImg');
+  if (!imgEl) return;
+  currentInternalImgScale = Math.max(0.5, Math.min(3.5, currentInternalImgScale + delta));
+  imgEl.style.transform = `scale(${currentInternalImgScale})`;
+}
+
+function resetInternalImgZoom() {
+  const imgEl = document.getElementById('internalImageModalImg');
+  if (!imgEl) return;
+  currentInternalImgScale = 1;
+  imgEl.style.transform = 'scale(1)';
+}
+
+function openInternalPdfModal(url, name) {
+  const modalEl = document.getElementById('internalPdfModal');
+  const iframeEl = document.getElementById('internalPdfModalIframe');
+  const titleEl = document.getElementById('internalPdfModalTitle');
+  const dlBtn = document.getElementById('internalPdfDownloadBtn');
+  const newTabBtn = document.getElementById('internalPdfNewTabBtn');
+  if (!modalEl || !iframeEl) return;
+
+  if (titleEl) titleEl.textContent = name || 'PDF Document Preview';
+  if (dlBtn) {
+    dlBtn.href = url;
+    dlBtn.download = name || 'document.pdf';
+  }
+  if (newTabBtn) {
+    newTabBtn.href = url;
+  }
+  // Load PDF with native browser toolbar
+  iframeEl.src = url + (url.includes('#') ? '' : '#toolbar=1&navpanes=0');
+
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const pdfModalEl = document.getElementById('internalPdfModal');
+  if (pdfModalEl) {
+    pdfModalEl.addEventListener('hidden.bs.modal', function() {
+      const iframe = document.getElementById('internalPdfModalIframe');
+      if (iframe) iframe.src = 'about:blank';
+    });
+  }
+});
 </script>
 {% endblock %}

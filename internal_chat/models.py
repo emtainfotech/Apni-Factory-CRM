@@ -147,9 +147,22 @@ class ChatMessage(models.Model):
                 'content': self.reply_to.content[:100] if self.reply_to.content else ('📎 Attachment' if self.reply_to.attachment else ''),
             }
         if self.attachment:
-            data['attachment_url'] = self.attachment.url
+            try:
+                data['attachment_url'] = self.attachment.url
+            except Exception:
+                data['attachment_url'] = ''
             data['attachment_type'] = self.attachment_type or 'file'
             data['attachment_name'] = self.attachment_name or self.attachment.name.split('/')[-1]
+            try:
+                sz = self.attachment.size
+                if sz < 1024:
+                    data['attachment_size'] = f"{sz} B"
+                elif sz < 1024 * 1024:
+                    data['attachment_size'] = f"{sz / 1024:.1f} KB"
+                else:
+                    data['attachment_size'] = f"{sz / (1024 * 1024):.1f} MB"
+            except Exception:
+                data['attachment_size'] = None
         return data
 
 

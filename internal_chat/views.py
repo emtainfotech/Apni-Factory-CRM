@@ -225,7 +225,21 @@ def send_message(request, room_id):
     att_type = att_name = None
     if attachment:
         mime, _ = mimetypes.guess_type(attachment.name)
-        att_type = 'image' if mime and mime.startswith('image/') else ('audio' if mime and mime.startswith('audio/') else 'file')
+        fn_l = attachment.name.lower()
+        if (mime and mime.startswith('image/')) or fn_l.endswith(('.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg')):
+            att_type = 'image'
+        elif fn_l.endswith('.pdf') or (mime and 'pdf' in mime):
+            att_type = 'pdf'
+        elif fn_l.endswith(('.doc', '.docx')):
+            att_type = 'word'
+        elif fn_l.endswith(('.xls', '.xlsx', '.csv')):
+            att_type = 'spreadsheet'
+        elif (mime and mime.startswith('video/')) or fn_l.endswith(('.mp4', '.mov', '.webm', '.avi')):
+            att_type = 'video'
+        elif (mime and mime.startswith('audio/')) or fn_l.endswith(('.mp3', '.wav', '.ogg', '.m4a')):
+            att_type = 'audio'
+        else:
+            att_type = 'file'
         att_name = attachment.name
 
     reply_to_id = request.POST.get('reply_to_id')

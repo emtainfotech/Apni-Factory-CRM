@@ -457,20 +457,64 @@
 </div>
 
 <!-- Lightbox Modal for Image Previews (Employee) -->
-<div class="modal fade" id="employeeImageLightboxModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content bg-transparent border-0 shadow-none">
-      <div class="modal-body p-0 position-relative text-center">
-        <button type="button" class="btn btn-sm btn-dark rounded-circle position-absolute top-0 end-0 m-2 z-index-1" data-bs-dismiss="modal" style="background: rgba(0,0,0,0.6);"><i class="fas fa-times text-white"></i></button>
-        <img id="employeeLightboxImg" src="" class="img-fluid rounded-3 shadow-lg" style="max-height: 85vh; object-fit: contain;" alt="Enlarged preview">
-        <div class="mt-2">
-            <a id="employeeLightboxDownloadBtn" href="" download class="btn btn-sm btn-primary rounded-pill px-3 shadow">
-                <i class="fas fa-download me-1"></i> Download Image
-            </a>
+<div class="modal fade" id="employeeImageLightboxModal" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content bg-dark text-white border-0 shadow-lg" style="background: rgba(15, 23, 42, 0.96) !important;">
+      <div class="modal-header border-bottom border-secondary py-2 px-3 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <i class="fas fa-image text-info"></i>
+          <span class="fw-bold fs-10 text-truncate text-white" id="employeeLightboxTitle" style="max-width: 350px;">Image Preview</span>
+          <span class="badge bg-secondary fs-11" id="employeeLightboxTime"></span>
         </div>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-xs btn-outline-light" onclick="zoomEmployeeImg(-0.25)" title="Zoom Out"><i class="fas fa-search-minus"></i></button>
+          <button type="button" class="btn btn-xs btn-outline-light" onclick="zoomEmployeeImg(0.25)" title="Zoom In"><i class="fas fa-search-plus"></i></button>
+          <button type="button" class="btn btn-xs btn-outline-light" onclick="resetEmployeeImgZoom()" title="Reset Zoom"><i class="fas fa-undo"></i></button>
+          <a id="employeeLightboxDownloadBtn" href="" download class="btn btn-xs btn-primary px-3 shadow-sm">
+            <i class="fas fa-download me-1"></i> Download
+          </a>
+          <button type="button" class="btn btn-sm btn-outline-secondary text-white rounded-circle ms-2" data-bs-dismiss="modal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body p-2 text-center d-flex align-items-center justify-content-center overflow-auto" style="min-height: 400px; max-height: 82vh;">
+        <img id="employeeLightboxImg" src="" class="img-fluid rounded shadow transition-base" style="max-height: 78vh; max-width: 95%; object-fit: contain; transform: scale(1);" alt="Enlarged preview">
       </div>
     </div>
   </div>
+</div>
+
+<!-- Lightbox Modal for PDF Previews (Employee) -->
+<div class="modal fade" id="employeePdfViewerModal" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(4px);">
+  <div class="modal-dialog modal-dialog-centered modal-xl" style="max-width: 92vw; height: 92vh; margin: 4vh auto;">
+    <div class="modal-content h-100 shadow-lg border-0 overflow-hidden">
+      <div class="modal-header border-bottom py-2 px-3 bg-white d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <span class="badge bg-danger-subtle text-danger p-2 rounded">
+            <i class="fas fa-file-pdf fs-9"></i>
+          </span>
+          <div>
+            <h6 class="modal-title fs-10 fw-bold text-body-highlight mb-0 text-truncate" id="employeePdfModalTitle" style="max-width: 450px;">PDF Document Preview</h6>
+            <small class="text-body-tertiary fs-11">Apni Factory WhatsApp Document Viewer</small>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+          <a id="employeePdfNewTabBtn" href="" target="_blank" class="btn btn-xs btn-phoenix-secondary">
+            <i class="fas fa-external-link-alt me-1"></i>Open in New Tab
+          </a>
+          <a id="employeePdfDownloadBtn" href="" download class="btn btn-xs btn-danger text-white px-3 shadow-sm">
+            <i class="fas fa-download me-1"></i>Download PDF
+          </a>
+          <button type="button" class="btn-close fs-11 ms-2" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+      </div>
+      <div class="modal-body p-0 flex-grow-1 bg-dark bg-opacity-10 position-relative" style="height: calc(92vh - 60px);">
+        <iframe id="employeePdfModalIframe" src="" width="100%" height="100%" style="border: none; display: block;" title="PDF Preview"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
 <!-- Modal: Quick Replies & Keywords Selector (Employee) -->
 <div class="modal fade" id="employeeQuickRepliesModal" tabindex="-1" aria-labelledby="employeeQuickRepliesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
@@ -1214,16 +1258,73 @@ function removeEmployeeCustomAttachment() {
     if (fileInput) fileInput.value = '';
 }
 
-function openEmployeeLightbox(imgUrl) {
+let currentEmployeeImgScale = 1;
+
+function openEmployeeLightbox(imgUrl, imgName, timeStr) {
+    currentEmployeeImgScale = 1;
     const modalEl = document.getElementById('employeeImageLightboxModal');
     const imgEl = document.getElementById('employeeLightboxImg');
+    const titleEl = document.getElementById('employeeLightboxTitle');
+    const timeEl = document.getElementById('employeeLightboxTime');
     const dlBtn = document.getElementById('employeeLightboxDownloadBtn');
     if (!modalEl || !imgEl) return;
     imgEl.src = imgUrl;
-    if (dlBtn) dlBtn.href = imgUrl;
-    const modal = new bootstrap.Modal(modalEl);
+    imgEl.style.transform = 'scale(1)';
+    if (titleEl) titleEl.textContent = imgName || 'Image Attachment';
+    if (timeEl) timeEl.textContent = timeStr || '';
+    if (dlBtn) {
+        dlBtn.href = imgUrl;
+        dlBtn.download = imgName || 'whatsapp_image';
+    }
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
 }
+
+function zoomEmployeeImg(delta) {
+    const imgEl = document.getElementById('employeeLightboxImg');
+    if (!imgEl) return;
+    currentEmployeeImgScale = Math.max(0.5, Math.min(3.5, currentEmployeeImgScale + delta));
+    imgEl.style.transform = `scale(${currentEmployeeImgScale})`;
+}
+
+function resetEmployeeImgZoom() {
+    const imgEl = document.getElementById('employeeLightboxImg');
+    if (!imgEl) return;
+    currentEmployeeImgScale = 1;
+    imgEl.style.transform = 'scale(1)';
+}
+
+function openEmployeePdfViewer(pdfUrl, pdfName) {
+    const modalEl = document.getElementById('employeePdfViewerModal');
+    const iframeEl = document.getElementById('employeePdfModalIframe');
+    const titleEl = document.getElementById('employeePdfModalTitle');
+    const dlBtn = document.getElementById('employeePdfDownloadBtn');
+    const newTabBtn = document.getElementById('employeePdfNewTabBtn');
+    if (!modalEl || !iframeEl) return;
+
+    if (titleEl) titleEl.textContent = pdfName || 'PDF Document Preview';
+    if (dlBtn) {
+        dlBtn.href = pdfUrl;
+        dlBtn.download = pdfName || 'document.pdf';
+    }
+    if (newTabBtn) {
+        newTabBtn.href = pdfUrl;
+    }
+    iframeEl.src = pdfUrl + (pdfUrl.includes('#') ? '' : '#toolbar=1&navpanes=0');
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const pdfModalEl = document.getElementById('employeePdfViewerModal');
+    if (pdfModalEl) {
+        pdfModalEl.addEventListener('hidden.bs.modal', function() {
+            const iframe = document.getElementById('employeePdfModalIframe');
+            if (iframe) iframe.src = 'about:blank';
+        });
+    }
+});
 
 window.deleteEmployeeMessage = function(chatId) {
     if (!chatId) return;
@@ -1647,45 +1748,118 @@ function fetchChatMessages(customerId, scroll = true) {
                         let attachHtml = '';
                         if (chat.attachment_url) {
                             const attachUrl = chat.attachment_url;
-                            const attachName = chat.attachment_name || attachUrl.split('/').pop();
+                            const attachName = chat.attachment_name || attachUrl.split('/').pop() || 'Attachment';
                             const attachSize = chat.attachment_size || '';
-                            const isPdf = attachUrl.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'));
-                            const isImg = (chat.attachment_type && chat.attachment_type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|gif)$/i.test(attachUrl);
+                            const fnLower = attachName.toLowerCase();
+                            const isPdf = fnLower.endsWith('.pdf') || attachUrl.toLowerCase().endsWith('.pdf') || (chat.attachment_type && chat.attachment_type.includes('pdf'));
+                            const isImg = (chat.attachment_type && chat.attachment_type.startsWith('image/')) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(fnLower) || /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(attachUrl);
+                            const isWord = fnLower.endsWith('.doc') || fnLower.endsWith('.docx') || (chat.attachment_type && (chat.attachment_type.includes('word') || chat.attachment_type.includes('officedocument.wordprocessingml')));
+                            const isSheet = fnLower.endsWith('.xls') || fnLower.endsWith('.xlsx') || fnLower.endsWith('.csv') || (chat.attachment_type && (chat.attachment_type.includes('spreadsheet') || chat.attachment_type.includes('excel') || chat.attachment_type.includes('csv')));
+                            const isVid = (chat.attachment_type && chat.attachment_type.startsWith('video/')) || /\.(mp4|webm|mov)$/i.test(fnLower);
+                            const isAud = (chat.attachment_type && chat.attachment_type.startsWith('audio/')) || /\.(mp3|wav|ogg|m4a)$/i.test(fnLower);
 
                             if (isPdf) {
                                 attachHtml = `
-                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm">
-                                        <i class="fas fa-file-pdf text-danger fs-5"></i>
-                                        <div class="flex-grow-1 text-truncate" style="max-width: 240px;">
-                                            <div class="fw-bold fs-10 text-truncate" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm" style="max-width: 320px;">
+                                        <div class="d-flex align-items-center justify-content-center bg-danger-subtle text-danger rounded" style="width: 38px; height: 38px; min-width: 38px;">
+                                            <i class="fas fa-file-pdf fs-6"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+                                            <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
                                             <div class="fs-11 text-muted">PDF Document ${attachSize ? '• ' + attachSize : ''}</div>
                                         </div>
-                                        <a href="${attachUrl}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Open</a>
+                                        <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+                                            <button type="button" class="btn btn-xs btn-outline-danger py-1 px-2" onclick="openEmployeePdfViewer('${attachUrl}', '${escapeHtml(attachName)}')" title="Open on CRM">
+                                                <i class="fas fa-eye me-1"></i>Open
+                                            </button>
+                                            <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-danger text-white py-1 px-2 shadow-sm" title="Download PDF">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
                                     </div>
                                 `;
                             } else if (isImg && !(chat.message && chat.message.toLowerCase().includes('document'))) {
                                 attachHtml = `
-                                    <div class="mb-2 position-relative">
-                                        <img src="${attachUrl}" class="img-fluid rounded border shadow-sm" style="max-height: 250px; cursor: pointer;" alt="Image Attachment" onclick="openEmployeeLightbox('${attachUrl}')" title="Click to view full size">
-                                        <div class="fs-11 text-muted mt-1 d-flex align-items-center justify-content-between">
-                                            <span class="text-truncate" style="max-width: 180px;">${escapeHtml(attachName)}</span>
-                                            ${attachSize ? `<span class="badge bg-light text-secondary ms-1">${attachSize}</span>` : ''}
+                                    <div class="mb-2 position-relative rounded overflow-hidden shadow-sm border bg-light" style="max-width: 280px;">
+                                        <img src="${attachUrl}" class="img-fluid w-100" style="max-height: 250px; cursor: pointer; object-fit: cover; display: block;" alt="Image Attachment" onclick="openEmployeeLightbox('${attachUrl}', '${escapeHtml(attachName)}', '${timeStr}')" title="Click to open preview in CRM">
+                                        <div class="p-1 px-2 bg-dark bg-opacity-75 text-white d-flex align-items-center justify-content-between fs-11" style="backdrop-filter: blur(2px);">
+                                            <span class="text-truncate" style="max-width: 170px;" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</span>
+                                            <div class="d-flex align-items-center gap-1 ms-auto">
+                                                <button type="button" class="btn btn-xs text-white p-0 px-1" onclick="openEmployeeLightbox('${attachUrl}', '${escapeHtml(attachName)}', '${timeStr}')" title="Preview in CRM"><i class="fas fa-expand-alt"></i></button>
+                                                <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs text-white p-0 px-1" title="Download image"><i class="fas fa-download"></i></a>
+                                            </div>
                                         </div>
                                     </div>
                                 `;
-                            } else if (chat.attachment_type && chat.attachment_type.startsWith('video/')) {
-                                attachHtml = `<div class="mb-2"><video src="${attachUrl}" class="img-fluid rounded" style="max-height: 250px;" controls></video></div>`;
-                            } else if (chat.attachment_type && chat.attachment_type.startsWith('audio/')) {
-                                attachHtml = `<div class="mb-2"><audio src="${attachUrl}" controls></audio></div>`;
+                            } else if (isWord) {
+                                attachHtml = `
+                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm" style="max-width: 320px;">
+                                        <div class="d-flex align-items-center justify-content-center bg-primary-subtle text-primary rounded" style="width: 38px; height: 38px; min-width: 38px;">
+                                            <i class="fas fa-file-word fs-6" style="color: #185abd !important;"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+                                            <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+                                            <div class="fs-11 text-muted">Word Document ${attachSize ? '• ' + attachSize : ''}</div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+                                            <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-primary text-white py-1 px-2 shadow-sm" title="Download Word Document">
+                                                <i class="fas fa-download me-1"></i>Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (isSheet) {
+                                attachHtml = `
+                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm" style="max-width: 320px;">
+                                        <div class="d-flex align-items-center justify-content-center bg-success-subtle text-success rounded" style="width: 38px; height: 38px; min-width: 38px;">
+                                            <i class="fas fa-file-excel fs-6" style="color: #107c41 !important;"></i>
+                                        </div>
+                                        <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+                                            <div class="fw-bold fs-11 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+                                            <div class="fs-11 text-muted">Spreadsheet ${attachSize ? '• ' + attachSize : ''}</div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+                                            <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-success text-white py-1 px-2 shadow-sm" title="Download Spreadsheet">
+                                                <i class="fas fa-download me-1"></i>Download
+                                            </a>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (isVid) {
+                                attachHtml = `
+                                    <div class="mb-2" style="max-width: 280px;">
+                                        <video src="${attachUrl}" class="img-fluid rounded border shadow-sm w-100" controls></video>
+                                        <div class="d-flex align-items-center justify-content-between mt-1 fs-11 text-muted">
+                                            <span class="text-truncate" style="max-width: 180px;">${escapeHtml(attachName)}</span>
+                                            <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-outline-secondary py-0 px-2"><i class="fas fa-download me-1"></i>Download</a>
+                                        </div>
+                                    </div>
+                                `;
+                            } else if (isAud) {
+                                attachHtml = `
+                                    <div class="mb-2 p-2 rounded bg-white border shadow-sm" style="max-width: 280px;">
+                                        <audio src="${attachUrl}" class="w-100" controls></audio>
+                                        <div class="d-flex align-items-center justify-content-between mt-1 fs-11 text-muted">
+                                            <span class="text-truncate" style="max-width: 180px;">${escapeHtml(attachName)}</span>
+                                            <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-outline-secondary py-0 px-2"><i class="fas fa-download me-1"></i>Download</a>
+                                        </div>
+                                    </div>
+                                `;
                             } else {
                                 attachHtml = `
-                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm">
-                                        <i class="fas fa-file-alt text-primary fs-5"></i>
-                                        <div class="flex-grow-1 text-truncate" style="max-width: 240px;">
-                                            <div class="fw-bold fs-10 text-truncate" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
-                                            <div class="fs-11 text-muted">Document ${attachSize ? '• ' + attachSize : ''}</div>
+                                    <div class="p-2 mb-2 rounded bg-white text-dark d-flex align-items-center gap-2 border shadow-sm" style="max-width: 320px;">
+                                        <div class="d-flex align-items-center justify-content-center bg-secondary-subtle text-secondary rounded" style="width: 38px; height: 38px; min-width: 38px;">
+                                            <i class="fas fa-file-alt fs-6"></i>
                                         </div>
-                                        <a href="${attachUrl}" target="_blank" download class="btn btn-xs btn-outline-primary py-0 px-2 ms-auto">Download</a>
+                                        <div class="flex-grow-1 min-w-0" style="overflow: hidden;">
+                                            <div class="fw-bold fs-10 text-truncate text-body-emphasis" title="${escapeHtml(attachName)}">${escapeHtml(attachName)}</div>
+                                            <div class="fs-11 text-muted">Attachment ${attachSize ? '• ' + attachSize : ''}</div>
+                                        </div>
+                                        <div class="d-flex align-items-center gap-1 ms-auto flex-shrink-0">
+                                            <a href="${attachUrl}" download="${escapeHtml(attachName)}" class="btn btn-xs btn-outline-primary py-1 px-2 ms-auto" title="Download File">
+                                                <i class="fas fa-download me-1"></i>Download
+                                            </a>
+                                        </div>
                                     </div>
                                 `;
                             }
