@@ -15,5 +15,5 @@ elif [ -f "$PROJECT_DIR/.venv/bin/activate" ]; then
     source "$PROJECT_DIR/.venv/bin/activate"
 fi
 
-# Run the morning report (sends yesterday's full metrics + employee scorecard)
+# Run the morning report (sends today's live metrics)
 python manage.py send_morning_report >> "$PROJECT_DIR/whatsapp_morning_report.log" 2>&1
