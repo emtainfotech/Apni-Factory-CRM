@@ -386,10 +386,13 @@
                 <div class="card-body p-3 p-md-4 fs-9">
                     <h6 class="fw-bold mb-2">Server Crontab (crontab -e)</h6>
                     <p class="text-body-tertiary mb-2">
-                        Add this line to your server's crontab (<code>crontab -e</code>) to dispatch reports automatically at <strong>06:00 AM IST</strong>:
+                        Add these lines to your server's crontab (<code>crontab -e</code>) for automated morning & evening reports:
                     </p>
                     <div class="bg-body-secondary p-2 rounded-2 mb-3">
-                        <code class="user-select-all text-dark">0 6 * * * /bin/bash /var/www/apnifactory-crm/scripts/cron_send_morning_report.sh</code>
+                        <div class="text-secondary fs-10 mb-1 fw-semibold"># 6:00 AM IST — Morning Live Report</div>
+                        <code class="user-select-all text-dark d-block mb-2">0 6 * * * /bin/bash /var/www/apnifactory-crm/scripts/cron_send_morning_report.sh</code>
+                        <div class="text-secondary fs-10 mb-1 fw-semibold"># 8:00 PM IST — Evening End-of-Day Report</div>
+                        <code class="user-select-all text-dark d-block">0 20 * * * /bin/bash /var/www/apnifactory-crm/scripts/cron_send_evening_report.sh</code>
                     </div>
 
                     <h6 class="fw-bold mb-2">Celery Beat (Optional)</h6>
