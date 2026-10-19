@@ -375,16 +375,26 @@ def send_morning_reports() -> dict:
     Sends today's figures (as requested: 'in morning send todays day instead of yesterday').
     Employee scorecard is omitted for clean executive report.
     """
-    recipients = AdminReportRecipient.objects.filter(
+    recipients = list(AdminReportRecipient.objects.filter(
         is_active=True,
         report_type__in=['morning', 'both']
-    )
+    ))
 
-    if not recipients.exists():
-        logger.warning("send_morning_reports: No active morning report recipients configured.")
-        return {'status': 'no_recipients', 'count': 0, 'success': 0, 'failed': 0}
+    if not recipients:
+        if not AdminReportRecipient.objects.exists():
+            logger.info("send_morning_reports: No recipients found in database. Auto-seeding primary admin 9340547135...")
+            primary = AdminReportRecipient.objects.create(
+                name="Admin (Primary)",
+                phone="9340547135",
+                report_type="both",
+                is_active=True
+            )
+            recipients = [primary]
+        else:
+            logger.warning("send_morning_reports: No active morning report recipients configured.")
+            return {'status': 'no_recipients', 'count': 0, 'success': 0, 'failed': 0}
 
-    logger.info(f"Generating morning report (today) for {recipients.count()} recipients...")
+    logger.info(f"Generating morning report (today) for {len(recipients)} recipients...")
     report_text = get_today_report()
 
     results = []
@@ -403,7 +413,7 @@ def send_morning_reports() -> dict:
 
     return {
         'status': 'completed',
-        'count': recipients.count(),
+        'count': len(recipients),
         'success': success_count,
         'failed': fail_count,
         'details': results
@@ -415,16 +425,26 @@ def send_evening_reports() -> dict:
     Sends the evening 8 PM daily report (current day's figures to date)
     to all registered active recipients.
     """
-    recipients = AdminReportRecipient.objects.filter(
+    recipients = list(AdminReportRecipient.objects.filter(
         is_active=True,
         report_type__in=['evening', 'both']
-    )
+    ))
 
-    if not recipients.exists():
-        logger.warning("send_evening_reports: No active evening report recipients configured.")
-        return {'status': 'no_recipients', 'count': 0, 'success': 0, 'failed': 0}
+    if not recipients:
+        if not AdminReportRecipient.objects.exists():
+            logger.info("send_evening_reports: No recipients found in database. Auto-seeding primary admin 9340547135...")
+            primary = AdminReportRecipient.objects.create(
+                name="Admin (Primary)",
+                phone="9340547135",
+                report_type="both",
+                is_active=True
+            )
+            recipients = [primary]
+        else:
+            logger.warning("send_evening_reports: No active evening report recipients configured.")
+            return {'status': 'no_recipients', 'count': 0, 'success': 0, 'failed': 0}
 
-    logger.info(f"Generating evening report (today) for {recipients.count()} recipients...")
+    logger.info(f"Generating evening report (today) for {len(recipients)} recipients...")
     report_text = get_today_report()
 
     results = []
@@ -443,7 +463,7 @@ def send_evening_reports() -> dict:
 
     return {
         'status': 'completed',
-        'count': recipients.count(),
+        'count': len(recipients),
         'success': success_count,
         'failed': fail_count,
         'details': results
