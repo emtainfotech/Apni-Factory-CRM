@@ -308,6 +308,30 @@
   }
   .att-table tr:last-child td { border-bottom: none; }
   .att-table tr:hover td { background: var(--att-row-hover); }
+  .att-summary-row {
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .att-summary-row:hover td {
+    background: #f0f5ff !important;
+  }
+  .att-summary-row.att-row-expanded td {
+    background: #eff6ff !important;
+  }
+  .att-summary-row.att-row-expanded td:first-child {
+    border-left: 3px solid #3b82f6;
+  }
+  .punch-toggle-icon {
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-block;
+  }
+  .att-detail-row td {
+    background: #fbfcfe;
+    padding: 0 !important;
+  }
+  .att-detail-row:hover td {
+    background: #fbfcfe !important;
+  }
   .att-employee-title { font-weight: 600; color: var(--att-text-primary); }
   .att-employee-subtitle { font-size: .75rem; color: var(--att-text-muted); }
   .att-empty-row { padding: 2rem; color: var(--att-text-muted); text-align: center; font-size: .9rem; }
@@ -658,8 +682,13 @@
   <!-- Monthly Attendance Summary -->
   <div class="att-section">
     <div class="att-section-header">
-      <div class="att-section-title">
-        <i class="fas fa-calendar-alt text-primary me-2"></i>Monthly Summary — {{ report_month_name }} {{ report_year }}
+      <div>
+        <div class="att-section-title">
+          <i class="fas fa-calendar-alt text-primary me-2"></i>Monthly Summary — {{ report_month_name }} {{ report_year }}
+        </div>
+        <div style="font-size: 0.78rem; color: var(--att-text-muted); margin-top: 0.2rem;">
+          <i class="fas fa-info-circle text-primary me-1"></i>Click any employee row below to view full punch-in / punch-out details and daily working hours.
+        </div>
       </div>
       <form method="get" class="month-filter-form">
         <select name="month">
@@ -688,10 +717,16 @@
         </thead>
         <tbody>
           {% for s in monthly_summary %}
-          <tr>
+          <!-- Main Employee Row (Clickable to Expand) -->
+          <tr class="att-summary-row" onclick="togglePunchDetails('emp-punches-{{ s.employee.id }}', this)" title="Click to view daily punch breakdown for {{ s.employee.get_display_name }}">
             <td>
-              <div class="att-employee-title">{{ s.employee.get_display_name }}</div>
-              <div class="att-employee-subtitle">{{ s.employee.get_role_display }}</div>
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <i class="fas fa-chevron-right punch-toggle-icon" id="icon-emp-punches-{{ s.employee.id }}" style="font-size: 0.75rem; color: var(--att-text-muted); width: 14px;"></i>
+                <div>
+                  <div class="att-employee-title">{{ s.employee.get_display_name }}</div>
+                  <div class="att-employee-subtitle">{{ s.employee.get_role_display }}</div>
+                </div>
+              </div>
             </td>
             <td><span class="att-badge att-badge-green">{{ s.days_present }}</span></td>
             <td>{% if s.days_half %}<span class="att-badge att-badge-orange">{{ s.days_half }}</span>{% else %}&mdash;{% endif %}</td>
@@ -699,9 +734,12 @@
             <td>{% if s.days_absent %}<span class="att-badge att-badge-red">{{ s.days_absent }}</span>{% else %}<span class="att-badge att-badge-green">0</span>{% endif %}</td>
             <td>{% if s.leaves_taken %}<span class="att-badge att-badge-blue">{{ s.leaves_taken }}</span>{% else %}&mdash;{% endif %}</td>
             <td>
-              <span style="font-weight:700;color:{% if s.total_worked_h >= 176 %}var(--att-green){% elif s.total_worked_h >= 120 %}var(--att-orange){% else %}var(--att-red){% endif %}">
+              <div style="font-weight:700; color:{% if s.total_worked_h >= 176 %}var(--att-green){% elif s.total_worked_h >= 120 %}var(--att-orange){% else %}var(--att-red){% endif %};">
                 {{ s.total_worked_h }}h
-              </span>
+              </div>
+              <div style="font-size: 0.72rem; font-weight: 600; color: var(--att-text-muted);">
+                {{ s.total_worked_hm }}
+              </div>
             </td>
             <td>
               {% if s.employee.is_employee_active %}
@@ -711,7 +749,155 @@
               {% endif %}
             </td>
             <td>
-              <a href="{% url 'user_detail' s.employee.id %}" class="btn-review" style="padding:.25rem .65rem;">View</a>
+              <a href="{% url 'user_detail' s.employee.id %}" onclick="event.stopPropagation();" class="btn-review" style="padding:.25rem .65rem;">View</a>
+            </td>
+          </tr>
+
+          <!-- Expandable Detail Row: All Punches of Filtered Month -->
+          <tr class="att-detail-row" id="emp-punches-{{ s.employee.id }}" style="display: none;">
+            <td colspan="9">
+              <div style="padding: 1.25rem 1.75rem; background: #fbfcfe; border-top: 1px dashed rgba(0,0,0,0.08); border-bottom: 2px solid #e2e8f0;">
+                
+                <!-- Expanded Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem;">
+                  <div>
+                    <h6 style="margin: 0; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 0.5rem; font-size: 0.95rem;">
+                      <i class="fas fa-fingerprint text-primary"></i>
+                      Attendance & Punch Details &mdash; {{ s.employee.get_display_name }}
+                    </h6>
+                    <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.2rem;">
+                      Applied Filter: <strong>{{ report_month_name }} {{ report_year }}</strong>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <span class="badge" style="background: #e0e7ff; color: #3730a3; font-weight: 600; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.75rem;">
+                      <i class="fas fa-calendar-check me-1"></i> {{ s.punches|length }} Punches Recorded
+                    </span>
+                    <span class="badge" style="background: #fef3c7; color: #92400e; font-weight: 600; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.75rem;">
+                      <i class="fas fa-clock me-1"></i> {{ s.days_late }} Late Days
+                    </span>
+                    {% if s.days_half %}
+                    <span class="badge" style="background: #fee2e2; color: #991b1b; font-weight: 600; padding: 0.4rem 0.75rem; border-radius: 6px; font-size: 0.75rem;">
+                      <i class="fas fa-adjust me-1"></i> {{ s.days_half }} Half Days
+                    </span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if s.punches %}
+                <!-- Punches Breakdown Table -->
+                <div style="border: 1px solid rgba(0,0,0,0.08); border-radius: 10px; overflow: hidden; background: #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 0.83rem;">
+                    <thead>
+                      <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.05em; color: #64748b;">
+                        <th style="padding: 0.65rem 1rem; width: 45px; text-align: center;">#</th>
+                        <th style="padding: 0.65rem 1rem;">Date & Day</th>
+                        <th style="padding: 0.65rem 1rem;">Punch In Time</th>
+                        <th style="padding: 0.65rem 1rem;">Punch Out Time</th>
+                        <th style="padding: 0.65rem 1rem;">Break Time</th>
+                        <th style="padding: 0.65rem 1rem;">Total Time (Hours & Min)</th>
+                        <th style="padding: 0.65rem 1rem;">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for p in s.punches %}
+                      <tr style="border-bottom: 1px solid #f1f5f9; transition: background 0.15s ease;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='#ffffff';">
+                        <td style="padding: 0.65rem 1rem; text-align: center; color: #94a3b8; font-weight: 600;">{{ forloop.counter }}</td>
+                        <td style="padding: 0.65rem 1rem; font-weight: 600; color: #1e293b;">
+                          <i class="far fa-calendar text-primary me-1"></i> {{ p.date_str }}
+                        </td>
+                        <td style="padding: 0.65rem 1rem;">
+                          {% if p.punch_in_str != '—' %}
+                            <span style="font-weight: 600; color: #047857;">
+                              <i class="fas fa-sign-in-alt text-success me-1"></i>{{ p.punch_in_str }}
+                            </span>
+                            {% if p.is_late %}
+                              <span class="badge" style="background: #fef3c7; color: #b45309; font-size: 0.68rem; padding: 0.2rem 0.45rem; border-radius: 4px; margin-left: 0.35rem;">Late</span>
+                            {% endif %}
+                          {% else %}
+                            <span style="color: #94a3b8;">&mdash;</span>
+                          {% endif %}
+                        </td>
+                        <td style="padding: 0.65rem 1rem;">
+                          {% if p.is_active_punched_in %}
+                            <span class="badge" style="background: #dcfce7; color: #15803d; font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 4px;">
+                              <i class="fas fa-circle text-success me-1" style="font-size: 0.5rem;"></i> In Progress
+                            </span>
+                          {% elif p.is_missed_punchout %}
+                            <span class="badge" style="background: #fee2e2; color: #b91c1c; font-size: 0.72rem; padding: 0.25rem 0.5rem; border-radius: 4px;">
+                              <i class="fas fa-exclamation-triangle me-1"></i> Missed Punch-Out
+                            </span>
+                          {% elif p.punch_out_str != '—' %}
+                            <span style="font-weight: 600; color: #4338ca;">
+                              <i class="fas fa-sign-out-alt text-primary me-1"></i>{{ p.punch_out_str }}
+                            </span>
+                          {% else %}
+                            <span style="color: #94a3b8;">&mdash;</span>
+                          {% endif %}
+                        </td>
+                        <td style="padding: 0.65rem 1rem; color: #64748b;">
+                          {% if p.break_str != '—' %}
+                            <span style="font-size: 0.78rem; font-weight: 600; color: #6b7280;">
+                              <i class="fas fa-coffee me-1 text-warning"></i>{{ p.break_str }}
+                            </span>
+                          {% else %}
+                            <span style="color: #cbd5e1;">&mdash;</span>
+                          {% endif %}
+                        </td>
+                        <td style="padding: 0.65rem 1rem;">
+                          <span style="font-weight: 700; color: #0f172a; background: #f1f5f9; padding: 0.25rem 0.6rem; border-radius: 6px; font-family: monospace, sans-serif; font-size: 0.82rem;">
+                            <i class="far fa-clock text-secondary me-1"></i>{{ p.total_time_hm }}
+                          </span>
+                        </td>
+                        <td style="padding: 0.65rem 1rem;">
+                          {% if p.status == 'half_day' %}
+                            <span class="att-badge att-badge-orange">Half Day</span>
+                          {% elif p.is_late %}
+                            <span class="att-badge att-badge-orange">Late Present</span>
+                          {% else %}
+                            <span class="att-badge att-badge-green">Present</span>
+                          {% endif %}
+                        </td>
+                      </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+
+                  <!-- FOOTER SUMMARY: TOTAL WORKING HOURS OF MONTH IN (HOURS AND MIN) -->
+                  <div style="background: #f8fafc; border-top: 2px solid #e2e8f0; padding: 0.9rem 1.25rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap;">
+                      <div style="font-size: 0.82rem; color: #64748b;">
+                        Total Punches: <strong style="color: #1e293b;">{{ s.punches|length }}</strong>
+                      </div>
+                      <div style="font-size: 0.82rem; color: #64748b;">
+                        Working Days Attended: <strong style="color: #1e293b;">{{ s.working_days_present }}</strong>
+                      </div>
+                      <div style="font-size: 0.82rem; color: #64748b;">
+                        Average Daily Hours: <strong style="color: #059669;">{{ s.daily_avg_hm }}</strong>
+                      </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.6rem;">
+                      <span style="font-size: 0.85rem; font-weight: 600; color: #475569;">
+                        Total Working Hours ({{ report_month_name }}):
+                      </span>
+                      <span style="font-size: 1rem; font-weight: 800; color: #1e40af; background: #dbeafe; border: 1px solid #bfdbfe; padding: 0.4rem 0.9rem; border-radius: 8px;">
+                        <i class="fas fa-business-time me-1"></i> {{ s.total_worked_hm }}
+                        <span style="font-size: 0.78rem; font-weight: 600; color: #3b82f6;">({{ s.total_worked_h }} hrs)</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {% else %}
+                <div style="background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 1.75rem; text-align: center; color: #64748b;">
+                  <i class="fas fa-calendar-times text-muted mb-2" style="font-size: 1.6rem; opacity: 0.6;"></i>
+                  <div style="font-weight: 600; font-size: 0.9rem;">No punch records found for {{ s.employee.get_display_name }} in {{ report_month_name }} {{ report_year }}.</div>
+                  <div style="font-size: 0.82rem; color: #94a3b8; margin-top: 0.35rem;">
+                    Total Monthly Working Hours: <strong style="color: #1e293b;">0h 00m (0.0 hrs)</strong>
+                  </div>
+                </div>
+                {% endif %}
+
+              </div>
             </td>
           </tr>
           {% empty %}
@@ -724,6 +910,23 @@
 </div>
 
 <script>
+function togglePunchDetails(rowId, triggerRow) {
+  const detailRow = document.getElementById(rowId);
+  const icon = document.getElementById('icon-' + rowId);
+  if (!detailRow) return;
+
+  const isHidden = (detailRow.style.display === 'none' || detailRow.style.display === '');
+  if (isHidden) {
+    detailRow.style.display = 'table-row';
+    if (icon) icon.style.transform = 'rotate(90deg)';
+    if (triggerRow) triggerRow.classList.add('att-row-expanded');
+  } else {
+    detailRow.style.display = 'none';
+    if (icon) icon.style.transform = 'rotate(0deg)';
+    if (triggerRow) triggerRow.classList.remove('att-row-expanded');
+  }
+}
+
 function openRejectModal(url) {
   document.getElementById('rejectForm').action = url;
   document.getElementById('rejectModal').classList.add('active');

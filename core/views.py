@@ -640,7 +640,7 @@ def admin_attendance_dashboard(request):
     all_month_attendances = Attendance.objects.filter(
         date__gte=fetch_start,
         date__lte=fetch_end
-    ).select_related('user')
+    ).select_related('user').prefetch_related('breaks')
 
     # All approved leaves in the buffer range
     all_month_leaves = LeaveRequest.objects.filter(
@@ -694,19 +694,93 @@ def admin_attendance_dashboard(request):
             cur += timedelta(days=1)
         return cur
 
+    now_dt = timezone.now()
     monthly_summary = []
     for emp in employees:
         emp_atts = [a for a in all_month_attendances if a.user_id == emp.id and first_day <= a.date <= last_day]
+        emp_atts_sorted = sorted(emp_atts, key=lambda a: (a.date, a.punch_in or now_dt))
+
+        # Build detailed punch logs for this employee in the month
+        punches = []
+        total_worked_seconds = 0
+
+        for a in emp_atts_sorted:
+            if not a.punch_in:
+                continue
+
+            dur_sec = 0
+            if a.total_working_hours:
+                dur_sec = max(0, int(a.total_working_hours.total_seconds()))
+            elif a.punch_in:
+                end_t = a.punch_out or (now_dt if (a.date == today and a.is_punched_in) else None)
+                if end_t:
+                    gross = max(0, int((end_t - a.punch_in).total_seconds()))
+                    brk_sec = sum(int(b.duration.total_seconds()) for b in a.breaks.all() if b.duration)
+                    dur_sec = max(0, gross - brk_sec)
+
+            total_worked_seconds += dur_sec
+
+            dh = dur_sec // 3600
+            dm = (dur_sec % 3600) // 60
+            dur_hm = f"{dh}h {dm:02d}m"
+
+            p_in_str = a.punch_in.astimezone(kolkata_tz).strftime('%I:%M %p') if a.punch_in else "—"
+
+            is_active_punched_in = bool(a.is_punched_in or (a.date == today and not a.punch_out and a.punch_in))
+            is_missed_punchout = bool(a.date < today and not a.punch_out and a.punch_in)
+
+            if a.punch_out:
+                p_out_str = a.punch_out.astimezone(kolkata_tz).strftime('%I:%M %p')
+            elif is_active_punched_in:
+                p_out_str = "In Progress"
+            elif is_missed_punchout:
+                p_out_str = "Missed"
+            else:
+                p_out_str = "—"
+
+            break_sec = 0
+            if a.total_break_duration:
+                break_sec = max(0, int(a.total_break_duration.total_seconds()))
+            else:
+                break_sec = sum(int(b.duration.total_seconds()) for b in a.breaks.all() if b.duration)
+
+            if break_sec > 0:
+                bh = break_sec // 3600
+                bm = (break_sec % 3600) // 60
+                break_str = f"{bh}h {bm:02d}m" if bh > 0 else f"{bm}m"
+            else:
+                break_str = "—"
+
+            punches.append({
+                'date': a.date,
+                'date_str': a.date.strftime('%d %b %Y (%a)'),
+                'punch_in_str': p_in_str,
+                'punch_out_str': p_out_str,
+                'is_active_punched_in': is_active_punched_in,
+                'is_missed_punchout': is_missed_punchout,
+                'total_time_hm': dur_hm,
+                'total_seconds': dur_sec,
+                'break_str': break_str,
+                'status': a.status,
+                'is_late': a.is_late,
+            })
+
         working_days_present = sum(1 for a in emp_atts if a.punch_in and (a.punch_out or (a.date == today and a.is_punched_in)))
         days_half = sum(1 for a in emp_atts if a.status == 'half_day')
         days_late = sum(1 for a in emp_atts if a.is_late)
 
-        total_worked_duration = timedelta()
-        for a in emp_atts:
-            if a.total_working_hours:
-                total_worked_duration += a.total_working_hours
+        total_worked_h = total_worked_seconds / 3600
+        tot_m_h = total_worked_seconds // 3600
+        tot_m_m = (total_worked_seconds % 3600) // 60
+        total_worked_hm = f"{tot_m_h}h {tot_m_m:02d}m"
 
-        total_worked_h = total_worked_duration.total_seconds() / 3600
+        if len(punches) > 0 and total_worked_seconds > 0:
+            avg_sec = total_worked_seconds // len(punches)
+            avg_h = avg_sec // 3600
+            avg_m = (avg_sec % 3600) // 60
+            daily_avg_hm = f"{avg_h}h {avg_m:02d}m"
+        else:
+            daily_avg_hm = "0h 00m"
 
         # Calculate Sunday and Holiday credits with Sandwich Rule:
         # Only include off-days (Sundays / Holidays) that have already passed (not upcoming days).
@@ -776,6 +850,9 @@ def admin_attendance_dashboard(request):
             'days_late': days_late,
             'days_absent': days_absent,
             'total_worked_h': round(total_worked_h, 1),
+            'total_worked_hm': total_worked_hm,
+            'daily_avg_hm': daily_avg_hm,
+            'punches': punches,
             'leaves_taken': leaves_taken,
         })
 
