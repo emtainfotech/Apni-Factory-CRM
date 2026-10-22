@@ -562,10 +562,11 @@ def admin_attendance_dashboard(request):
         report_month = today.month
         report_year = today.year
 
-    from datetime import date as date_cls
+    from datetime import date as date_cls, timedelta
     import calendar
     first_day = date_cls(report_year, report_month, 1)
     last_day = date_cls(report_year, report_month, calendar.monthrange(report_year, report_month)[1])
+    total_days = last_day.day
 
     # All active employees (non-admin)
     employees = User.objects.filter(
@@ -607,24 +608,67 @@ def admin_attendance_dashboard(request):
     ).select_related('user').order_by('-missed_date')
 
     # --- Monthly Summary per Employee ---
+    # Determine all days, Sundays, and working days in the month
+    month_dates = [date_cls(report_year, report_month, d) for d in range(1, total_days + 1)]
+    sundays_in_month = [d for d in month_dates if d.weekday() == 6]
+    working_days_in_month = [d for d in month_dates if d.weekday() != 6]
+    total_working_days = len(working_days_in_month)
+    total_sundays = len(sundays_in_month)
+
+    # Fetch attendances for month with a 2-day buffer on both sides
+    # to accurately evaluate cross-month Saturday (S - 1) and Monday (S + 1)
+    fetch_start = first_day - timedelta(days=2)
+    fetch_end = last_day + timedelta(days=2)
+
     all_month_attendances = Attendance.objects.filter(
-        date__gte=first_day,
-        date__lte=last_day
+        date__gte=fetch_start,
+        date__lte=fetch_end
     ).select_related('user')
 
-    # Working days in the month (Monâ€“Sat, skip Sundays)
-    total_working_days = sum(
-        1 for d in range(1, last_day.day + 1)
-        if date_cls(report_year, report_month, d).weekday() != 6
-    )
+    # All approved leaves in the buffer range
+    all_month_leaves = LeaveRequest.objects.filter(
+        status='approved',
+        start_date__lte=fetch_end,
+        end_date__gte=fetch_start
+    ).select_related('employee')
+
+    # Build quick lookup structures
+    # (user_id, date) -> Attendance
+    att_by_user_date = {(a.user_id, a.date): a for a in all_month_attendances}
+
+    # user_id -> list of LeaveRequest
+    leaves_by_user = {}
+    for l in all_month_leaves:
+        leaves_by_user.setdefault(l.employee_id, []).append(l)
+
+    def is_working_day_present(user_id, dt):
+        """
+        Check if employee attended work on date dt.
+        Returns False if employee was on approved full-day leave or had no punch-in.
+        """
+        # 1. Check approved full-day leave
+        emp_leaves = leaves_by_user.get(user_id, [])
+        for l in emp_leaves:
+            if l.start_date <= dt <= l.end_date and not l.is_half_day:
+                return False
+
+        # 2. Check attendance record
+        att = att_by_user_date.get((user_id, dt))
+        if att:
+            if att.punch_in and (att.punch_out or (dt == today and att.is_punched_in)):
+                return True
+            if att.status in ['present', 'half_day']:
+                return True
+            return False
+
+        return False
 
     monthly_summary = []
     for emp in employees:
-        emp_atts = [a for a in all_month_attendances if a.user_id == emp.id]
-        days_present = sum(1 for a in emp_atts if a.punch_in and a.punch_out)
+        emp_atts = [a for a in all_month_attendances if a.user_id == emp.id and first_day <= a.date <= last_day]
+        working_days_present = sum(1 for a in emp_atts if a.punch_in and (a.punch_out or (a.date == today and a.is_punched_in)))
         days_half = sum(1 for a in emp_atts if a.status == 'half_day')
         days_late = sum(1 for a in emp_atts if a.is_late)
-        days_absent = total_working_days - days_present
 
         total_worked_duration = timedelta()
         for a in emp_atts:
@@ -632,6 +676,49 @@ def admin_attendance_dashboard(request):
                 total_worked_duration += a.total_working_hours
 
         total_worked_h = total_worked_duration.total_seconds() / 3600
+
+        # Calculate Sunday credits with Sandwich Rule:
+        # If employee is on leave/absent on Saturday (S - 1) AND on next Monday (S + 1),
+        # Sunday is a sandwich holiday and is NOT credited as present.
+        # If employee has 0 working days present in the month, they get 0 Sunday credits.
+        sundays_credited = 0
+        sandwiched_sundays = 0
+
+        if working_days_present > 0:
+            for S in sundays_in_month:
+                sat = S - timedelta(days=1)
+                mon = S + timedelta(days=1)
+
+                sat_present = is_working_day_present(emp.id, sat)
+
+                if mon > today:
+                    # Monday has not occurred yet
+                    if sat_present:
+                        # Since Saturday was attended, it CANNOT be a sandwich holiday
+                        sundays_credited += 1
+                    else:
+                        # Saturday was absent/on leave
+                        if S > today:
+                            # Both Saturday and Monday are in future: check if approved leave was booked on both
+                            sat_booked = any(l.start_date <= sat <= l.end_date and not l.is_half_day for l in leaves_by_user.get(emp.id, []))
+                            mon_booked = any(l.start_date <= mon <= l.end_date and not l.is_half_day for l in leaves_by_user.get(emp.id, []))
+                            if sat_booked and mon_booked:
+                                sandwiched_sundays += 1
+                            else:
+                                sundays_credited += 1
+                        else:
+                            # Sunday has occurred, Saturday was missed, Monday not yet reached
+                            sandwiched_sundays += 1
+                else:
+                    mon_present = is_working_day_present(emp.id, mon)
+                    # Sandwich check: absent/on leave on both Saturday AND Monday
+                    if not sat_present and not mon_present:
+                        sandwiched_sundays += 1
+                    else:
+                        sundays_credited += 1
+
+        total_days_present = working_days_present + sundays_credited
+        days_absent = max(0, total_days - total_days_present)
 
         # Leaves taken this month
         leaves_taken = LeaveRequest.objects.filter(
@@ -643,10 +730,13 @@ def admin_attendance_dashboard(request):
 
         monthly_summary.append({
             'employee': emp,
-            'days_present': days_present,
+            'days_present': total_days_present,
+            'working_days_present': working_days_present,
+            'sundays_present': sundays_credited,
+            'sandwiched_sundays': sandwiched_sundays,
             'days_half': days_half,
             'days_late': days_late,
-            'days_absent': max(0, days_absent),
+            'days_absent': days_absent,
             'total_worked_h': round(total_worked_h, 1),
             'leaves_taken': leaves_taken,
         })
@@ -661,6 +751,8 @@ def admin_attendance_dashboard(request):
         'pending_missed': pending_missed,
         'monthly_summary': monthly_summary,
         'total_working_days': total_working_days,
+        'total_days': total_days,
+        'total_sundays': total_sundays,
         'report_month': report_month,
         'report_year': report_year,
         'report_month_name': calendar.month_name[report_month],

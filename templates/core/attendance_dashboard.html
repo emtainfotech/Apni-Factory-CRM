@@ -508,8 +508,9 @@
       <div class="att-kpi-value orange">{{ pending_missed|length }}</div>
     </div>
     <div class="att-kpi">
-      <div class="att-kpi-label">Working Days (Month)</div>
-      <div class="att-kpi-value blue">{{ total_working_days }}</div>
+      <div class="att-kpi-label">Days in Month</div>
+      <div class="att-kpi-value blue">{{ total_days }}</div>
+      <div style="font-size:0.72rem; color:var(--att-text-muted); margin-top:4px;">{{ total_working_days }} Working + {{ total_sundays }} Sun</div>
     </div>
   </div>
 
@@ -667,7 +668,7 @@
         <thead>
           <tr>
             <th>Employee</th>
-            <th>Present</th>
+            <th>Present <i class="fas fa-info-circle text-muted" title="Includes Sundays unless sandwiched between Saturday & Monday leaves" style="font-size:0.72rem; cursor:help;"></i></th>
             <th>Half Day</th>
             <th>Late</th>
             <th>Absent</th>
@@ -684,7 +685,12 @@
               <div class="att-employee-title">{{ s.employee.get_display_name }}</div>
               <div class="att-employee-subtitle">{{ s.employee.get_role_display }}</div>
             </td>
-            <td><span class="att-badge att-badge-green">{{ s.days_present }}</span></td>
+            <td>
+              <span class="att-badge att-badge-green" title="{{ s.working_days_present }} working days + {{ s.sundays_present }} Sundays credited (Sandwich policy applied)">{{ s.days_present }}</span>
+              {% if s.sundays_present %}
+              <div style="font-size:0.68rem; color:var(--att-text-muted); font-weight:600; margin-top:2px;" title="{{ s.sundays_present }} Sunday(s) counted as present">+{{ s.sundays_present }} Sun</div>
+              {% endif %}
+            </td>
             <td>{% if s.days_half %}<span class="att-badge att-badge-orange">{{ s.days_half }}</span>{% else %}&mdash;{% endif %}</td>
             <td>{% if s.days_late %}<span class="att-badge att-badge-orange">{{ s.days_late }}</span>{% else %}&mdash;{% endif %}</td>
             <td>{% if s.days_absent %}<span class="att-badge att-badge-red">{{ s.days_absent }}</span>{% else %}<span class="att-badge att-badge-green">0</span>{% endif %}</td>
