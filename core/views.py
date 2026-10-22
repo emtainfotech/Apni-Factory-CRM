@@ -611,12 +611,13 @@ def admin_attendance_dashboard(request):
     # Determine all days, Sundays, and working days in the month
     month_dates = [date_cls(report_year, report_month, d) for d in range(1, total_days + 1)]
     sundays_in_month = [d for d in month_dates if d.weekday() == 6]
-    past_sundays = [d for d in sundays_in_month if d <= today]
-    past_sundays_count = len(past_sundays)
     working_days_in_month = [d for d in month_dates if d.weekday() != 6]
     total_working_days = len(working_days_in_month)
     total_sundays = len(sundays_in_month)
-    total_eligible_days = total_working_days + past_sundays_count
+
+    # Days elapsed so far in this month (only past days, excluding upcoming days)
+    elapsed_days = [d for d in month_dates if d <= today]
+    total_elapsed_days = len(elapsed_days)
 
     # Fetch attendances for month with a 2-day buffer on both sides
     # to accurately evaluate cross-month Saturday (S - 1) and Monday (S + 1)
@@ -715,7 +716,8 @@ def admin_attendance_dashboard(request):
                         sundays_credited += 1
 
         total_days_present = working_days_present + sundays_credited
-        days_absent = max(0, total_eligible_days - total_days_present)
+        # Absent days also only count for days that have already passed (not upcoming days)
+        days_absent = max(0, total_elapsed_days - total_days_present)
 
         # Leaves taken this month
         leaves_taken = LeaveRequest.objects.filter(
@@ -749,6 +751,7 @@ def admin_attendance_dashboard(request):
         'monthly_summary': monthly_summary,
         'total_working_days': total_working_days,
         'total_days': total_days,
+        'total_elapsed_days': total_elapsed_days,
         'total_sundays': total_sundays,
         'report_month': report_month,
         'report_year': report_year,
