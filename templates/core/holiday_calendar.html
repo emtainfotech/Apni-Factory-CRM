@@ -1,0 +1,558 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Holiday Calendar {{ selected_year }} | Apni Factory CRM{% endblock %}
+
+{% block content %}
+<style>
+  :root {
+    --hc-bg: #0f111a;
+    --hc-card-bg: #181b29;
+    --hc-card-border: rgba(255, 255, 255, 0.08);
+    --hc-text-primary: #f1f5f9;
+    --hc-text-muted: #94a3b8;
+    --hc-primary: #6366f1;
+    --hc-success: #10b981;
+    --hc-warning: #f59e0b;
+    --hc-info: #0ea5e9;
+    --hc-danger: #ef4444;
+  }
+
+  [data-bs-theme="light"] {
+    --hc-bg: #f8fafc;
+    --hc-card-bg: #ffffff;
+    --hc-card-border: #e2e8f0;
+    --hc-text-primary: #0f172a;
+    --hc-text-muted: #64748b;
+  }
+
+  .hc-container {
+    padding: 0.5rem 0.25rem 2rem 0.25rem;
+  }
+
+  .hc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .hc-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--hc-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0;
+  }
+
+  .hc-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .hc-year-select {
+    background: var(--hc-card-bg);
+    border: 1px solid var(--hc-card-border);
+    color: var(--hc-text-primary);
+    padding: 0.45rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    cursor: pointer;
+  }
+
+  .hc-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 1rem;
+    border-radius: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid transparent;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s ease;
+  }
+
+  .hc-btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+  }
+  .hc-btn-primary:hover {
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+  }
+
+  .hc-btn-secondary {
+    background: var(--hc-card-bg);
+    border: 1px solid var(--hc-card-border);
+    color: var(--hc-text-primary);
+  }
+  .hc-btn-secondary:hover {
+    color: var(--hc-primary);
+    border-color: var(--hc-primary);
+  }
+
+  /* KPI Strip */
+  .hc-kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .hc-kpi {
+    background: var(--hc-card-bg);
+    border: 1px solid var(--hc-card-border);
+    border-radius: 14px;
+    padding: 1.15rem 1.25rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .hc-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+  }
+
+  .hc-kpi-label {
+    font-size: 0.72rem;
+    color: var(--hc-text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+  }
+
+  .hc-kpi-value {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .hc-kpi-value.purple { color: #818cf8; }
+  .hc-kpi-value.green { color: #34d399; }
+  .hc-kpi-value.orange { color: #fbbf24; }
+  .hc-kpi-value.blue { color: #38bdf8; }
+
+  /* Month Grid */
+  .hc-month-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .hc-month-card {
+    background: var(--hc-card-bg);
+    border: 1px solid var(--hc-card-border);
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .hc-month-card.current-month {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 4px 20px rgba(99, 102, 241, 0.15);
+  }
+
+  .hc-month-header {
+    padding: 0.9rem 1.25rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--hc-card-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .hc-month-name {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--hc-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .hc-month-count {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    background: rgba(99, 102, 241, 0.12);
+    color: #818cf8;
+  }
+
+  .hc-holiday-list {
+    padding: 0.75rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+  }
+
+  .hc-holiday-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 0.65rem 0.75rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--hc-card-border);
+    transition: background 0.2s;
+  }
+  .hc-holiday-item:hover {
+    background: rgba(99, 102, 241, 0.05);
+  }
+
+  .hc-date-badge {
+    min-width: 46px;
+    padding: 0.35rem 0.25rem;
+    border-radius: 8px;
+    background: rgba(99, 102, 241, 0.15);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    color: #818cf8;
+    text-align: center;
+    line-height: 1.1;
+  }
+  .hc-date-day {
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+  .hc-date-weekday {
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.85;
+  }
+
+  .hc-holiday-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .hc-holiday-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--hc-text-primary);
+    margin-bottom: 0.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  .hc-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .hc-tag-national { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25); }
+  .hc-tag-festival { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25); }
+  .hc-tag-public { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.25); }
+  .hc-tag-company { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.25); }
+
+  .hc-holiday-desc {
+    font-size: 0.78rem;
+    color: var(--hc-text-muted);
+    margin: 0;
+    line-height: 1.3;
+  }
+
+  .hc-delete-btn {
+    background: none;
+    border: none;
+    color: var(--hc-text-muted);
+    opacity: 0.6;
+    padding: 0.2rem;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: opacity 0.2s, color 0.2s;
+  }
+  .hc-delete-btn:hover {
+    opacity: 1;
+    color: var(--hc-danger);
+  }
+
+  .hc-empty-month {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    color: var(--hc-text-muted);
+    font-size: 0.82rem;
+    font-style: italic;
+  }
+
+  /* Modal Styles */
+  .hc-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    z-index: 1050;
+    align-items: center;
+    justify-content: center;
+  }
+  .hc-modal-overlay.active {
+    display: flex;
+  }
+
+  .hc-modal {
+    background: var(--hc-card-bg);
+    border: 1px solid var(--hc-card-border);
+    border-radius: 18px;
+    width: 90%;
+    max-width: 480px;
+    padding: 1.75rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn {
+    from { opacity: 0; transform: translateY(-15px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .hc-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  .hc-modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--hc-text-primary);
+    margin: 0;
+  }
+  .hc-modal-close {
+    background: none;
+    border: none;
+    color: var(--hc-text-muted);
+    font-size: 1.4rem;
+    cursor: pointer;
+  }
+
+  .hc-form-group {
+    margin-bottom: 1.15rem;
+  }
+  .hc-form-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--hc-text-muted);
+    margin-bottom: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .hc-form-control {
+    width: 100%;
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--hc-card-border);
+    color: var(--hc-text-primary);
+    font-size: 0.9rem;
+    transition: border-color 0.2s;
+  }
+  .hc-form-control:focus {
+    outline: none;
+    border-color: var(--hc-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+  }
+</style>
+
+<div class="hc-container">
+  <!-- Page Header -->
+  <div class="hc-header">
+    <div>
+      <h2 class="hc-title">
+        <i class="fas fa-calendar-alt text-primary"></i>
+        Holiday Calendar &mdash; {{ selected_year }}
+      </h2>
+      <div style="font-size:0.85rem; color:var(--hc-text-muted); margin-top:0.25rem;">
+        Official company, national, and festival holidays with automated Sandwich Leave protection.
+      </div>
+    </div>
+    <div class="hc-actions">
+      <!-- Year Selector -->
+      <form method="GET" action="{% url 'holiday_calendar' %}" style="display:inline-block;">
+        <select name="year" class="hc-year-select" onchange="this.form.submit()">
+          {% for y in year_choices %}
+            <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>Year {{ y }}</option>
+          {% endfor %}
+        </select>
+      </form>
+
+      {% if is_admin %}
+        <a href="{% url 'admin_attendance_dashboard' %}" class="hc-btn hc-btn-secondary">
+          <i class="fas fa-arrow-left"></i> Attendance Dashboard
+        </a>
+      {% else %}
+        <a href="{% url 'employee_portal:dashboard' %}" class="hc-btn hc-btn-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+      {% endif %}
+
+      {% if is_admin %}
+        <form method="POST" action="{% url 'seed_default_holidays' %}" style="display:inline;">
+          {% csrf_token %}
+          <input type="hidden" name="year" value="{{ selected_year }}">
+          <button type="submit" class="hc-btn hc-btn-secondary" title="Populate standard Indian holidays for {{ selected_year }}">
+            <i class="fas fa-magic text-warning"></i> Seed Standard Holidays
+          </button>
+        </form>
+
+        <button type="button" class="hc-btn hc-btn-primary" onclick="openAddModal()">
+          <i class="fas fa-plus"></i> Add Holiday
+        </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="hc-kpi-strip">
+    <div class="hc-kpi">
+      <div class="hc-kpi-label">Total Holidays ({{ selected_year }})</div>
+      <div class="hc-kpi-value purple">{{ total_count }}</div>
+    </div>
+    <div class="hc-kpi">
+      <div class="hc-kpi-label">Upcoming Holidays</div>
+      <div class="hc-kpi-value green">{{ upcoming_count }}</div>
+    </div>
+    <div class="hc-kpi">
+      <div class="hc-kpi-label">Past Holidays</div>
+      <div class="hc-kpi-value orange">{{ past_count }}</div>
+    </div>
+    <div class="hc-kpi">
+      <div class="hc-kpi-label">Festivals & Celebrations</div>
+      <div class="hc-kpi-value blue">{{ festival_count }}</div>
+    </div>
+    <div class="hc-kpi">
+      <div class="hc-kpi-label">National Holidays</div>
+      <div class="hc-kpi-value purple">{{ national_count }}</div>
+    </div>
+  </div>
+
+  <!-- Month Grid -->
+  <div class="hc-month-grid">
+    {% for m in months_data %}
+    <div class="hc-month-card {% if m.is_current %}current-month{% endif %}">
+      <div class="hc-month-header">
+        <div class="hc-month-name">
+          <i class="far fa-calendar text-primary"></i>
+          {{ m.month_name }}
+          {% if m.is_current %}
+            <span style="font-size:0.65rem; background:rgba(99,102,241,0.2); color:#818cf8; padding:0.15rem 0.5rem; border-radius:10px; font-weight:700;">CURRENT</span>
+          {% endif %}
+        </div>
+        <div class="hc-month-count">{{ m.count }} {% if m.count == 1 %}holiday{% else %}holidays{% endif %}</div>
+      </div>
+
+      <div class="hc-holiday-list">
+        {% for h in m.holidays %}
+        <div class="hc-holiday-item">
+          <div class="hc-date-badge">
+            <div class="hc-date-day">{{ h.date|date:"d" }}</div>
+            <div class="hc-date-weekday">{{ h.date|date:"D" }}</div>
+          </div>
+          <div class="hc-holiday-info">
+            <div class="hc-holiday-title">
+              <span>{{ h.name }}</span>
+              {% if h.holiday_type == 'national' %}
+                <span class="hc-tag hc-tag-national">National</span>
+              {% elif h.holiday_type == 'festival' %}
+                <span class="hc-tag hc-tag-festival">Festival</span>
+              {% elif h.holiday_type == 'company' %}
+                <span class="hc-tag hc-tag-company">Company</span>
+              {% else %}
+                <span class="hc-tag hc-tag-public">Public</span>
+              {% endif %}
+            </div>
+            {% if h.description %}
+              <p class="hc-holiday-desc">{{ h.description }}</p>
+            {% endif %}
+          </div>
+          {% if is_admin %}
+          <form method="POST" action="{% url 'delete_holiday' h.pk %}" onsubmit="return confirm('Are you sure you want to delete {{ h.name }} on {{ h.date|date:"d M Y" }}?');" style="margin:0;">
+            {% csrf_token %}
+            <button type="submit" class="hc-delete-btn" title="Delete holiday">
+              <i class="fas fa-trash-alt"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+        {% empty %}
+        <div class="hc-empty-month">
+          <i class="fas fa-calendar-check me-1" style="opacity:0.4;"></i> No holidays in {{ m.month_name }}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Add Holiday Modal -->
+{% if is_admin %}
+<div class="hc-modal-overlay" id="addHolidayModal">
+  <div class="hc-modal">
+    <div class="hc-modal-header">
+      <h3 class="hc-modal-title"><i class="fas fa-plus-circle text-primary me-2"></i>Add Holiday</h3>
+      <button type="button" class="hc-modal-close" onclick="closeAddModal()">&times;</button>
+    </div>
+    <form method="POST" action="{% url 'add_holiday' %}">
+      {% csrf_token %}
+      <div class="hc-form-group">
+        <label class="hc-form-label">Holiday Name *</label>
+        <input type="text" name="name" class="hc-form-control" placeholder="e.g. Diwali, Gandhi Jayanti" required>
+      </div>
+      <div class="hc-form-group">
+        <label class="hc-form-label">Date *</label>
+        <input type="date" name="date" class="hc-form-control" required value="{{ selected_year }}-01-01">
+      </div>
+      <div class="hc-form-group">
+        <label class="hc-form-label">Holiday Type</label>
+        <select name="holiday_type" class="hc-form-control">
+          <option value="public">Public Holiday</option>
+          <option value="national">National Holiday</option>
+          <option value="festival">Festival</option>
+          <option value="company">Company / Optional Holiday</option>
+        </select>
+      </div>
+      <div class="hc-form-group">
+        <label class="hc-form-label">Description (Optional)</label>
+        <textarea name="description" class="hc-form-control" rows="2" placeholder="Optional notes or occasion details..."></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:0.6rem; margin-top:1.5rem;">
+        <button type="button" class="hc-btn hc-btn-secondary" onclick="closeAddModal()">Cancel</button>
+        <button type="submit" class="hc-btn hc-btn-primary"><i class="fas fa-save me-1"></i>Save Holiday</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openAddModal() {
+  document.getElementById('addHolidayModal').classList.add('active');
+}
+function closeAddModal() {
+  document.getElementById('addHolidayModal').classList.remove('active');
+}
+document.getElementById('addHolidayModal').addEventListener('click', function(e) {
+  if (e.target === this) closeAddModal();
+});
+</script>
+{% endif %}
+{% endblock %}

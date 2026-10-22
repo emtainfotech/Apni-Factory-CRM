@@ -49,6 +49,12 @@ urlpatterns = [
     path('attendance/review-missed-punchout/<int:pk>/', views.review_missed_punchout, name='review_missed_punchout'),
     path('users/<int:user_id>/toggle-active/', views.toggle_employee_active, name='toggle_employee_active'),
     
+    # --- Holiday Calendar ---
+    path('holidays/', views.holiday_calendar, name='holiday_calendar'),
+    path('holidays/add/', views.add_holiday, name='add_holiday'),
+    path('holidays/delete/<int:pk>/', views.delete_holiday, name='delete_holiday'),
+    path('holidays/seed-defaults/', views.seed_default_holidays, name='seed_default_holidays'),
+    
     # Order Routes
     path('orders/', views.order_list, name='order_list'),
     path('orders/<int:order_id>/', views.order_detail, name='order_detail'),

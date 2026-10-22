@@ -31,7 +31,7 @@ from hostinger_data.models import (
 )
 
 # Import Invoice Utils & Models
-from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest, EmployeeProfile, MissedPunchOutRecord
+from .models import Invoice, InvoiceItem, Order, OrderItem, Transaction, Attendance, Break, CallLog, CustomerActivityLog, LeaveRequest, EmployeeProfile, MissedPunchOutRecord, Holiday
 from .invoice_utils import calculate_gst_values, get_next_invoice_number
 
 from datetime import datetime, timedelta
@@ -610,19 +610,32 @@ def admin_attendance_dashboard(request):
     # --- Monthly Summary per Employee ---
     # Determine all days, Sundays, and working days in the month
     month_dates = [date_cls(report_year, report_month, d) for d in range(1, total_days + 1)]
+    
+    # Fetch attendances and holidays with a 7-day buffer on both sides
+    # to accurately evaluate cross-month preceding and succeeding working days
+    fetch_start = first_day - timedelta(days=7)
+    fetch_end = last_day + timedelta(days=7)
+
+    # Fetch declared holidays in range
+    holidays_in_range = Holiday.objects.filter(
+        date__gte=fetch_start,
+        date__lte=fetch_end
+    )
+    holiday_map = {h.date: h for h in holidays_in_range}
+    holiday_dates = set(holiday_map.keys())
+
+    # In the month:
     sundays_in_month = [d for d in month_dates if d.weekday() == 6]
-    working_days_in_month = [d for d in month_dates if d.weekday() != 6]
+    weekday_holidays_in_month = [d for d in month_dates if d in holiday_dates and d.weekday() != 6]
+    off_days_in_month = [d for d in month_dates if d.weekday() == 6 or d in holiday_dates]
+    working_days_in_month = [d for d in month_dates if d.weekday() != 6 and d not in holiday_dates]
     total_working_days = len(working_days_in_month)
     total_sundays = len(sundays_in_month)
+    total_holidays = len(weekday_holidays_in_month)
 
     # Days elapsed so far in this month (only past days, excluding upcoming days)
     elapsed_days = [d for d in month_dates if d <= today]
     total_elapsed_days = len(elapsed_days)
-
-    # Fetch attendances for month with a 2-day buffer on both sides
-    # to accurately evaluate cross-month Saturday (S - 1) and Monday (S + 1)
-    fetch_start = first_day - timedelta(days=2)
-    fetch_end = last_day + timedelta(days=2)
 
     all_month_attendances = Attendance.objects.filter(
         date__gte=fetch_start,
@@ -667,6 +680,20 @@ def admin_attendance_dashboard(request):
 
         return False
 
+    def get_preceding_working_day(dt):
+        """Find the closest date before dt that is a working day (not Sunday and not a Holiday)."""
+        cur = dt - timedelta(days=1)
+        while cur.weekday() == 6 or cur in holiday_dates:
+            cur -= timedelta(days=1)
+        return cur
+
+    def get_succeeding_working_day(dt):
+        """Find the closest date after dt that is a working day (not Sunday and not a Holiday)."""
+        cur = dt + timedelta(days=1)
+        while cur.weekday() == 6 or cur in holiday_dates:
+            cur += timedelta(days=1)
+        return cur
+
     monthly_summary = []
     for emp in employees:
         emp_atts = [a for a in all_month_attendances if a.user_id == emp.id and first_day <= a.date <= last_day]
@@ -681,41 +708,52 @@ def admin_attendance_dashboard(request):
 
         total_worked_h = total_worked_duration.total_seconds() / 3600
 
-        # Calculate Sunday credits with Sandwich Rule:
-        # Only include Sundays that have already passed (not upcoming Sundays).
-        # If employee is on leave/absent on Saturday (S - 1) AND on next Monday (S + 1),
-        # Sunday is a sandwich holiday and is NOT credited as present.
-        # If employee has 0 working days present in the month, they get 0 Sunday credits.
+        # Calculate Sunday and Holiday credits with Sandwich Rule:
+        # Only include off-days (Sundays / Holidays) that have already passed (not upcoming days).
+        # Sandwich Rule: If employee is on leave/absent on preceding working day AND on succeeding working day,
+        # that off-day is a sandwich holiday and is NOT credited as present.
+        # Otherwise, if employee worked before OR after, it is credited as present (paid holiday/weekly off).
+        # If employee has 0 working days present in the month, they get 0 off-day credits.
+        off_days_credited = 0
         sundays_credited = 0
-        sandwiched_sundays = 0
+        holidays_credited = 0
+        sandwiched_off_days = 0
 
         if working_days_present > 0:
-            for S in sundays_in_month:
-                # Do NOT include upcoming Sundays
-                if S > today:
+            for D in off_days_in_month:
+                # Do NOT include upcoming off-days (only past/elapsed days)
+                if D > today:
                     continue
 
-                sat = S - timedelta(days=1)
-                mon = S + timedelta(days=1)
+                prev_work = get_preceding_working_day(D)
+                next_work = get_succeeding_working_day(D)
 
-                sat_present = is_working_day_present(emp.id, sat)
+                prev_present = is_working_day_present(emp.id, prev_work)
 
-                if mon > today:
-                    # Monday has not occurred yet (e.g. today is Sunday S)
-                    if sat_present:
-                        # Since Saturday was attended, it CANNOT be a sandwich holiday
-                        sundays_credited += 1
+                if next_work > today:
+                    # Succeeding working day has not arrived yet
+                    if prev_present:
+                        # Since preceding working day was attended, it CANNOT be a sandwich leave
+                        off_days_credited += 1
+                        if D.weekday() == 6:
+                            sundays_credited += 1
+                        else:
+                            holidays_credited += 1
                     else:
-                        sandwiched_sundays += 1
+                        sandwiched_off_days += 1
                 else:
-                    mon_present = is_working_day_present(emp.id, mon)
-                    # Sandwich check: absent/on leave on both Saturday AND Monday
-                    if not sat_present and not mon_present:
-                        sandwiched_sundays += 1
+                    next_present = is_working_day_present(emp.id, next_work)
+                    # Sandwich check: absent/on leave on both preceding AND succeeding working days
+                    if not prev_present and not next_present:
+                        sandwiched_off_days += 1
                     else:
-                        sundays_credited += 1
+                        off_days_credited += 1
+                        if D.weekday() == 6:
+                            sundays_credited += 1
+                        else:
+                            holidays_credited += 1
 
-        total_days_present = working_days_present + sundays_credited
+        total_days_present = working_days_present + off_days_credited
         # Absent days also only count for days that have already passed (not upcoming days)
         days_absent = max(0, total_elapsed_days - total_days_present)
 
@@ -732,7 +770,8 @@ def admin_attendance_dashboard(request):
             'days_present': total_days_present,
             'working_days_present': working_days_present,
             'sundays_present': sundays_credited,
-            'sandwiched_sundays': sandwiched_sundays,
+            'holidays_present': holidays_credited,
+            'sandwiched_sundays': sandwiched_off_days,
             'days_half': days_half,
             'days_late': days_late,
             'days_absent': days_absent,
@@ -753,6 +792,7 @@ def admin_attendance_dashboard(request):
         'total_days': total_days,
         'total_elapsed_days': total_elapsed_days,
         'total_sundays': total_sundays,
+        'total_holidays': total_holidays,
         'report_month': report_month,
         'report_year': report_year,
         'report_month_name': calendar.month_name[report_month],
@@ -762,6 +802,173 @@ def admin_attendance_dashboard(request):
         'absent_today_count': sum(1 for s in live_status if s['state'] == 'absent'),
     }
     return render(request, 'core/attendance_dashboard.html', context)
+
+
+# ==========================================
+#          HOLIDAY CALENDAR SYSTEM
+# ==========================================
+
+DEFAULT_INDIAN_HOLIDAYS_2026 = [
+    ('Republic Day', '2026-01-26', 'national', 'Celebration of Constitution of India'),
+    ('Maha Shivratri', '2026-02-15', 'festival', 'Hindu festival celebrating Lord Shiva'),
+    ('Holi', '2026-03-04', 'festival', 'Festival of Colours'),
+    ('Eid-ul-Fitr', '2026-03-21', 'festival', 'Islamic festival marking the end of Ramadan'),
+    ('Good Friday', '2026-04-03', 'public', 'Christian holiday commemoration'),
+    ('Ambedkar Jayanti', '2026-04-14', 'public', 'Birthday of Dr. B.R. Ambedkar'),
+    ('Mahavir Jayanti', '2026-04-20', 'public', 'Birth anniversary of Lord Mahavira'),
+    ('Eid-ul-Adha (Bakrid)', '2026-05-27', 'festival', 'Feast of the Sacrifice'),
+    ('Muharram', '2026-06-26', 'festival', 'First month of the Islamic calendar'),
+    ('Independence Day', '2026-08-15', 'national', 'Celebration of Indian Independence'),
+    ('Raksha Bandhan', '2026-08-28', 'festival', 'Festival celebrating brother-sister bond'),
+    ('Janmashtami', '2026-09-04', 'festival', 'Birth celebration of Lord Krishna'),
+    ('Milad-un-Nabi (Id-e-Milad)', '2026-09-05', 'festival', 'Prophet Muhammad birthday'),
+    ('Mahatma Gandhi Jayanti', '2026-10-02', 'national', 'Birth anniversary of Mahatma Gandhi'),
+    ('Dussehra (Vijayadashami)', '2026-10-20', 'festival', 'Victory of Good over Evil'),
+    ('Diwali (Deepavali)', '2026-11-08', 'festival', 'Festival of Lights'),
+    ('Govardhan Puja', '2026-11-09', 'festival', 'Day after Diwali celebration'),
+    ('Bhai Dooj', '2026-11-10', 'festival', 'Celebration of sibling affection'),
+    ('Guru Nanak Jayanti', '2026-11-24', 'festival', 'Birth anniversary of Guru Nanak Dev Ji'),
+    ('Christmas', '2026-12-25', 'public', 'Celebration of the birth of Jesus Christ'),
+]
+
+
+@login_required
+def holiday_calendar(request):
+    """
+    Holiday Calendar view:
+    Shows all official company, national, and festival holidays for any year.
+    Displays month-by-month cards, upcoming holidays, and management modal for Admins.
+    """
+    from zoneinfo import ZoneInfo
+    kolkata_tz = ZoneInfo('Asia/Kolkata')
+    today = timezone.now().astimezone(kolkata_tz).date()
+
+    year_param = request.GET.get('year')
+    try:
+        selected_year = int(year_param) if year_param else today.year
+    except (ValueError, TypeError):
+        selected_year = today.year
+
+    import calendar
+    holidays = Holiday.objects.filter(date__year=selected_year).order_by('date')
+
+    # Group holidays by month (1 to 12)
+    months_data = []
+    for m in range(1, 13):
+        m_holidays = [h for h in holidays if h.date.month == m]
+        months_data.append({
+            'month_num': m,
+            'month_name': calendar.month_name[m],
+            'holidays': m_holidays,
+            'count': len(m_holidays),
+            'is_current': (selected_year == today.year and m == today.month),
+        })
+
+    total_count = holidays.count()
+    upcoming_count = holidays.filter(date__gte=today).count()
+    past_count = holidays.filter(date__lt=today).count()
+    national_count = holidays.filter(holiday_type='national').count()
+    festival_count = holidays.filter(holiday_type='festival').count()
+
+    year_choices = list(range(today.year - 2, today.year + 4))
+
+    context = {
+        'selected_year': selected_year,
+        'today': today,
+        'holidays': holidays,
+        'months_data': months_data,
+        'total_count': total_count,
+        'upcoming_count': upcoming_count,
+        'past_count': past_count,
+        'national_count': national_count,
+        'festival_count': festival_count,
+        'year_choices': year_choices,
+        'is_admin': request.user.role == 'admin' or request.user.is_superuser,
+    }
+    return render(request, 'core/holiday_calendar.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def add_holiday(request):
+    """Admin adds or edits a holiday in the calendar."""
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        date_str = request.POST.get('date', '').strip()
+        holiday_type = request.POST.get('holiday_type', 'public')
+        description = request.POST.get('description', '').strip()
+
+        if not name or not date_str:
+            messages.error(request, "Please provide both Holiday Name and Date.")
+            return redirect('holiday_calendar')
+
+        try:
+            from datetime import datetime as dt_cls
+            h_date = dt_cls.strptime(date_str, '%Y-%m-%d').date()
+            holiday_obj, created = Holiday.objects.update_or_create(
+                date=h_date,
+                defaults={
+                    'name': name,
+                    'holiday_type': holiday_type,
+                    'description': description,
+                    'created_by': request.user,
+                }
+            )
+            action_verb = "added" if created else "updated"
+            messages.success(request, f"Holiday '{name}' on {h_date.strftime('%d %b %Y')} {action_verb} successfully.")
+            return redirect(f"{reverse('holiday_calendar')}?year={h_date.year}")
+        except Exception as e:
+            messages.error(request, f"Error saving holiday: {e}")
+
+    return redirect('holiday_calendar')
+
+
+@login_required
+@user_passes_test(is_admin)
+def delete_holiday(request, pk):
+    """Admin removes a holiday from the calendar."""
+    holiday = get_object_or_404(Holiday, pk=pk)
+    year = holiday.date.year
+    name = holiday.name
+    date_str = holiday.date.strftime('%d %b %Y')
+    holiday.delete()
+    messages.success(request, f"Holiday '{name}' ({date_str}) deleted successfully.")
+    return redirect(f"{reverse('holiday_calendar')}?year={year}")
+
+
+@login_required
+@user_passes_test(is_admin)
+def seed_default_holidays(request):
+    """Seed standard national and festival holidays for the chosen year."""
+    year_param = request.POST.get('year') or request.GET.get('year')
+    try:
+        target_year = int(year_param) if year_param else 2026
+    except (ValueError, TypeError):
+        target_year = 2026
+
+    added_count = 0
+    from datetime import datetime as dt_cls
+    for name, date_str, h_type, desc in DEFAULT_INDIAN_HOLIDAYS_2026:
+        dt = dt_cls.strptime(date_str, '%Y-%m-%d').date()
+        target_date = dt.replace(year=target_year)
+        obj, created = Holiday.objects.get_or_create(
+            date=target_date,
+            defaults={
+                'name': name,
+                'holiday_type': h_type,
+                'description': desc,
+                'created_by': request.user,
+            }
+        )
+        if created:
+            added_count += 1
+
+    if added_count > 0:
+        messages.success(request, f"Successfully seeded {added_count} standard holidays for {target_year}.")
+    else:
+        messages.info(request, f"Standard holidays for {target_year} are already present.")
+
+    return redirect(f"{reverse('holiday_calendar')}?year={target_year}")
 
 
 @login_required

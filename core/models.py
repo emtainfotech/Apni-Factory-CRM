@@ -645,6 +645,31 @@ class LeaveRequest(models.Model):
         return self.leave_type == 'half_day'
 
 
+class Holiday(models.Model):
+    HOLIDAY_TYPES = (
+        ('public', 'Public Holiday'),
+        ('national', 'National Holiday'),
+        ('company', 'Company Holiday'),
+        ('festival', 'Festival'),
+    )
+
+    name = models.CharField(max_length=150, help_text="Holiday Name / Occasion")
+    date = models.DateField(unique=True, help_text="Date of the holiday")
+    holiday_type = models.CharField(max_length=20, choices=HOLIDAY_TYPES, default='public')
+    description = models.TextField(blank=True, null=True, help_text="Optional holiday details or notes")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='created_holidays')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['date']
+        verbose_name = 'Holiday'
+        verbose_name_plural = 'Holidays'
+
+    def __str__(self):
+        return f"{self.name} ({self.date})"
+
+
 class EmployeeProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='employee_profile')
     

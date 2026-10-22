@@ -480,9 +480,14 @@
       Attendance Management
       <span class="badge-live">LIVE</span>
     </h2>
-    <a href="{% url 'admin_attendance_dashboard' %}" class="btn-refresh">
-      <i class="fas fa-sync-alt"></i> Refresh
-    </a>
+    <div style="display:flex; gap:0.5rem; align-items:center;">
+      <a href="{% url 'holiday_calendar' %}" class="btn-refresh" style="background:#e0e7ff; color:#4338ca; border-color:#c7d2fe;">
+        <i class="fas fa-calendar-alt"></i> Holiday Calendar
+      </a>
+      <a href="{% url 'admin_attendance_dashboard' %}" class="btn-refresh">
+        <i class="fas fa-sync-alt"></i> Refresh
+      </a>
+    </div>
   </div>
 
   <!-- KPI Strip -->
@@ -510,6 +515,10 @@
     <div class="att-kpi">
       <div class="att-kpi-label">Working Days (Month)</div>
       <div class="att-kpi-value blue">{{ total_working_days }}</div>
+    </div>
+    <div class="att-kpi">
+      <div class="att-kpi-label">Holidays (Month)</div>
+      <div class="att-kpi-value orange">{{ total_holidays }}</div>
     </div>
   </div>
 

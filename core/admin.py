@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib import messages
-from core.models import Customer, WhatsAppMessageStatus, AdminReportRecipient
+from core.models import Customer, WhatsAppMessageStatus, AdminReportRecipient, Holiday
 from core.whatsapp_report_sender import send_test_report_to_number
 
 
@@ -54,3 +54,11 @@ class AdminReportRecipientAdmin(admin.ModelAdmin):
 
 admin.site.register(Customer)
 admin.site.register(WhatsAppMessageStatus)
+
+
+@admin.register(Holiday)
+class HolidayAdmin(admin.ModelAdmin):
+    list_display = ('name', 'date', 'holiday_type', 'created_by', 'created_at')
+    list_filter = ('holiday_type', 'date')
+    search_fields = ('name', 'description')
+    ordering = ('date',)

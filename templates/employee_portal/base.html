@@ -277,6 +277,18 @@
                                             </div>
                                         </li>
 
+                                        <li class="nav-item">
+                                            <div class="nav-item-wrapper">
+                                                <a class="nav-link {% if 'holidays' in request.path %}active{% endif %}"
+                                                    href="{% url 'holiday_calendar' %}">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="nav-link-icon"><span data-feather="gift"></span></span>
+                                                        <span class="nav-link-text">Holiday Calendar</span>
+                                                    </div>
+                                                </a>
+                                            </div>
+                                        </li>
+
                     </ul>
                 </div>
             </div>
