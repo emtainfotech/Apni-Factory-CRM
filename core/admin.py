@@ -80,6 +80,7 @@ class BreakInline(admin.TabularInline):
     model = Break
     extra = 0
     fields = ('break_type', 'break_start', 'break_end', 'duration')
+    readonly_fields = ('break_start',)
 
 
 @admin.register(Attendance)
@@ -91,6 +92,7 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_filter = ('status', 'is_late', 'is_punched_in', 'date')
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'ip_address')
     ordering = ('-date', '-punch_in')
+    readonly_fields = ('date', 'created_at', 'updated_at')
     inlines = [BreakInline]
 
 
@@ -99,6 +101,7 @@ class BreakAdmin(admin.ModelAdmin):
     list_display = ('attendance', 'break_type', 'break_start', 'break_end', 'duration')
     list_filter = ('break_type',)
     ordering = ('-break_start',)
+    readonly_fields = ('break_start',)
 
 
 @admin.register(MissedPunchOutRecord)
