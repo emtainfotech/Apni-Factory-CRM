@@ -2018,9 +2018,19 @@ def get_whatsapp_chat(request, customer_id):
 
     for chat in chats:
         st = status_map.get(chat.wamid)
-        delivery_status = st.status if st else ('sent' if chat.direction == 'outgoing' else None)
-        err_code = st.error_code if st else (latest_failed.error_code if (latest_failed and chat.direction == 'outgoing' and not st) else None)
-        err_title = st.error_title if st else (latest_failed.error_title if (latest_failed and chat.direction == 'outgoing' and not st) else None)
+        if chat.direction == 'outgoing':
+            if not chat.wamid:
+                delivery_status = 'failed'
+                err_code = 'DISPATCH_FAILED'
+                err_title = 'Message failed to dispatch to WhatsApp Meta API'
+            else:
+                delivery_status = st.status if st else 'sent'
+                err_code = st.error_code if st else None
+                err_title = st.error_title if st else None
+        else:
+            delivery_status = None
+            err_code = None
+            err_title = None
 
         if timezone.is_aware(chat.timestamp):
             chat_ist = chat.timestamp.astimezone(ist_tz)

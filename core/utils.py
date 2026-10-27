@@ -65,6 +65,41 @@ def format_whatsapp_phone(raw_phone):
         return digits
     return digits
 
+def record_message_status(wamid, recipient_id, status='sent', error_code=None, error_title=None, error_message=None, conversation_category=None, raw_payload=None, timestamp=None):
+    """
+    Persists or updates message delivery status in WhatsAppMessageStatus immediately upon dispatch.
+    Ensures that every sent or failed message from CRM is immediately tracked in the database
+    and visible in the Admin/Reports status dashboard.
+    """
+    try:
+        from core.models import WhatsAppMessageStatus
+        from django.utils import timezone
+        import time, random
+        clean_recipient = format_whatsapp_phone(recipient_id) or str(recipient_id)
+        ts = timestamp or timezone.now()
+
+        assigned_wamid = wamid
+        if not assigned_wamid:
+            assigned_wamid = f"failed_{int(time.time())}_{random.randint(1000, 9999)}"
+
+        obj, _ = WhatsAppMessageStatus.objects.update_or_create(
+            wamid=assigned_wamid,
+            status=status,
+            defaults={
+                "recipient_id": clean_recipient,
+                "error_code": str(error_code) if error_code else None,
+                "error_title": str(error_title) if error_title else None,
+                "error_message": str(error_message) if error_message else None,
+                "conversation_category": conversation_category,
+                "raw_payload": raw_payload or {"source": "crm_dispatch"},
+                "timestamp": ts,
+            }
+        )
+        return obj
+    except Exception as e:
+        print(f"record_message_status Error: {e}")
+        return None
+
 def send_text_message(to_number, text, return_details=False):
     """
     Sends a standard WhatsApp text message via Meta Cloud API.
@@ -95,9 +130,12 @@ def send_text_message(to_number, text, return_details=False):
         if response.status_code == 200:
             messages = resp_data.get('messages', [])
             wamid = messages[0].get('id') if messages else None
+            record_message_status(wamid=wamid, recipient_id=clean_number, status='sent', raw_payload={'source': 'send_text_message'})
             return (True, wamid, None) if return_details else True
         else:
             err_msg = resp_data.get('error', {}).get('message') or response.text
+            err_code = resp_data.get('error', {}).get('code')
+            record_message_status(wamid=None, recipient_id=clean_number, status='failed', error_code=err_code, error_message=err_msg, raw_payload={'source': 'send_text_message_failed', 'error': err_msg})
             print(f"Meta API Error ({response.status_code}): {err_msg}")
             return (False, None, err_msg) if return_details else False
     except Exception as e:
@@ -176,9 +214,12 @@ def send_image_message(to_number, image_url=None, media_id=None, caption=None, r
         if response.status_code == 200:
             messages = resp_data.get('messages', [])
             wamid = messages[0].get('id') if messages else None
+            record_message_status(wamid=wamid, recipient_id=clean_number, status='sent', raw_payload={'source': 'send_image_message'})
             return (True, wamid, None) if return_details else True
         else:
             err_msg = resp_data.get('error', {}).get('message') or response.text
+            err_code = resp_data.get('error', {}).get('code')
+            record_message_status(wamid=None, recipient_id=clean_number, status='failed', error_code=err_code, error_message=err_msg, raw_payload={'source': 'send_image_message_failed', 'error': err_msg})
             print(f"Meta API Image Error ({response.status_code}): {err_msg}")
             return (False, None, err_msg) if return_details else False
     except Exception as e:
@@ -233,9 +274,12 @@ def send_document_message(to_number, document_url=None, filename=None, caption=N
         if response.status_code == 200:
             messages = resp_data.get('messages', [])
             wamid = messages[0].get('id') if messages else None
+            record_message_status(wamid=wamid, recipient_id=clean_number, status='sent', raw_payload={'source': 'send_document_message', 'filename': filename})
             return (True, wamid, None) if return_details else True
         else:
             err_msg = resp_data.get('error', {}).get('message') or response.text
+            err_code = resp_data.get('error', {}).get('code')
+            record_message_status(wamid=None, recipient_id=clean_number, status='failed', error_code=err_code, error_message=err_msg, raw_payload={'source': 'send_document_message_failed', 'error': err_msg})
             print(f"Meta API Document Error ({response.status_code}): {err_msg}")
             return (False, None, err_msg) if return_details else False
     except Exception as e:
@@ -283,6 +327,7 @@ def send_video_message(to_number, video_url=None, caption=None, media_id=None, r
         if response.status_code == 200:
             messages = resp_data.get('messages', [])
             wamid = messages[0].get('id') if messages else None
+            record_message_status(wamid=wamid, recipient_id=clean_number, status='sent', raw_payload={'source': 'send_video_message'})
             return (True, wamid, None) if return_details else True
         else:
             err_msg = resp_data.get('error', {}).get('message') or response.text
@@ -371,6 +416,13 @@ def send_template_message(to_number, template_name, language_code=None, componen
         if response.status_code == 200:
             messages = resp_data.get('messages', [])
             wamid = messages[0].get('id') if messages else None
+            record_message_status(
+                wamid=wamid,
+                recipient_id=clean_number,
+                status='sent',
+                conversation_category='utility' if 'utility' in template_name.lower() else 'marketing',
+                raw_payload={'source': 'send_template_message', 'template': template_name}
+            )
             return (True, wamid, None) if return_details else True
 
         err_obj = resp_data.get('error', {})
@@ -395,6 +447,13 @@ def send_template_message(to_number, template_name, language_code=None, componen
                 if resp_alt.status_code == 200:
                     messages = resp_alt_data.get('messages', [])
                     wamid = messages[0].get('id') if messages else None
+                    record_message_status(
+                        wamid=wamid,
+                        recipient_id=clean_number,
+                        status='sent',
+                        conversation_category='utility' if 'utility' in template_name.lower() else 'marketing',
+                        raw_payload={'source': 'send_template_message_fallback_lang', 'template': template_name, 'lang': alt_lang}
+                    )
                     return (True, wamid, None) if return_details else True
                 
                 alt_err_code = resp_alt_data.get('error', {}).get('code')
@@ -426,6 +485,13 @@ def send_template_message(to_number, template_name, language_code=None, componen
                 if resp_img.status_code == 200:
                     messages = resp_img_data.get('messages', [])
                     wamid = messages[0].get('id') if messages else None
+                    record_message_status(
+                        wamid=wamid,
+                        recipient_id=clean_number,
+                        status='sent',
+                        conversation_category='utility' if 'utility' in template_name.lower() else 'marketing',
+                        raw_payload={'source': 'send_template_message_fallback_img', 'template': template_name}
+                    )
                     return (True, wamid, None) if return_details else True
                 err_msg = resp_img_data.get('error', {}).get('message') or resp_img.text
 
@@ -449,9 +515,26 @@ def send_template_message(to_number, template_name, language_code=None, componen
                 if resp_doc.status_code == 200:
                     messages = resp_doc_data.get('messages', [])
                     wamid = messages[0].get('id') if messages else None
+                    record_message_status(
+                        wamid=wamid,
+                        recipient_id=clean_number,
+                        status='sent',
+                        conversation_category='utility' if 'utility' in template_name.lower() else 'marketing',
+                        raw_payload={'source': 'send_template_message_fallback_doc', 'template': template_name}
+                    )
                     return (True, wamid, None) if return_details else True
                 err_msg = resp_doc_data.get('error', {}).get('message') or resp_doc.text
 
+        record_message_status(
+            wamid=None,
+            recipient_id=clean_number,
+            status='failed',
+            error_code=err_code or 'TEMPLATE_FAILED',
+            error_title=err_msg,
+            error_message=err_msg,
+            conversation_category='utility' if 'utility' in template_name.lower() else 'marketing',
+            raw_payload={'source': 'send_template_message_failed', 'template': template_name, 'error': err_msg}
+        )
         print(f"Meta API Template Error ({response.status_code}): {err_msg}")
         return (False, None, err_msg) if return_details else False
     except Exception as e:
