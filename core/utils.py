@@ -52,6 +52,7 @@ H Bose E-Commerce Pvt. Ltd.
 DEFAULT_SELLER_GUIDE_PDF_FILENAME = "Apni_Factory_Seller_Onboarding_Guide_Final.pdf"
 DEFAULT_SELLER_GUIDE_PDF_PATH = "whatsapp_attachments/Apni_Factory_Seller_Onboarding_Guide_Final.pdf"
 DEFAULT_SELLER_GUIDE_PUBLIC_URL = "https://crm.apnifactory.co.in/media/documents/Apni_Factory_Seller_Onboarding_Guide_Final.pdf"
+DEFAULT_TEMPLATE_IMAGE_PUBLIC_URL = "https://crm.apnifactory.co.in/static/assets/img/icons/logo.png"
 
 def format_whatsapp_phone(raw_phone):
     """Normalizes phone number to international E.164 without leading plus."""
@@ -291,10 +292,14 @@ def send_video_message(to_number, video_url=None, caption=None, media_id=None, r
         print(f"Meta API Video Exception: {e}")
         return (False, None, str(e)) if return_details else False
 
-def send_template_message(to_number, template_name, language_code='en', components=None, return_details=False):
+def send_template_message(to_number, template_name, language_code=None, components=None, header_image_url=None, header_document_url=None, header_document_filename=None, return_details=False):
     """
     Sends an approved Meta WhatsApp template message via Meta Cloud API.
-    Handles language fallback (en <-> en_US).
+    Handles:
+    - Auto-detection of language (e.g. 'hi' for '_hindi' or '_hi' templates, 'en' default).
+    - Auto-construction of media header components (IMAGE or DOCUMENT).
+    - Intelligent self-healing retries for language mismatches (en / en_US / hi).
+    - Intelligent self-healing retries for missing IMAGE/DOCUMENT headers (error 132012).
     """
     clean_number = format_whatsapp_phone(to_number)
     if not clean_number:
@@ -303,27 +308,64 @@ def send_template_message(to_number, template_name, language_code='en', componen
     meta_url = getattr(settings, 'META_API_URL', os.environ.get('META_API_URL', 'https://graph.facebook.com/v17.0/960010463853608/messages'))
     meta_token = getattr(settings, 'META_ACCESS_TOKEN', os.environ.get('META_ACCESS_TOKEN', ''))
 
-    template_obj = {
-        "name": template_name,
-        "language": {"code": language_code}
-    }
-    if components:
-        template_obj["components"] = components
+    # 1. Determine initial language code
+    if not language_code:
+        tmpl_lower = template_name.lower()
+        if '_hindi' in tmpl_lower or '_hi' in tmpl_lower or tmpl_lower.endswith('hi'):
+            language_code = 'hi'
+        else:
+            language_code = 'en'
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": clean_number,
-        "type": "template",
-        "template": template_obj
-    }
+    # 2. Build components if not explicitly provided but media headers are given
+    if components is None:
+        components = []
+        if header_image_url:
+            components.append({
+                "type": "header",
+                "parameters": [
+                    {
+                        "type": "image",
+                        "image": {"link": header_image_url}
+                    }
+                ]
+            })
+        elif header_document_url:
+            doc_param = {
+                "type": "document",
+                "document": {"link": header_document_url}
+            }
+            if header_document_filename:
+                doc_param["document"]["filename"] = header_document_filename
+            components.append({
+                "type": "header",
+                "parameters": [doc_param]
+            })
 
-    try:
-        headers = {
+    def _post_template(lang, comps):
+        t_obj = {
+            "name": template_name,
+            "language": {"code": lang}
+        }
+        if comps:
+            t_obj["components"] = comps
+
+        p = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": clean_number,
+            "type": "template",
+            "template": t_obj
+        }
+        hdrs = {
             "Authorization": f"Bearer {meta_token}",
             "Content-Type": "application/json",
         }
-        response = requests.post(meta_url, headers=headers, json=payload, timeout=12)
+        return requests.post(meta_url, headers=hdrs, json=p, timeout=12)
+
+    try:
+        current_lang = language_code
+        current_components = list(components) if components else None
+        response = _post_template(current_lang, current_components)
         resp_data = response.json() if response.text else {}
 
         if response.status_code == 200:
@@ -331,21 +373,85 @@ def send_template_message(to_number, template_name, language_code='en', componen
             wamid = messages[0].get('id') if messages else None
             return (True, wamid, None) if return_details else True
 
-        err_code = resp_data.get('error', {}).get('code')
-        err_subcode = resp_data.get('error', {}).get('error_subcode')
-        # If language code was 'en' and failed with 132000 (translation not found), retry with 'en_US'
-        if (err_code == 132000 or err_subcode == 132000) and language_code == 'en':
-            template_obj['language']['code'] = 'en_US'
-            response2 = requests.post(meta_url, headers=headers, json=payload, timeout=12)
-            resp_data2 = response2.json() if response2.text else {}
-            if response2.status_code == 200:
-                messages2 = resp_data2.get('messages', [])
-                wamid2 = messages2[0].get('id') if messages2 else None
-                return (True, wamid2, None) if return_details else True
-            err_msg = resp_data2.get('error', {}).get('message') or response2.text
-            return (False, None, err_msg) if return_details else False
+        err_obj = resp_data.get('error', {})
+        err_code = err_obj.get('code')
+        err_subcode = err_obj.get('error_subcode')
+        err_details = str(err_obj.get('error_data', {}).get('details') or '')
+        err_msg = err_obj.get('message') or response.text
 
-        err_msg = resp_data.get('error', {}).get('message') or response.text
+        # Fallback 1: Language translation mismatch (132000, 132001)
+        if err_code in (132000, 132001) or err_subcode in (132000, 132001):
+            retry_languages = []
+            if current_lang == 'en':
+                retry_languages = ['hi', 'en_US']
+            elif current_lang == 'hi':
+                retry_languages = ['en', 'en_US']
+            elif current_lang == 'en_US':
+                retry_languages = ['en', 'hi']
+
+            for alt_lang in retry_languages:
+                resp_alt = _post_template(alt_lang, current_components)
+                resp_alt_data = resp_alt.json() if resp_alt.text else {}
+                if resp_alt.status_code == 200:
+                    messages = resp_alt_data.get('messages', [])
+                    wamid = messages[0].get('id') if messages else None
+                    return (True, wamid, None) if return_details else True
+                
+                alt_err_code = resp_alt_data.get('error', {}).get('code')
+                if alt_err_code == 132012:
+                    current_lang = alt_lang
+                    err_code = 132012
+                    err_details = str(resp_alt_data.get('error', {}).get('error_data', {}).get('details') or '')
+                    break
+
+        # Fallback 2: Component format mismatch (132012)
+        if err_code == 132012:
+            if 'expected IMAGE' in err_details:
+                default_img = getattr(settings, 'WHATSAPP_BUYER_TEMPLATE_IMAGE_URL', None) or \
+                              getattr(settings, 'WHATSAPP_DEFAULT_TEMPLATE_IMAGE_URL', None) or \
+                              DEFAULT_TEMPLATE_IMAGE_PUBLIC_URL
+                img_comp = [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "image",
+                                "image": {"link": default_img}
+                            }
+                        ]
+                    }
+                ]
+                resp_img = _post_template(current_lang, img_comp)
+                resp_img_data = resp_img.json() if resp_img.text else {}
+                if resp_img.status_code == 200:
+                    messages = resp_img_data.get('messages', [])
+                    wamid = messages[0].get('id') if messages else None
+                    return (True, wamid, None) if return_details else True
+                err_msg = resp_img_data.get('error', {}).get('message') or resp_img.text
+
+            elif 'expected DOCUMENT' in err_details:
+                doc_comp = [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "document",
+                                "document": {
+                                    "link": DEFAULT_SELLER_GUIDE_PUBLIC_URL,
+                                    "filename": DEFAULT_SELLER_GUIDE_PDF_FILENAME
+                                }
+                            }
+                        ]
+                    }
+                ]
+                resp_doc = _post_template(current_lang, doc_comp)
+                resp_doc_data = resp_doc.json() if resp_doc.text else {}
+                if resp_doc.status_code == 200:
+                    messages = resp_doc_data.get('messages', [])
+                    wamid = messages[0].get('id') if messages else None
+                    return (True, wamid, None) if return_details else True
+                err_msg = resp_doc_data.get('error', {}).get('message') or resp_doc.text
+
         print(f"Meta API Template Error ({response.status_code}): {err_msg}")
         return (False, None, err_msg) if return_details else False
     except Exception as e:

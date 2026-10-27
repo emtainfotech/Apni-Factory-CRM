@@ -2149,7 +2149,8 @@ def send_whatsapp_message(request, customer_id):
         format_india_time,
         DEFAULT_SELLER_GUIDE_PUBLIC_URL,
         DEFAULT_SELLER_GUIDE_PDF_FILENAME,
-        DEFAULT_SELLER_GUIDE_PDF_PATH
+        DEFAULT_SELLER_GUIDE_PDF_PATH,
+        DEFAULT_TEMPLATE_IMAGE_PUBLIC_URL
     )
 
     api_dispatched = False
@@ -2203,7 +2204,8 @@ def send_whatsapp_message(request, customer_id):
                 else:
                     api_error = err
             else:
-                api_error = "24-Hour WhatsApp Service Window is closed. Delivery via direct WhatsApp Web link recommended."
+                if not quick_reply_meta_templates:
+                    api_error = "24-Hour WhatsApp Service Window is closed. Delivery via direct WhatsApp Web link recommended."
 
     # A. If seller guide PDF should be attached (or onboarding initiated)
     elif attach_seller_guide:
@@ -2348,7 +2350,57 @@ def send_whatsapp_message(request, customer_id):
     if quick_reply_meta_templates:
         tmpl_names = [x.strip() for x in quick_reply_meta_templates.split(',') if x.strip()]
         for tmpl_name in tmpl_names:
-            ok, wamid, err = send_template_message(target_phone, tmpl_name, return_details=True)
+            tmpl_header_img = None
+            tmpl_header_doc = None
+            tmpl_header_doc_fn = None
+
+            # 1. Check staged media from quick reply
+            if quick_reply_media_ids:
+                id_list = [int(x.strip()) for x in quick_reply_media_ids.split(',') if x.strip().isdigit()]
+                from core.models import WhatsAppQuickReplyMedia
+                for sm in WhatsAppQuickReplyMedia.objects.filter(id__in=id_list):
+                    if sm.is_image and not tmpl_header_img and sm.file:
+                        tmpl_header_img = request.build_absolute_uri(sm.file.url)
+                    elif sm.media_type == 'document' and not tmpl_header_doc and sm.file:
+                        tmpl_header_doc = request.build_absolute_uri(sm.file.url)
+                        tmpl_header_doc_fn = sm.file_name
+
+            # 2. Check matched quick reply media files if not staged
+            if not tmpl_header_img and not tmpl_header_doc:
+                from core.models import WhatsAppQuickReply
+                matched_qr = WhatsAppQuickReply.objects.filter(
+                    Q(meta_template_names__icontains=tmpl_name) | Q(keyword__iexact=cleaned_kw)
+                ).first()
+                if matched_qr and matched_qr.media_files.exists():
+                    for m in matched_qr.media_files.all():
+                        if m.is_image and not tmpl_header_img and m.file:
+                            tmpl_header_img = request.build_absolute_uri(m.file.url)
+                            break
+                        elif m.media_type == 'document' and not tmpl_header_doc and m.file:
+                            tmpl_header_doc = request.build_absolute_uri(m.file.url)
+                            tmpl_header_doc_fn = m.file_name
+                            break
+
+            # 3. Check custom uploaded file
+            if not tmpl_header_img and not tmpl_header_doc and attachment_file:
+                fn_lower = attachment_file.name.lower()
+                if fn_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) and chat and chat.attachment:
+                    tmpl_header_img = request.build_absolute_uri(chat.attachment.url)
+
+            # 4. Default buyer/paint template header image if none provided
+            if not tmpl_header_img and not tmpl_header_doc and ('buyer' in tmpl_name.lower() or 'paint' in tmpl_name.lower()):
+                tmpl_header_img = getattr(settings, 'WHATSAPP_BUYER_TEMPLATE_IMAGE_URL', None) or \
+                                  getattr(settings, 'WHATSAPP_DEFAULT_TEMPLATE_IMAGE_URL', None) or \
+                                  DEFAULT_TEMPLATE_IMAGE_PUBLIC_URL
+
+            ok, wamid, err = send_template_message(
+                target_phone,
+                tmpl_name,
+                header_image_url=tmpl_header_img,
+                header_document_url=tmpl_header_doc,
+                header_document_filename=tmpl_header_doc_fn,
+                return_details=True
+            )
             item_chat = WhatsAppChat.objects.create(
                 customer=customer,
                 message=f"[Template Sent]: {tmpl_name}",
@@ -2361,6 +2413,7 @@ def send_whatsapp_message(request, customer_id):
                 chat = item_chat
             if ok:
                 api_dispatched = True
+                api_error = None
             elif not api_error:
                 api_error = err
 
