@@ -4891,6 +4891,7 @@ def send_whatsapp_message_ajax(request, customer_id):
         attach_seller_guide = request.POST.get('attach_seller_guide') in ('true', '1', True)
         quick_reply_media_ids = request.POST.get('quick_reply_media_ids', '').strip()
         quick_reply_meta_templates = request.POST.get('quick_reply_meta_templates', '').strip()
+        meta_template_header_media_url = request.POST.get('meta_template_header_media_url', '').strip()
 
         # Check if message_text is a quick reply shortcut (e.g. "/start", "start", "/seller")
         cleaned_kw = message_text.lower().strip().lstrip('/')
@@ -4910,6 +4911,8 @@ def send_whatsapp_message_ajax(request, customer_id):
                 message_text = tpl_msg.strip()
                 if qr_match.meta_template_names and not quick_reply_meta_templates:
                     quick_reply_meta_templates = qr_match.meta_template_names.strip()
+                if not meta_template_header_media_url and qr_match.meta_template_header_media_url:
+                    meta_template_header_media_url = qr_match.meta_template_header_media_url.strip()
                 if not quick_reply_media_ids and qr_match.media_files.exists():
                     quick_reply_media_ids = ','.join(str(m.id) for m in qr_match.media_files.all())
                 if qr_match.keyword == 'seller':
@@ -5130,8 +5133,23 @@ def send_whatsapp_message_ajax(request, customer_id):
                 tmpl_header_doc = None
                 tmpl_header_doc_fn = None
 
-                # 1. Check staged media from quick reply
-                if quick_reply_media_ids:
+                from .models import WhatsAppQuickReply
+                matched_qr = WhatsAppQuickReply.objects.filter(
+                    Q(meta_template_names__icontains=tmpl_name) | Q(keyword__iexact=cleaned_kw)
+                ).first()
+
+                # 1. Direct explicit media link from request or matched quick reply
+                explicit_url = meta_template_header_media_url or (matched_qr.meta_template_header_media_url if matched_qr else '')
+                if explicit_url:
+                    explicit_url = explicit_url.strip()
+                    if any(explicit_url.lower().endswith(ext) or ext in explicit_url.lower() for ext in ['.pdf', '.doc', '.docx', '.xlsx']):
+                        tmpl_header_doc = explicit_url
+                        tmpl_header_doc_fn = explicit_url.split('/')[-1].split('?')[0] or 'document.pdf'
+                    else:
+                        tmpl_header_img = explicit_url
+
+                # 2. Check staged media from quick reply
+                if not tmpl_header_img and not tmpl_header_doc and quick_reply_media_ids:
                     id_list = [int(x.strip()) for x in quick_reply_media_ids.split(',') if x.strip().isdigit()]
                     from .models import WhatsAppQuickReplyMedia
                     for sm in WhatsAppQuickReplyMedia.objects.filter(id__in=id_list):
@@ -5141,29 +5159,24 @@ def send_whatsapp_message_ajax(request, customer_id):
                             tmpl_header_doc = request.build_absolute_uri(sm.file.url)
                             tmpl_header_doc_fn = sm.file_name
 
-                # 2. Check matched quick reply media files if not staged
-                if not tmpl_header_img and not tmpl_header_doc:
-                    from .models import WhatsAppQuickReply
-                    matched_qr = WhatsAppQuickReply.objects.filter(
-                        Q(meta_template_names__icontains=tmpl_name) | Q(keyword__iexact=cleaned_kw)
-                    ).first()
-                    if matched_qr and matched_qr.media_files.exists():
-                        for m in matched_qr.media_files.all():
-                            if m.is_image and not tmpl_header_img and m.file:
-                                tmpl_header_img = request.build_absolute_uri(m.file.url)
-                                break
-                            elif m.media_type == 'document' and not tmpl_header_doc and m.file:
-                                tmpl_header_doc = request.build_absolute_uri(m.file.url)
-                                tmpl_header_doc_fn = m.file_name
-                                break
+                # 3. Check matched quick reply media files if not staged
+                if not tmpl_header_img and not tmpl_header_doc and matched_qr and matched_qr.media_files.exists():
+                    for m in matched_qr.media_files.all():
+                        if m.is_image and not tmpl_header_img and m.file:
+                            tmpl_header_img = request.build_absolute_uri(m.file.url)
+                            break
+                        elif m.media_type == 'document' and not tmpl_header_doc and m.file:
+                            tmpl_header_doc = request.build_absolute_uri(m.file.url)
+                            tmpl_header_doc_fn = m.file_name
+                            break
 
-                # 3. Check custom uploaded file
+                # 4. Check custom uploaded file
                 if not tmpl_header_img and not tmpl_header_doc and attachment_file:
                     fn_lower = attachment_file.name.lower()
                     if fn_lower.endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')) and chat and chat.attachment:
                         tmpl_header_img = request.build_absolute_uri(chat.attachment.url)
 
-                # 4. Default buyer/paint template header image if none provided
+                # 5. Default buyer/paint template header image if none provided
                 if not tmpl_header_img and not tmpl_header_doc and ('buyer' in tmpl_name.lower() or 'paint' in tmpl_name.lower()):
                     tmpl_header_img = getattr(settings, 'WHATSAPP_BUYER_TEMPLATE_IMAGE_URL', None) or \
                                       getattr(settings, 'WHATSAPP_DEFAULT_TEMPLATE_IMAGE_URL', None) or \
@@ -5338,7 +5351,8 @@ def whatsapp_quick_replies_view(request):
             title = request.POST.get('title', '').strip()
             content_type = request.POST.get('content_type', 'text')
             message = request.POST.get('message', '').strip()
-            meta_template_names = request.POST.get('meta_template_names', '')
+            meta_template_names = request.POST.get('meta_template_names', '').strip()
+            meta_template_header_media_url = request.POST.get('meta_template_header_media_url', '').strip()
 
             if not keyword:
                 messages.error(request, "Keyword shortcut cannot be empty.")
@@ -5354,6 +5368,7 @@ def whatsapp_quick_replies_view(request):
                 content_type=content_type,
                 message=message,
                 meta_template_names=meta_template_names,
+                meta_template_header_media_url=meta_template_header_media_url,
                 created_by=request.user,
                 is_active=True
             )
@@ -5379,6 +5394,13 @@ def whatsapp_quick_replies_view(request):
                     file_name=f.name,
                     order=order_idx
                 )
+
+            # Auto-populate meta_template_header_media_url from first uploaded image/doc if not explicitly set
+            if not qr.meta_template_header_media_url and qr.meta_template_names:
+                first_media = qr.media_files.first()
+                if first_media and first_media.file:
+                    qr.meta_template_header_media_url = request.build_absolute_uri(first_media.file.url)
+                    qr.save()
 
             messages.success(request, f"Quick Reply '/{keyword}' created successfully!")
             return redirect('whatsapp_quick_replies')
@@ -5449,6 +5471,7 @@ def whatsapp_quick_reply_edit(request, pk):
                 'content_type': qr.content_type,
                 'message': qr.message,
                 'meta_template_names': qr.meta_template_names,
+                'meta_template_header_media_url': qr.meta_template_header_media_url or '',
                 'is_active': qr.is_active,
                 'media': media_list
             }
@@ -5477,7 +5500,8 @@ def whatsapp_quick_reply_edit(request, pk):
         qr.title = title or f"/{keyword}"
         qr.content_type = content_type
         qr.message = message
-        qr.meta_template_names = request.POST.get('meta_template_names', '')
+        qr.meta_template_names = request.POST.get('meta_template_names', '').strip()
+        qr.meta_template_header_media_url = request.POST.get('meta_template_header_media_url', '').strip()
         qr.is_active = is_active
         qr.save()
 
@@ -5514,6 +5538,13 @@ def whatsapp_quick_reply_edit(request, pk):
                 file_name=f.name,
                 order=current_order + idx
             )
+
+        # Auto-populate meta_template_header_media_url if left blank and media files exist
+        if not qr.meta_template_header_media_url and qr.meta_template_names:
+            first_media = qr.media_files.first()
+            if first_media and first_media.file:
+                qr.meta_template_header_media_url = request.build_absolute_uri(first_media.file.url)
+                qr.save()
 
         messages.success(request, f"Template '/{keyword}' updated successfully.")
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
@@ -5576,6 +5607,7 @@ def whatsapp_quick_replies_api(request):
             'content_type_display': t.get_content_type_display(),
             'message': t.message,
             'meta_template_names': t.meta_template_names,
+            'meta_template_header_media_url': t.meta_template_header_media_url or '',
             'media': media_list,
         })
     return JsonResponse({'status': 'success', 'templates': results})

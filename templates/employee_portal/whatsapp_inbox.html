@@ -345,6 +345,7 @@
                         <input type="hidden" name="attach_seller_guide" id="attachSellerGuideInput" value="false">
                         <input type="hidden" name="quick_reply_media_ids" id="employeeQuickReplyMediaIds" value="">
                         <input type="hidden" name="quick_reply_meta_templates" id="employeeQuickReplyMetaTemplates" value="">
+                        <input type="hidden" name="meta_template_header_media_url" id="employeeMetaTemplateHeaderMediaUrl" value="">
                         <input type="file" id="employeeAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/*" onchange="handleEmployeeFileInputChange(this.files)">
 
                         <div class="input-group shadow-sm bg-white rounded-3 border border-300 focus-ring-primary transition-base" style="border-radius: 20px !important; overflow: hidden;">
@@ -981,6 +982,9 @@ function applyQuickReplyTemplate(templateId) {
     }
 
     // 2. Stage Meta Templates
+    const metaHeaderUrlInput = document.getElementById('employeeMetaTemplateHeaderMediaUrl');
+    if (metaHeaderUrlInput) metaHeaderUrlInput.value = t.meta_template_header_media_url || '';
+
     if (t.meta_template_names) {
         if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names;
         const metaChip = document.getElementById('attachedMetaTemplateChip');
@@ -1423,8 +1427,10 @@ function togglePdfAttachment(forceState) {
 function clearEmployeeMetaTemplateChip() {
     const metaChip = document.getElementById('attachedMetaTemplateChip');
     const metaTemplatesInput = document.getElementById('employeeQuickReplyMetaTemplates');
+    const metaHeaderUrlInput = document.getElementById('employeeMetaTemplateHeaderMediaUrl');
     if (metaChip) metaChip.classList.add('d-none');
     if (metaTemplatesInput) metaTemplatesInput.value = '';
+    if (metaHeaderUrlInput) metaHeaderUrlInput.value = '';
 }
 
 function hideKeywordSuggestions() {
@@ -1957,6 +1963,10 @@ function submitMessage(e) {
             const metaIn = document.getElementById('employeeQuickReplyMetaTemplates');
             if (metaIn) metaIn.value = qrMetaTemplates;
         }
+        if (matchedTpl.meta_template_header_media_url) {
+            const headerIn = document.getElementById('employeeMetaTemplateHeaderMediaUrl');
+            if (headerIn) headerIn.value = matchedTpl.meta_template_header_media_url;
+        }
         if (matchedTpl.media && matchedTpl.media.length > 0) {
             qrMediaIds = matchedTpl.media.map(m => m.id).join(',');
             const mediaIn = document.getElementById('employeeQuickReplyMediaIds');
@@ -1969,7 +1979,9 @@ function submitMessage(e) {
         input.value = msg;
     }
 
-    if (!msg && !isPdfAttached && !employeeCustomFile && !qrMediaIds && !qrMetaTemplates) return;
+    const qrHeaderMediaUrl = (document.getElementById('employeeMetaTemplateHeaderMediaUrl')?.value || '').trim();
+
+    if (!msg && !isPdfAttached && !employeeCustomFile && !qrMediaIds && !qrMetaTemplates && !qrHeaderMediaUrl) return;
 
     const sendBtn = document.getElementById('sendMsgBtn');
     const sendBtnText = document.getElementById('sendMsgBtnText');
@@ -1983,11 +1995,14 @@ function submitMessage(e) {
         formData.append('attachment', employeeCustomFile);
     }
     if (qrMediaIds) {
-            formData.append('quick_reply_media_ids', qrMediaIds);
-        }
-        if (qrMetaTemplates) {
-            formData.append('quick_reply_meta_templates', qrMetaTemplates);
-        }
+        formData.append('quick_reply_media_ids', qrMediaIds);
+    }
+    if (qrMetaTemplates) {
+        formData.append('quick_reply_meta_templates', qrMetaTemplates);
+    }
+    if (qrHeaderMediaUrl) {
+        formData.append('meta_template_header_media_url', qrHeaderMediaUrl);
+    }
     formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
 
     fetch(`/employee/whatsapp/${currentCustomerId}/send/`, {

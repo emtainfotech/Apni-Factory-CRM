@@ -258,9 +258,10 @@ class WhatsAppQuickReplyMediaInline(admin.TabularInline):
 
 @admin.register(WhatsAppQuickReply)
 class WhatsAppQuickReplyAdmin(admin.ModelAdmin):
-    list_display = ('title', 'keyword', 'content_type', 'is_active', 'created_by', 'created_at')
+    list_display = ('title', 'keyword', 'content_type', 'meta_template_names', 'meta_template_header_media_url', 'is_active', 'created_by', 'created_at')
     list_filter = ('content_type', 'is_active')
-    search_fields = ('title', 'keyword', 'message')
+    search_fields = ('title', 'keyword', 'message', 'meta_template_names', 'meta_template_header_media_url')
+    fields = ('title', 'keyword', 'content_type', 'message', 'meta_template_names', 'meta_template_header_media_url', 'is_active', 'created_by')
     inlines = [WhatsAppQuickReplyMediaInline]
 
 

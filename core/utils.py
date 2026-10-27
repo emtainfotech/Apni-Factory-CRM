@@ -365,15 +365,40 @@ def send_template_message(to_number, template_name, language_code=None, componen
     if components is None:
         components = []
         if header_image_url:
-            components.append({
-                "type": "header",
-                "parameters": [
-                    {
-                        "type": "image",
-                        "image": {"link": header_image_url}
-                    }
-                ]
-            })
+            lower_url = header_image_url.lower()
+            if any(lower_url.endswith(ext) or ext in lower_url for ext in ['.mp4', '.mov', '.3gp', '.mkv']):
+                components.append({
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "video",
+                            "video": {"link": header_image_url}
+                        }
+                    ]
+                })
+            elif any(lower_url.endswith(ext) or ext in lower_url for ext in ['.pdf', '.doc', '.docx', '.xlsx']):
+                components.append({
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "document",
+                            "document": {
+                                "link": header_image_url,
+                                "filename": header_document_filename or header_image_url.split('/')[-1].split('?')[0] or "document.pdf"
+                            }
+                        }
+                    ]
+                })
+            else:
+                components.append({
+                    "type": "header",
+                    "parameters": [
+                        {
+                            "type": "image",
+                            "image": {"link": header_image_url}
+                        }
+                    ]
+                })
         elif header_document_url:
             doc_param = {
                 "type": "document",

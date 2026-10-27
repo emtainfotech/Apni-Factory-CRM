@@ -122,6 +122,7 @@
         <input type="hidden" id="coreAttachSellerGuideInput" value="false">
         <input type="hidden" id="coreQuickReplyMediaIds" name="quick_reply_media_ids" value="">
         <input type="hidden" id="coreQuickReplyMetaTemplates" name="quick_reply_meta_templates" value="">
+        <input type="hidden" id="coreMetaTemplateHeaderMediaUrl" name="meta_template_header_media_url" value="">
         <input type="file" id="coreAttachmentFileInput" class="d-none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,video/*" onchange="handleCoreFileInputChange(this.files)">
 
         <div class="input-group shadow-sm bg-white rounded-3 border border-300 focus-ring-primary transition-base" style="border-radius: 20px !important; overflow: hidden;">
@@ -493,6 +494,9 @@ function applyCoreQuickReplyTemplate(templateId) {
     }
 
     // 2. Stage Meta Templates
+    const metaHeaderUrlInput = document.getElementById('coreMetaTemplateHeaderMediaUrl');
+    if (metaHeaderUrlInput) metaHeaderUrlInput.value = t.meta_template_header_media_url || '';
+
     if (t.meta_template_names) {
         if (metaTemplatesInput) metaTemplatesInput.value = t.meta_template_names;
         const metaChip = document.getElementById('coreAttachedMetaTemplateChip');
@@ -722,8 +726,10 @@ function toggleCorePdfAttachment(forceState) {
 function clearCoreMetaTemplateChip() {
     const metaChip = document.getElementById('coreAttachedMetaTemplateChip');
     const metaTemplatesInput = document.getElementById('coreQuickReplyMetaTemplates');
+    const metaHeaderUrlInput = document.getElementById('coreMetaTemplateHeaderMediaUrl');
     if (metaChip) metaChip.classList.add('d-none');
     if (metaTemplatesInput) metaTemplatesInput.value = '';
+    if (metaHeaderUrlInput) metaHeaderUrlInput.value = '';
 }
 
 function hideCoreKeywordSuggestions() {
@@ -1329,6 +1335,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const metaIn = document.getElementById('coreQuickReplyMetaTemplates');
                 if (metaIn) metaIn.value = qrMetaTemplates;
             }
+            if (matchedTpl.meta_template_header_media_url) {
+                const headerIn = document.getElementById('coreMetaTemplateHeaderMediaUrl');
+                if (headerIn) headerIn.value = matchedTpl.meta_template_header_media_url;
+            }
             if (matchedTpl.media && matchedTpl.media.length > 0) {
                 qrMediaIds = matchedTpl.media.map(m => m.id).join(',');
                 const mediaIn = document.getElementById('coreQuickReplyMediaIds');
@@ -1342,7 +1352,9 @@ document.addEventListener('DOMContentLoaded', function() {
             chatInput.value = msg;
         }
 
-        if(!msg && !isCorePdfAttached && !coreCustomFile && !qrMediaIds && !qrMetaTemplates) return;
+        const qrHeaderMediaUrl = (document.getElementById('coreMetaTemplateHeaderMediaUrl')?.value || '').trim();
+
+        if(!msg && !isCorePdfAttached && !coreCustomFile && !qrMediaIds && !qrMetaTemplates && !qrHeaderMediaUrl) return;
         if(!customerId) return;
 
         const sendBtn = document.getElementById('coreSendMsgBtn');
@@ -1361,6 +1373,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         if (qrMetaTemplates) {
             formData.append('quick_reply_meta_templates', qrMetaTemplates);
+        }
+        if (qrHeaderMediaUrl) {
+            formData.append('meta_template_header_media_url', qrHeaderMediaUrl);
         }
 
         fetch(`/core/whatsapp/send/${customerId}/`, {

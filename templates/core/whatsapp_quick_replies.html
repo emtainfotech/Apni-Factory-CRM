@@ -190,10 +190,15 @@
                                     {{ t.message|default:"(No text caption)" }}
                                 </div>
                                 {% if t.meta_template_names %}
-                                <div class="mt-1">
+                                <div class="mt-1 d-flex flex-wrap align-items-center gap-1">
                                     <span class="badge bg-success-subtle text-success fs-11" title="Approved Meta WhatsApp Template">
-                                        <i class="fab fa-whatsapp me-1"></i>Meta Template: {{ t.meta_template_names }}
+                                        <i class="fab fa-whatsapp me-1"></i>Meta: {{ t.meta_template_names }}
                                     </span>
+                                    {% if t.meta_template_header_media_url %}
+                                    <a href="{{ t.meta_template_header_media_url }}" target="_blank" class="badge bg-primary-subtle text-primary fs-11 text-decoration-none" title="Header Media Link: {{ t.meta_template_header_media_url }}">
+                                        <i class="fas fa-link me-1"></i>Header Media
+                                    </a>
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                             </td>
@@ -402,7 +407,18 @@
                     <div class="mb-3">
                         <label class="form-label fs-9 fw-bold">Attach WhatsApp Meta Templates (Optional)</label>
                         <input type="text" name="meta_template_names" class="form-control form-control-sm" placeholder="e.g. apni_factory_paint_buyers_hindi, hello_world">
-                        <div class="form-text fs-11">Separate multiple template names with commas. If your Meta template requires an Image or Document header, attach media above or the official company banner/logo is automatically attached.</div>
+                        <div class="form-text fs-11">Separate multiple template names with commas.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-9 fw-bold">Meta Template Header Media Link (Image / Document / Video URL)</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-image text-success"></i></span>
+                            <input type="url" name="meta_template_header_media_url" class="form-control" placeholder="https://... direct public URL for image, document, or video header">
+                        </div>
+                        <div class="form-text fs-11">
+                            Direct public HTTPS URL for the Meta template header (e.g. your paint products image or PDF link). If left empty, uploading a file above will automatically be used!
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
@@ -504,7 +520,18 @@
                     <div class="mb-3">
                         <label class="form-label fs-9 fw-bold">Attach WhatsApp Meta Templates (Optional)</label>
                         <input type="text" name="meta_template_names" id="editMetaTemplatesInput" class="form-control form-control-sm" placeholder="e.g. apni_factory_paint_buyers_hindi, hello_world">
-                        <div class="form-text fs-11">Separate multiple template names with commas. If your Meta template requires an Image or Document header, attach media above or the official company banner/logo is automatically attached.</div>
+                        <div class="form-text fs-11">Separate multiple template names with commas.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fs-9 fw-bold">Meta Template Header Media Link (Image / Document / Video URL)</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="fas fa-image text-primary"></i></span>
+                            <input type="url" name="meta_template_header_media_url" id="editMetaTemplateHeaderMediaUrl" class="form-control" placeholder="https://... direct public URL for image, document, or video header">
+                        </div>
+                        <div class="form-text fs-11">
+                            Direct public HTTPS URL for the Meta template header (e.g. your paint products image or PDF link). If left empty, uploading a file above will automatically be used!
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer bg-light border-top py-2">
@@ -638,6 +665,8 @@ function openEditModal(templateId) {
 
                 // Set Meta Templates
                 document.getElementById('editMetaTemplatesInput').value = t.meta_template_names || '';
+                const headerMediaEl = document.getElementById('editMetaTemplateHeaderMediaUrl');
+                if (headerMediaEl) headerMediaEl.value = t.meta_template_header_media_url || '';
 
                 // Handle existing media display
                 const existingSec = document.getElementById('editExistingMediaSection');
