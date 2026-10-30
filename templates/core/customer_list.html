@@ -85,7 +85,7 @@
                 <!-- Filter Form -->
                 <div class="p-3 border-bottom bg-body-tertiary">
                     <form class="row g-2 align-items-center" id="customer-filter-form">
-                        <!-- Row 1: Search & Primary Selectors -->
+                        <!-- Row 1: Search & Core Categorization -->
                         <div class="col-12 col-md-3">
                             <div class="search-box position-relative">
                                 <input class="form-control form-control-sm search-input search" type="search" name="q" value="{{ query|default:'' }}" placeholder="Search company, name, phone, city..." 
@@ -104,7 +104,7 @@
                             </select>
                         </div>
 
-                        <!-- Connection Status Filter (NEW) -->
+                        <!-- Connection Status Filter -->
                         <div class="col-6 col-md-2">
                             <select class="form-select form-select-sm" name="connection_status" id="filter-connection-status"
                                     hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
@@ -118,7 +118,81 @@
                             </select>
                         </div>
 
-                        <!-- Assigned To Filter (Unassigned vs Assigned vs Employee) -->
+                        <!-- Date Range Preset Filter -->
+                        <div class="col-6 col-md-2">
+                            <select class="form-select form-select-sm" name="date_preset" id="filter-date-preset" onchange="toggleAdminCustomDates(this.value)"
+                                    hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <option value="" {% if not selected_date_preset %}selected{% endif %}>📅 All Dates (Recent First)</option>
+                                <option value="today" {% if selected_date_preset == 'today' %}selected{% endif %}>📅 Today</option>
+                                <option value="week" {% if selected_date_preset == 'week' %}selected{% endif %}>📅 This Week</option>
+                                <option value="month" {% if selected_date_preset == 'month' %}selected{% endif %}>📅 This Month</option>
+                                <option value="year" {% if selected_date_preset == 'year' %}selected{% endif %}>📅 This Year</option>
+                                <option value="custom" {% if selected_date_preset == 'custom' %}selected{% endif %}>📅 Custom Range...</option>
+                            </select>
+                        </div>
+
+                        <!-- Multi-Select Remarks Filter Checkbox Dropdown -->
+                        <div class="col-6 col-md-3">
+                            <div class="dropdown w-100" id="remark-dropdown-wrapper">
+                                <button class="btn btn-phoenix-secondary btn-sm dropdown-toggle w-100 text-truncate text-start d-flex justify-content-between align-items-center" type="button" id="remarkDropdownBtn" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                                    <span class="text-truncate" id="remark-btn-label">
+                                        <i class="fas fa-comment-dots text-primary me-1"></i>
+                                        {% if selected_remarks %}
+                                            Remarks ({{ selected_remarks|length }} selected)
+                                        {% else %}
+                                            All Remarks
+                                        {% endif %}
+                                    </span>
+                                </button>
+                                <div class="dropdown-menu p-2 shadow-lg border" aria-labelledby="remarkDropdownBtn" style="min-width: 280px; max-height: 360px; overflow-y: auto;">
+                                    <div class="mb-2">
+                                        <input type="text" class="form-control form-control-sm fs-10" id="remarkSearchInput" placeholder="Search remarks..." onkeyup="filterRemarkCheckboxes()">
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center mb-2 px-1 border-bottom pb-1">
+                                        <button type="button" class="btn btn-link btn-xs p-0 text-primary fw-bold text-decoration-none" onclick="selectAllRemarks(true)">Select All</button>
+                                        <button type="button" class="btn btn-link btn-xs p-0 text-muted text-decoration-none" onclick="selectAllRemarks(false)">Clear</button>
+                                    </div>
+                                    <div id="remarkCheckboxList">
+                                        <!-- No Remarks Checkbox -->
+                                        <div class="form-check py-1 px-3 remark-check-item">
+                                            <input class="form-check-input remark-checkbox" type="checkbox" name="remarks" value="__none__" id="rem_none"
+                                                   {% if '__none__' in selected_remarks %}checked{% endif %}
+                                                   hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" onchange="updateRemarkBtnLabel()">
+                                            <label class="form-check-label fs-10 text-body-secondary text-truncate d-block" for="rem_none">
+                                                ⚪ <em>(No remarks logged)</em>
+                                            </label>
+                                        </div>
+                                        <!-- Available Remarks -->
+                                        {% for rem in available_remarks %}
+                                        <div class="form-check py-1 px-3 remark-check-item">
+                                            <input class="form-check-input remark-checkbox" type="checkbox" name="remarks" value="{{ rem }}" id="rem_{{ forloop.counter }}"
+                                                   {% if rem in selected_remarks %}checked{% endif %}
+                                                   hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" onchange="updateRemarkBtnLabel()">
+                                            <label class="form-check-label fs-10 text-body-secondary text-truncate d-block" for="rem_{{ forloop.counter }}" title="{{ rem }}">
+                                                {{ rem }}
+                                            </label>
+                                        </div>
+                                        {% empty %}
+                                        <div class="text-muted fs-11 p-2 text-center">No logged call remarks yet</div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Custom Date Inputs (Displayed when Custom is active) -->
+                        <div class="col-12 col-md-6 {% if selected_date_preset != 'custom' %}d-none{% endif %}" id="admin-custom-dates-row">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-body-tertiary fs-11"><i class="fas fa-calendar-alt text-primary me-1"></i>From:</span>
+                                <input type="date" class="form-control form-control-sm" name="start_date" id="admin-start-date" value="{{ selected_start_date|default:'' }}"
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                                <span class="input-group-text bg-body-tertiary fs-11">To:</span>
+                                <input type="date" class="form-control form-control-sm" name="end_date" id="admin-end-date" value="{{ selected_end_date|default:'' }}"
+                                       hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
+                            </div>
+                        </div>
+
+                        <!-- Row 2: Assignment, Stage, Source & Locations -->
                         <div class="col-6 col-md-3">
                             <select class="form-select form-select-sm" name="assigned_to" id="filter-assigned-to"
                                     hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
@@ -159,7 +233,6 @@
                             </select>
                         </div>
 
-                        <!-- Row 2: Location Filters (State, City, Pincode), Source, Per Page, and Reset -->
                         <div class="col-6 col-md-2">
                             <select class="form-select form-select-sm" name="lead_source"
                                     hx-get="{% url 'customer_list' %}" hx-trigger="change" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner">
@@ -171,10 +244,10 @@
                         </div>
 
                         <!-- State Filter with Datalist -->
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md-2">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-body-tertiary"><i class="fas fa-map-marker-alt text-danger"></i></span>
-                                <input class="form-control form-control-sm" list="state-options-list" name="state" id="filter-state" value="{{ selected_state|default:'' }}" placeholder="Filter by State..." 
+                                <input class="form-control form-control-sm" list="state-options-list" name="state" id="filter-state" value="{{ selected_state|default:'' }}" placeholder="State..." 
                                        hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
                                 <datalist id="state-options-list">
                                     {% for st in state_choices %}
@@ -185,10 +258,10 @@
                         </div>
 
                         <!-- City Filter -->
-                        <div class="col-6 col-md-3">
+                        <div class="col-6 col-md-2">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-text bg-body-tertiary"><i class="fas fa-city text-primary"></i></span>
-                                <input class="form-control form-control-sm" type="text" name="city" id="filter-city" value="{{ selected_city|default:'' }}" placeholder="Filter by City..." 
+                                <input class="form-control form-control-sm" type="text" name="city" id="filter-city" value="{{ selected_city|default:'' }}" placeholder="City..." 
                                        hx-get="{% url 'customer_list' %}" hx-trigger="keyup changed delay:500ms" hx-target="#customer-table-content" hx-include="#customer-filter-form" hx-indicator="#search-spinner" />
                             </div>
                         </div>
@@ -570,6 +643,54 @@
         const waInput = document.querySelector('#addCustomerForm input[name="whatsapp_number"]');
         if (phoneInput && waInput && phoneInput.value) {
             waInput.value = phoneInput.value;
+        }
+    }
+
+    // Date & Remark Filter Helpers
+    function toggleAdminCustomDates(val) {
+        const row = document.getElementById('admin-custom-dates-row');
+        if (!row) return;
+        if (val === 'custom') {
+            row.classList.remove('d-none');
+        } else {
+            row.classList.add('d-none');
+            const s = document.getElementById('admin-start-date');
+            const e = document.getElementById('admin-end-date');
+            if (s) s.value = '';
+            if (e) e.value = '';
+        }
+    }
+
+    function filterRemarkCheckboxes() {
+        const query = (document.getElementById('remarkSearchInput').value || '').toLowerCase().trim();
+        const items = document.querySelectorAll('#remarkCheckboxList .remark-check-item');
+        items.forEach(item => {
+            const label = item.textContent.toLowerCase();
+            item.style.display = (!query || label.includes(query)) ? '' : 'none';
+        });
+    }
+
+    function selectAllRemarks(select) {
+        const checkboxes = document.querySelectorAll('#remarkCheckboxList .remark-checkbox');
+        checkboxes.forEach(cb => {
+            if (cb.closest('.remark-check-item').style.display !== 'none') {
+                cb.checked = select;
+            }
+        });
+        updateRemarkBtnLabel();
+        if (checkboxes.length > 0) {
+            htmx.trigger(checkboxes[0], 'change');
+        }
+    }
+
+    function updateRemarkBtnLabel() {
+        const checked = document.querySelectorAll('#remarkCheckboxList .remark-checkbox:checked');
+        const label = document.getElementById('remark-btn-label');
+        if (!label) return;
+        if (checked.length === 0) {
+            label.innerHTML = '<i class="fas fa-comment-dots text-primary me-1"></i> All Remarks';
+        } else {
+            label.innerHTML = `<i class="fas fa-comment-dots text-primary me-1"></i> Remarks (${checked.length} selected)`;
         }
     }
 

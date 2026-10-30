@@ -152,7 +152,7 @@
 
     <!-- Live Performance KPIs Stats Grid -->
     <div class="row g-3 mb-4 row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-5">
-        <!-- Customers Connected (New Metric) -->
+        <!-- Customers Connected -->
         <div class="col">
             <div class="card shadow-sm border-0 h-100 border-start border-4 border-primary">
                 <div class="card-body p-3">
@@ -163,8 +163,9 @@
                         <div class="flex-grow-1 min-w-0">
                             <h3 class="mb-0 text-primary fw-bolder">{{ connected_today_count }}</h3>
                             <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase text-truncate">Customers Connected</p>
-                            <div class="fs-11 text-muted text-truncate">
-                                <span class="text-success fw-semibold">+{{ connected_today_created }}</span> created &bull; <span class="text-info fw-semibold">+{{ connected_today_updated }}</span> updated
+                            <div class="d-flex gap-1 flex-wrap fs-11 mt-1">
+                                <span class="badge bg-info-subtle text-info border border-info-subtle px-1 py-0.5">🛍️ {{ connected_today_buyers }} Buyers</span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-1 py-0.5">🏭 {{ connected_today_sellers }} Sellers</span>
                             </div>
                         </div>
                     </div>
@@ -174,16 +175,16 @@
 
         <!-- Assigned Leads -->
         <div class="col">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 border-start border-4 border-info">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center">
                         <div class="icon-circle bg-info-subtle text-info me-3">
                             <i class="fas fa-bullhorn"></i>
                         </div>
-                        <div>
-                            <h3 class="mb-0">{{ assigned_leads }}</h3>
-                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Assigned Leads</p>
-                            <span class="fs-11 text-muted">Personal pipeline</span>
+                        <div class="flex-grow-1 min-w-0">
+                            <h3 class="mb-0 text-info fw-bolder">{{ assigned_leads }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase text-truncate">Assigned Leads</p>
+                            <span class="fs-11 text-muted text-truncate d-block">Personal active pipeline</span>
                         </div>
                     </div>
                 </div>
@@ -192,16 +193,18 @@
         
         <!-- Calls Completed Today -->
         <div class="col">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 border-start border-4 border-success">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center">
                         <div class="icon-circle bg-success-subtle text-success me-3">
                             <i class="fas fa-phone-alt"></i>
                         </div>
-                        <div>
-                            <h3 class="mb-0">{{ today_calls }}</h3>
-                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Calls Today</p>
-                            <span class="fs-11 text-muted">Outreach dialed</span>
+                        <div class="flex-grow-1 min-w-0">
+                            <h3 class="mb-0 text-success fw-bolder">{{ today_calls }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase text-truncate">Calls Today</p>
+                            <div class="fs-11 text-muted text-truncate">
+                                <span class="text-success fw-bold">{{ today_connected_calls }} connected</span> ({{ connection_rate }}%) &bull; {{ week_calls }} this wk
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -210,16 +213,16 @@
         
         <!-- Converted Customers -->
         <div class="col">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 border-start border-4 border-warning">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center">
                         <div class="icon-circle bg-warning-subtle text-warning me-3">
                             <i class="fas fa-user-check"></i>
                         </div>
-                        <div>
-                            <h3 class="mb-0">{{ active_customers }}</h3>
-                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Converted Clients</p>
-                            <span class="fs-11 text-muted">Active accounts</span>
+                        <div class="flex-grow-1 min-w-0">
+                            <h3 class="mb-0 text-warning fw-bolder">{{ active_customers }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase text-truncate">Converted Clients</p>
+                            <span class="fs-11 text-muted text-truncate d-block">Active customer accounts</span>
                         </div>
                     </div>
                 </div>
@@ -228,16 +231,16 @@
         
         <!-- Live E-commerce Sales Volume Generated -->
         <div class="col">
-            <div class="card shadow-sm border-0 h-100">
+            <div class="card shadow-sm border-0 h-100 border-start border-4 border-danger">
                 <div class="card-body p-3">
                     <div class="d-flex align-items-center">
                         <div class="icon-circle bg-danger-subtle text-danger me-3">
                             <i class="fas fa-rupee-sign"></i>
                         </div>
-                        <div>
-                            <h3 class="mb-0">₹{{ total_business|floatformat:2 }}</h3>
-                            <p class="text-body-tertiary fs-10 mb-0 fw-bold text-uppercase">Sales Volume</p>
-                            <span class="fs-11 text-muted">App order value</span>
+                        <div class="flex-grow-1 min-w-0">
+                            <h3 class="mb-0 text-danger fw-bolder">₹{{ total_business|floatformat:2 }}</h3>
+                            <p class="text-body-tertiary fs-10 mb-1 fw-bold text-uppercase text-truncate">Sales Volume</p>
+                            <span class="fs-11 text-muted text-truncate d-block">App order revenue</span>
                         </div>
                     </div>
                 </div>
@@ -245,142 +248,182 @@
         </div>
     </div>
 
-    <!-- SECTION: TODAY'S SCHEDULED FOLLOW-UPS -->
-    <div class="card shadow-sm border-0 mb-4 border-top border-4 border-warning">
-        <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center py-3">
-            <div class="d-flex align-items-center gap-2">
-                <span class="avatar avatar-m bg-warning-subtle text-warning rounded-circle d-flex align-items-center justify-content-center">
-                    <i class="fas fa-calendar-check fs-9"></i>
-                </span>
-                <div>
-                    <h5 class="mb-0 fw-bold">Today's Scheduled Follow-ups</h5>
-                    <span class="text-body-tertiary fs-10">Actionable follow-up appointments & callbacks scheduled for today</span>
+    <!-- SECTION: CALL OUTREACH & PERFORMANCE HUB -->
+    <div class="card shadow-sm border-0 mb-4 border-top border-4 border-primary">
+        <div class="card-header bg-body-tertiary py-3">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="avatar avatar-m bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center">
+                        <i class="fas fa-headset fs-9"></i>
+                    </span>
+                    <div>
+                        <h5 class="mb-0 fw-bold">Call Center & Customer Outreach Hub</h5>
+                        <span class="text-body-tertiary fs-10">Real-time breakdown of your calls dialed, remarks, scheduled follow-ups, and pending first contacts</span>
+                    </div>
+                </div>
+                
+                <!-- Quick Metric Badges -->
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2 fs-10">
+                        <i class="fas fa-phone-alt me-1"></i><strong>{{ today_connected_calls }}</strong> Connected Today ({{ connection_rate }}%)
+                    </span>
+                    <span class="badge bg-info-subtle text-info border border-info-subtle py-1 px-2 fs-10">
+                        <i class="fas fa-stopwatch me-1"></i><strong>{{ call_talk_minutes }}</strong> min Talk Time
+                    </span>
+                    {% if waiting_first_call_count > 0 %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-1 px-2 fs-10">
+                        <i class="fas fa-bolt me-1"></i><strong>{{ waiting_first_call_count }}</strong> Needs First Call
+                    </span>
+                    {% endif %}
+                    {% if overdue_followups_count > 0 %}
+                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2 fs-10">
+                        <i class="fas fa-clock me-1"></i><strong>{{ overdue_followups_count }}</strong> Overdue Follow-ups
+                    </span>
+                    {% endif %}
                 </div>
             </div>
-            <div class="d-flex align-items-center gap-2">
-                {% if overdue_followups_count > 0 %}
-                <span class="badge badge-phoenix badge-phoenix-danger fs-10">
-                    <i class="fas fa-clock me-1"></i>{{ overdue_followups_count }} Overdue
-                </span>
-                {% endif %}
-                <span class="badge badge-phoenix badge-phoenix-warning fs-10 fw-bold">
-                    {{ todays_followups_count }} Scheduled Today
-                </span>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm fs-9 mb-0 align-middle">
-                    <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
-                        <tr>
-                            <th class="ps-4 py-2">Customer Contact</th>
-                            <th class="py-2">Party Type</th>
-                            <th class="py-2">Scheduled Time</th>
-                            <th class="py-2">Previous Summary / Agenda</th>
-                            <th class="text-end pe-4 py-2">Quick Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for f in todays_followups %}
-                        <tr class="align-middle">
-                            <td class="ps-4 py-3">
-                                <a href="{% url 'employee_portal:customer_detail' f.customer.id %}" class="fw-bold text-primary text-decoration-none">
-                                    {{ f.customer.first_name }} {{ f.customer.last_name }}
-                                </a>
-                                {% if f.customer.company_name %}
-                                <div class="text-body-tertiary fs-10 fw-semibold">{{ f.customer.company_name }}</div>
-                                {% endif %}
-                                <div class="text-body-quaternary fs-10"><i class="fas fa-phone me-1"></i>{{ f.customer.phone }}</div>
-                            </td>
-                            <td>
-                                {% if f.customer.customer_type == 'seller' %}
-                                <span class="badge badge-phoenix badge-phoenix-success fs-10">Seller / Vendor</span>
-                                {% else %}
-                                <span class="badge badge-phoenix badge-phoenix-warning fs-10">Buyer / Contractor</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="badge badge-phoenix badge-phoenix-info fs-10">
-                                    <i class="fas fa-clock me-1"></i>{{ f.follow_up_date|timezone:"Asia/Kolkata"|date:"h:i A" }} IST
-                                </span>
-                            </td>
-                            <td>
-                                <div class="text-body-highlight line-clamp-2" title="{{ f.remark }}">{{ f.remark|default:"Scheduled Follow-up Callback" }}</div>
-                            </td>
-                            <td class="text-end pe-4">
-                                <div class="d-inline-flex gap-1">
-                                    <a href="tel:{{ f.customer.phone }}" class="btn btn-phoenix-success btn-xs" title="Call directly">
-                                        <i class="fas fa-phone-alt me-1"></i>Call
-                                    </a>
-                                    <a href="{% url 'employee_portal:whatsapp_inbox' %}?customer_id={{ f.customer.id }}" class="btn btn-phoenix-info btn-xs" title="Open WhatsApp Chat">
-                                        <i class="fab fa-whatsapp me-1"></i>WhatsApp
-                                    </a>
-                                    <a href="{% url 'employee_portal:customer_detail' f.customer.id %}" class="btn btn-phoenix-primary btn-xs" title="View 360 profile">
-                                        <i class="fas fa-user me-1"></i>Profile
-                                    </a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="text-center py-4 text-body-tertiary">
-                                <div class="avatar avatar-l bg-success-subtle text-success mx-auto mb-2 rounded-circle d-flex align-items-center justify-content-center">
-                                    <i class="fas fa-check-circle fs-8"></i>
-                                </div>
-                                <h6 class="mb-1 text-body-highlight">No Scheduled Follow-ups Pending Today!</h6>
-                                <p class="fs-10 text-body-tertiary mb-0">You're all caught up with your scheduled callbacks and client follow-ups.</p>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
 
-    <!-- Recent Logs and Orders Sections -->
-    <div class="row g-4 mb-4">
-        <!-- Call Logs Card -->
-        <div class="col-12 col-xl-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">My Recent Call Logs</h5>
-                    <a href="{% url 'employee_portal:customer_list' %}" class="btn btn-sm btn-link p-0">Manage Customers</a>
-                </div>
-                <div class="card-body p-0">
+            <!-- Tab Navigation Bar -->
+            <ul class="nav nav-tabs card-header-tabs mt-3 border-bottom-0" id="callHubTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-bold fs-9" id="tab-today-calls-btn" data-bs-toggle="tab" data-bs-target="#tab-today-calls" type="button" role="tab" aria-selected="true">
+                        <i class="fas fa-phone-volume text-success me-1"></i>Today's Calls & Logs ({{ today_calls }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold fs-9" id="tab-followups-btn" data-bs-toggle="tab" data-bs-target="#tab-followups" type="button" role="tab" aria-selected="false">
+                        <i class="fas fa-calendar-check text-warning me-1"></i>Scheduled Follow-ups ({{ todays_followups_count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold fs-9" id="tab-uncalled-btn" data-bs-toggle="tab" data-bs-target="#tab-uncalled" type="button" role="tab" aria-selected="false">
+                        <i class="fas fa-bolt text-danger me-1"></i>Uncalled Assigned Leads ({{ waiting_first_call_count }})
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold fs-9" id="tab-recent-calls-btn" data-bs-toggle="tab" data-bs-target="#tab-recent-calls" type="button" role="tab" aria-selected="false">
+                        <i class="fas fa-history text-secondary me-1"></i>Recent Call History
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-bold fs-9" id="tab-orders-btn" data-bs-toggle="tab" data-bs-target="#tab-orders" type="button" role="tab" aria-selected="false">
+                        <i class="fas fa-shopping-bag text-primary me-1"></i>Client App Orders ({{ recent_orders|length }})
+                    </button>
+                </li>
+            </ul>
+        </div>
+
+        <div class="card-body p-0">
+            <div class="tab-content" id="callHubTabContent">
+                
+                <!-- TAB 1: Today's Calls & Logs -->
+                <div class="tab-pane fade show active" id="tab-today-calls" role="tabpanel" aria-labelledby="tab-today-calls-btn">
                     <div class="table-responsive">
-                        <table class="table table-sm fs-9 mb-0">
-                            <thead>
+                        <table class="table table-hover table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
                                 <tr>
-                                    <th class="ps-4 py-2">Customer Name</th>
+                                    <th class="ps-4 py-2">Customer / Account</th>
+                                    <th class="py-2">Party Type</th>
+                                    <th class="py-2">Contact Info</th>
                                     <th class="py-2">Call Status</th>
-                                    <th class="py-2">Call Summary Remark</th>
-                                    <th class="text-end pe-4 py-2">Logged Time</th>
+                                    <th class="py-2">Duration</th>
+                                    <th class="py-2" style="min-width: 250px;">Call Summary & Remarks</th>
+                                    <th class="py-2">Logged Time</th>
+                                    <th class="pe-4 py-2 text-end">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for log in recent_calls %}
+                                {% for log in today_call_logs %}
                                 <tr class="align-middle">
                                     <td class="ps-4 py-3">
                                         <a href="{% url 'employee_portal:customer_detail' log.customer.id %}" class="fw-bold text-primary text-decoration-none">
-                                            {{ log.customer.first_name }} {{ log.customer.last_name }}
+                                            {{ log.customer.display_title }}
                                         </a>
-                                        <div class="text-body-quaternary fs-10">{{ log.customer.phone }}</div>
+                                        {% if log.customer.display_subtitle %}
+                                        <div class="text-body-tertiary fs-11">{{ log.customer.display_subtitle }}</div>
+                                        {% endif %}
                                     </td>
                                     <td>
-                                        <span class="badge badge-phoenix badge-phoenix-{% if log.call_status == 'connected' %}success{% elif log.call_status == 'follow_up' %}warning{% else %}danger{% endif %} fs-11">
-                                            {{ log.get_call_status_display }}
+                                        <span class="badge badge-phoenix {% if log.customer.customer_type == 'seller' %}badge-phoenix-success{% else %}badge-phoenix-info{% endif %} fs-11">
+                                            {% if log.customer.customer_type == 'seller' %}🏭 Seller{% else %}🛍️ Buyer{% endif %}
                                         </span>
                                     </td>
                                     <td>
-                                        <div class="line-clamp-1 text-body-tertiary" title="{{ log.remark }}">{{ log.remark }}</div>
+                                        <div class="d-flex align-items-center gap-1">
+                                            <a href="tel:{{ log.customer.phone }}" class="text-body-highlight text-decoration-none fw-semibold">
+                                                <i class="fas fa-phone-alt me-1 text-success"></i>{{ log.customer.phone }}
+                                            </a>
+                                            {% if log.customer.whatsapp_number %}
+                                            <a href="https://wa.me/91{{ log.customer.whatsapp_number }}" target="_blank" class="text-success ms-1" title="WhatsApp">
+                                                <i class="fab fa-whatsapp"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
                                     </td>
-                                    <td class="text-end pe-4 text-body-secondary">{{ log.created_at|date:"H:i (d M)" }}</td>
+                                    <td>
+                                        {% if log.call_status == 'connected' %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-0.5 fs-11">
+                                                <i class="fas fa-check-circle me-1"></i>Connected
+                                            </span>
+                                        {% elif log.call_status == 'follow_up' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-0.5 fs-11">
+                                                <i class="fas fa-calendar-check me-1"></i>Follow Up
+                                            </span>
+                                        {% elif log.call_status == 'busy' %}
+                                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-0.5 fs-11">
+                                                <i class="fas fa-clock me-1"></i>Line Busy
+                                            </span>
+                                        {% elif log.call_status == 'no_answer' %}
+                                            <span class="badge bg-secondary-subtle text-secondary border px-2 py-0.5 fs-11">
+                                                <i class="fas fa-phone-slash me-1"></i>No Answer
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-0.5 fs-11">
+                                                <i class="fas fa-times me-1"></i>Not Connected
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.call_duration %}
+                                            <span class="text-body-highlight fw-semibold">{{ log.call_duration }}s</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="text-body-highlight line-clamp-2" title="{{ log.remark }}">
+                                            {% if log.remark %}
+                                                <i class="fas fa-quote-left text-tertiary me-1 fs-11"></i>{{ log.remark }}
+                                            {% else %}
+                                                <span class="text-muted fst-italic">No discussion notes logged</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td class="text-nowrap text-body-secondary fs-10">
+                                        {{ log.created_at|date:"h:i A" }} IST
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <div class="btn-group btn-group-sm">
+                                            <a href="tel:{{ log.customer.phone }}" class="btn btn-phoenix-success btn-xs" title="Call again">
+                                                <i class="fas fa-phone-alt"></i>
+                                            </a>
+                                            <a href="{% url 'employee_portal:customer_detail' log.customer.id %}" class="btn btn-phoenix-primary btn-xs" title="View 360 profile">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="4" class="text-center py-5 text-body-tertiary">
-                                        <i class="fas fa-phone-slash d-block fs-3 mb-2"></i>No calls logged today.
+                                    <td colspan="8" class="text-center py-5 text-body-tertiary">
+                                        <div class="avatar avatar-xl bg-body-tertiary text-muted rounded-circle mx-auto mb-2 d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-phone-slash fs-6"></i>
+                                        </div>
+                                        <h6 class="mb-1 text-body-highlight">No Calls Dialed Yet Today</h6>
+                                        <p class="fs-10 text-body-tertiary mb-3">Begin reaching out to your assigned leads to start generating connections.</p>
+                                        <a href="{% url 'employee_portal:customer_list' %}" class="btn btn-primary btn-sm">
+                                            <i class="fas fa-users me-1"></i>Open Customer Directory
+                                        </a>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -388,25 +431,208 @@
                         </table>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Recent E-commerce Orders Card -->
-        <div class="col-12 col-xl-6">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header bg-body-tertiary d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">Assigned E-Commerce Customer Orders</h5>
-                    <a href="{% url 'employee_portal:order_list' %}" class="btn btn-sm btn-link p-0">View All Orders</a>
-                </div>
-                <div class="card-body p-0">
+                <!-- TAB 2: Scheduled Follow-ups -->
+                <div class="tab-pane fade" id="tab-followups" role="tabpanel" aria-labelledby="tab-followups-btn">
                     <div class="table-responsive">
-                        <table class="table table-sm fs-9 mb-0">
-                            <thead>
+                        <table class="table table-hover table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Customer Contact</th>
+                                    <th class="py-2">Party Type</th>
+                                    <th class="py-2">Scheduled Time</th>
+                                    <th class="py-2" style="min-width: 250px;">Previous Agenda / Callback Reason</th>
+                                    <th class="text-end pe-4 py-2">Quick Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for f in todays_followups %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <a href="{% url 'employee_portal:customer_detail' f.customer.id %}" class="fw-bold text-primary text-decoration-none">
+                                            {{ f.customer.display_title }}
+                                        </a>
+                                        {% if f.customer.display_subtitle %}
+                                        <div class="text-body-tertiary fs-10 fw-semibold">{{ f.customer.display_subtitle }}</div>
+                                        {% endif %}
+                                        <div class="text-body-quaternary fs-10"><i class="fas fa-phone me-1"></i>{{ f.customer.phone }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix {% if f.customer.customer_type == 'seller' %}badge-phoenix-success{% else %}badge-phoenix-info{% endif %} fs-11">
+                                            {% if f.customer.customer_type == 'seller' %}🏭 Seller{% else %}🛍️ Buyer{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-info fs-10">
+                                            <i class="fas fa-clock me-1"></i>{{ f.follow_up_date|timezone:"Asia/Kolkata"|date:"h:i A" }} IST
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="text-body-highlight line-clamp-2" title="{{ f.remark }}">{{ f.remark|default:"Scheduled Follow-up Callback" }}</div>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="tel:{{ f.customer.phone }}" class="btn btn-phoenix-success btn-xs" title="Call directly">
+                                                <i class="fas fa-phone-alt me-1"></i>Call
+                                            </a>
+                                            <a href="{% url 'employee_portal:whatsapp_inbox' %}?customer_id={{ f.customer.id }}" class="btn btn-phoenix-info btn-xs" title="Open WhatsApp Chat">
+                                                <i class="fab fa-whatsapp me-1"></i>WhatsApp
+                                            </a>
+                                            <a href="{% url 'employee_portal:customer_detail' f.customer.id %}" class="btn btn-phoenix-primary btn-xs" title="View 360 profile">
+                                                <i class="fas fa-user me-1"></i>Profile
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-5 text-body-tertiary">
+                                        <div class="avatar avatar-xl bg-success-subtle text-success mx-auto mb-2 rounded-circle d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-check-circle fs-6"></i>
+                                        </div>
+                                        <h6 class="mb-1 text-body-highlight">No Scheduled Follow-ups Pending Today!</h6>
+                                        <p class="fs-10 text-body-tertiary mb-0">You're all caught up with your scheduled callbacks and client follow-ups.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 3: Uncalled Assigned Leads (First Contact Needed) -->
+                <div class="tab-pane fade" id="tab-uncalled" role="tabpanel" aria-labelledby="tab-uncalled-btn">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Lead / Party Name</th>
+                                    <th class="py-2">Type</th>
+                                    <th class="py-2">Phone Number</th>
+                                    <th class="py-2">Location</th>
+                                    <th class="py-2">Lead Source</th>
+                                    <th class="py-2">Assigned Date</th>
+                                    <th class="pe-4 py-2 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for lead in waiting_first_call_leads %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <a href="{% url 'employee_portal:customer_detail' lead.id %}" class="fw-bold text-primary text-decoration-none">
+                                            {{ lead.display_title }}
+                                        </a>
+                                        {% if lead.display_subtitle %}
+                                        <div class="text-body-tertiary fs-11">{{ lead.display_subtitle }}</div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix {% if lead.customer_type == 'seller' %}badge-phoenix-success{% else %}badge-phoenix-info{% endif %} fs-11">
+                                            {% if lead.customer_type == 'seller' %}🏭 Seller{% else %}🛍️ Buyer{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="tel:{{ lead.phone }}" class="text-body-highlight fw-semibold text-decoration-none">
+                                            <i class="fas fa-phone-alt text-success me-1"></i>{{ lead.phone }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="text-body-secondary">{{ lead.city|default:"-" }}{% if lead.city and lead.state %}, {% endif %}{{ lead.state|default:"" }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary-subtle text-secondary fs-10">
+                                            {{ lead.get_lead_source_display|default:"Direct" }}
+                                        </span>
+                                    </td>
+                                    <td class="text-body-secondary fs-10">
+                                        {{ lead.created_at|date:"d M Y" }}
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <div class="d-inline-flex gap-1">
+                                            <a href="tel:{{ lead.phone }}" class="btn btn-success btn-xs" title="Start First Call">
+                                                <i class="fas fa-phone-alt me-1"></i>Call Now
+                                            </a>
+                                            <a href="{% url 'employee_portal:customer_detail' lead.id %}" class="btn btn-phoenix-primary btn-xs" title="Open Profile">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-5 text-body-tertiary">
+                                        <div class="avatar avatar-xl bg-success-subtle text-success mx-auto mb-2 rounded-circle d-flex align-items-center justify-content-center">
+                                            <i class="fas fa-thumbs-up fs-6"></i>
+                                        </div>
+                                        <h6 class="mb-1 text-body-highlight">Zero Uncalled Leads!</h6>
+                                        <p class="fs-10 text-body-tertiary mb-0">Every customer assigned to your portfolio has been contacted at least once.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 4: Recent All Calls History -->
+                <div class="tab-pane fade" id="tab-recent-calls" role="tabpanel" aria-labelledby="tab-recent-calls-btn">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
+                                <tr>
+                                    <th class="ps-4 py-2">Customer Name</th>
+                                    <th class="py-2">Call Status</th>
+                                    <th class="py-2" style="min-width: 250px;">Call Summary Remark</th>
+                                    <th class="py-2">Logged Date & Time</th>
+                                    <th class="pe-4 py-2 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_calls %}
+                                <tr class="align-middle">
+                                    <td class="ps-4 py-3">
+                                        <a href="{% url 'employee_portal:customer_detail' log.customer.id %}" class="fw-bold text-primary text-decoration-none">
+                                            {{ log.customer.display_title }}
+                                        </a>
+                                        <div class="text-body-quaternary fs-10"><i class="fas fa-phone-alt me-1 text-success"></i>{{ log.customer.phone }}</div>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-phoenix badge-phoenix-{% if log.call_status == 'connected' %}success{% elif log.call_status == 'follow_up' %}warning{% else %}danger{% endif %} fs-11">
+                                            {{ log.get_call_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="line-clamp-2 text-body-highlight" title="{{ log.remark }}">{{ log.remark|default:"No remark recorded" }}</div>
+                                    </td>
+                                    <td class="text-body-secondary fs-10">
+                                        {{ log.created_at|date:"d M Y, h:i A" }} IST
+                                    </td>
+                                    <td class="pe-4 text-end">
+                                        <a href="{% url 'employee_portal:customer_detail' log.customer.id %}" class="btn btn-phoenix-primary btn-xs">
+                                            <i class="fas fa-eye me-1"></i>View Profile
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center py-4 text-muted">No historical calls found.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TAB 5: Client Orders -->
+                <div class="tab-pane fade" id="tab-orders" role="tabpanel" aria-labelledby="tab-orders-btn">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm fs-9 mb-0 align-middle">
+                            <thead class="bg-body-secondary text-body-secondary text-uppercase fs-10">
                                 <tr>
                                     <th class="ps-4 py-2">Order No</th>
                                     <th class="py-2">Grand Total</th>
                                     <th class="py-2">E-commerce Status</th>
-                                    <th class="text-end pe-4 py-2">Order Date</th>
+                                    <th class="pe-4 py-2 text-end">Order Date</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -437,6 +663,7 @@
                         </table>
                     </div>
                 </div>
+
             </div>
         </div>
     </div>

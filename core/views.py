@@ -11,7 +11,7 @@ from django.utils.encoding import force_bytes
 from django.core.mail import EmailMessage
 from django.db.models import Q, Sum, Count, Max, Min, Avg
 from django.core.paginator import Paginator
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 
 # Import Models & Forms
@@ -191,15 +191,36 @@ def admin_dashboard(request):
     elif period == 'month':
         start_date = today.replace(day=1)
         period_label = "This Month"
+    elif period == 'year':
+        start_date = today.replace(month=1, day=1)
+        period_label = "This Year"
     elif period == 'all':
         start_date = None
         period_label = "All Time"
+    elif period == 'custom':
+        start_date_str = request.GET.get('start_date', '').strip()
+        end_date_str = request.GET.get('end_date', '').strip()
+        from datetime import datetime as dt_parser
+        try:
+            start_date = dt_parser.strptime(start_date_str, '%Y-%m-%d').date() if start_date_str else None
+        except ValueError:
+            start_date = None
+        try:
+            end_date = dt_parser.strptime(end_date_str, '%Y-%m-%d').date() if end_date_str else None
+        except ValueError:
+            end_date = None
+        period_label = f"{start_date.strftime('%d %b') if start_date else ''} - {end_date.strftime('%d %b %Y') if end_date else ''}"
     else:
         period = 'today'
         start_date = today
         period_label = "Today"
 
-    date_filter = {'created_at__date__gte': start_date} if start_date else {}
+    if period == 'custom' and start_date and end_date:
+        date_filter = {'created_at__date__gte': start_date, 'created_at__date__lte': end_date}
+    elif start_date:
+        date_filter = {'created_at__date__gte': start_date}
+    else:
+        date_filter = {}
 
     employees = list(User.objects.exclude(Q(role='admin') | Q(is_superuser=True)).order_by('username'))
     
@@ -210,11 +231,15 @@ def admin_dashboard(request):
         # Performance KPIs in selected period
         created_ids = set(Customer.objects.filter(created_by=emp, **date_filter).values_list('id', flat=True))
         updated_ids = set(CustomerActivityLog.objects.filter(employee=emp, **date_filter).values_list('customer_id', flat=True))
-        connected_ids = created_ids.union(updated_ids)
+        call_ids = set(CallLog.objects.filter(employee=emp, **date_filter).values_list('customer_id', flat=True))
+        connected_ids = created_ids.union(updated_ids).union(call_ids)
 
         emp.profiles_created_count = len(created_ids)
         emp.profiles_updated_count = len(updated_ids)
         emp.connected_customers_count = len(connected_ids)
+        emp.connected_buyers_count = Customer.objects.filter(id__in=connected_ids, customer_type='buyer').count()
+        emp.connected_sellers_count = Customer.objects.filter(id__in=connected_ids, customer_type='seller').count()
+
         emp.calls_count = CallLog.objects.filter(employee=emp, **date_filter).count()
         emp.today_calls_count = CallLog.objects.filter(employee=emp, created_at__date=today).count()
         emp.followups_today_count = CallLog.objects.filter(Q(employee=emp) | Q(customer__assigned_to=emp), follow_up_date__date=today).count()
@@ -249,6 +274,8 @@ def admin_dashboard(request):
 
     # Team Aggregate Figures
     team_total_connected = sum(e.connected_customers_count for e in employees)
+    team_connected_buyers = sum(e.connected_buyers_count for e in employees)
+    team_connected_sellers = sum(e.connected_sellers_count for e in employees)
     team_profiles_created = sum(e.profiles_created_count for e in employees)
     team_profiles_updated = sum(e.profiles_updated_count for e in employees)
     team_calls_count = sum(e.calls_count for e in employees)
@@ -276,6 +303,8 @@ def admin_dashboard(request):
         'current_period': period,
         'period_label': period_label,
         'team_total_connected': team_total_connected,
+        'team_connected_buyers': team_connected_buyers,
+        'team_connected_sellers': team_connected_sellers,
         'team_profiles_created': team_profiles_created,
         'team_profiles_updated': team_profiles_updated,
         'team_calls_count': team_calls_count,
@@ -328,6 +357,288 @@ def admin_dashboard(request):
         'active_report_recipients_count': AdminReportRecipient.objects.filter(is_active=True).count(),
     })
     return render(request, 'core/dashboard_admin.html', context)
+
+
+@login_required
+@user_passes_test(is_admin)
+def employee_figure_details(request):
+    """
+    Returns JSON list of customer/call records for the modal popup when an admin clicks
+    on an employee performance figure (Connected, Created, Updated, Calls, Followups, Pipeline).
+    """
+    from django.db.models import OuterRef, Subquery
+    employee_id = request.GET.get('employee_id', '').strip()
+    metric = request.GET.get('metric', 'connected').strip().lower()
+    period = request.GET.get('period', 'today').strip().lower()
+    start_date_str = request.GET.get('start_date', '').strip()
+    end_date_str = request.GET.get('end_date', '').strip()
+
+    today = timezone.localdate()
+    start_date = None
+    end_date = None
+
+    if period == 'today':
+        start_date = today
+        end_date = today
+    elif period == 'week':
+        start_date = today - timedelta(days=today.weekday())
+        end_date = today
+    elif period == 'month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif period == 'year':
+        start_date = today.replace(month=1, day=1)
+        end_date = today
+    elif period == 'custom':
+        if start_date_str:
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        if end_date_str:
+            try:
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+    date_filter = {}
+    if start_date and end_date:
+        date_filter = {'created_at__date__gte': start_date, 'created_at__date__lte': end_date}
+    elif start_date:
+        date_filter = {'created_at__date__gte': start_date}
+
+    emp = None
+    emp_filter_cust = {}
+    emp_filter_act = {}
+    emp_filter_call = {}
+    employee_display = "All Team Members"
+
+    if employee_id and employee_id not in ('all', 'team'):
+        try:
+            emp = User.objects.get(id=int(employee_id))
+            emp_filter_cust = {'created_by': emp}
+            emp_filter_act = {'employee': emp}
+            emp_filter_call = {'employee': emp}
+            employee_display = emp.get_full_name() or emp.username
+        except (User.DoesNotExist, ValueError):
+            pass
+
+    records = []
+    total_buyers = 0
+    total_sellers = 0
+
+    if metric == 'connected':
+        created_ids = set(Customer.objects.filter(**emp_filter_cust, **date_filter).values_list('id', flat=True))
+        updated_ids = set(CustomerActivityLog.objects.filter(**emp_filter_act, **date_filter).values_list('customer_id', flat=True))
+        call_ids = set(CallLog.objects.filter(**emp_filter_call, **date_filter).values_list('customer_id', flat=True))
+        all_ids = created_ids.union(updated_ids).union(call_ids)
+
+        last_call_sub = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-created_at')
+        customers = Customer.objects.filter(id__in=all_ids).select_related('assigned_to', 'created_by').annotate(
+            last_call_status=Subquery(last_call_sub.values('call_status')[:1]),
+            last_call_remark=Subquery(last_call_sub.values('remark')[:1]),
+            last_call_time=Subquery(last_call_sub.values('created_at')[:1]),
+        ).order_by('-updated_at')[:250]
+
+        for c in customers:
+            c_type = c.customer_type or 'buyer'
+            if c_type == 'seller':
+                total_sellers += 1
+            else:
+                total_buyers += 1
+
+            reasons = []
+            if c.id in created_ids:
+                reasons.append("Created profile")
+            if c.id in updated_ids:
+                reasons.append("Updated details")
+            if c.id in call_ids:
+                reasons.append("Call dialed")
+            reason_str = ", ".join(reasons) if reasons else "Connected"
+
+            records.append({
+                'id': c.id,
+                'name': c.display_title,
+                'subtitle': c.display_subtitle or '',
+                'customer_type': c_type,
+                'phone': c.phone or '',
+                'whatsapp': c.whatsapp_number or '',
+                'city': c.city or '',
+                'state': c.state or '',
+                'status': c.status or 'lead',
+                'status_label': c.get_status_display() if hasattr(c, 'get_status_display') else c.status,
+                'last_call_status': c.last_call_status or 'never_called',
+                'last_call_remark': c.last_call_remark or '',
+                'activity_reason': reason_str,
+                'date': (c.updated_at or c.created_at).strftime('%d %b %Y, %H:%M') if (c.updated_at or c.created_at) else '',
+                'url': reverse('customer_detail', args=[c.id]),
+            })
+
+    elif metric == 'created':
+        customers = Customer.objects.filter(**emp_filter_cust, **date_filter).select_related('assigned_to', 'created_by').order_by('-created_at')[:250]
+        for c in customers:
+            c_type = c.customer_type or 'buyer'
+            if c_type == 'seller':
+                total_sellers += 1
+            else:
+                total_buyers += 1
+            records.append({
+                'id': c.id,
+                'name': c.display_title,
+                'subtitle': c.display_subtitle or '',
+                'customer_type': c_type,
+                'phone': c.phone or '',
+                'whatsapp': c.whatsapp_number or '',
+                'city': c.city or '',
+                'state': c.state or '',
+                'status': c.status or 'lead',
+                'status_label': c.get_status_display() if hasattr(c, 'get_status_display') else c.status,
+                'last_call_status': '',
+                'last_call_remark': '',
+                'activity_reason': f"Registered by {c.created_by.username if c.created_by else 'Admin'}",
+                'date': c.created_at.strftime('%d %b %Y, %H:%M') if c.created_at else '',
+                'url': reverse('customer_detail', args=[c.id]),
+            })
+
+    elif metric == 'updated':
+        act_logs = CustomerActivityLog.objects.filter(**emp_filter_act, **date_filter).select_related('customer', 'employee').order_by('-created_at')[:250]
+        seen_ids = set()
+        for log in act_logs:
+            c = log.customer
+            if not c or c.id in seen_ids:
+                continue
+            seen_ids.add(c.id)
+            c_type = c.customer_type or 'buyer'
+            if c_type == 'seller':
+                total_sellers += 1
+            else:
+                total_buyers += 1
+            records.append({
+                'id': c.id,
+                'name': c.display_title,
+                'subtitle': c.display_subtitle or '',
+                'customer_type': c_type,
+                'phone': c.phone or '',
+                'whatsapp': c.whatsapp_number or '',
+                'city': c.city or '',
+                'state': c.state or '',
+                'status': c.status or 'lead',
+                'status_label': c.get_status_display() if hasattr(c, 'get_status_display') else c.status,
+                'last_call_status': '',
+                'last_call_remark': log.description or '',
+                'activity_reason': f"Action: {log.action}",
+                'date': log.created_at.strftime('%d %b %Y, %H:%M') if log.created_at else '',
+                'url': reverse('customer_detail', args=[c.id]),
+            })
+
+    elif metric == 'calls':
+        calls = CallLog.objects.filter(**emp_filter_call, **date_filter).select_related('customer', 'employee').order_by('-created_at')[:250]
+        for cl in calls:
+            c = cl.customer
+            c_type = c.customer_type if c else 'buyer'
+            if c_type == 'seller':
+                total_sellers += 1
+            else:
+                total_buyers += 1
+            records.append({
+                'id': c.id if c else 0,
+                'name': c.display_title if c else 'Unknown Customer',
+                'subtitle': c.display_subtitle if c else '',
+                'customer_type': c_type,
+                'phone': c.phone if c else '',
+                'whatsapp': c.whatsapp_number if c else '',
+                'city': c.city if c else '',
+                'state': c.state if c else '',
+                'status': c.status if c else 'lead',
+                'status_label': c.get_status_display() if (c and hasattr(c, 'get_status_display')) else (c.status if c else ''),
+                'last_call_status': cl.call_status,
+                'last_call_remark': cl.remark or '',
+                'activity_reason': f"Called by {cl.employee.username if cl.employee else 'Employee'}",
+                'date': cl.created_at.strftime('%d %b %Y, %H:%M') if cl.created_at else '',
+                'url': reverse('customer_detail', args=[c.id]) if c else '#',
+            })
+
+    elif metric == 'followups':
+        if emp:
+            f_filter_q = (Q(employee=emp) | Q(customer__assigned_to=emp)) & Q(follow_up_date__date=today)
+            calls = CallLog.objects.filter(f_filter_q).select_related('customer', 'employee').order_by('follow_up_date')[:250]
+        else:
+            calls = CallLog.objects.filter(follow_up_date__date=today).select_related('customer', 'employee').order_by('follow_up_date')[:250]
+
+        for cl in calls:
+            c = cl.customer
+            c_type = c.customer_type if c else 'buyer'
+            if c_type == 'seller':
+                total_sellers += 1
+            else:
+                total_buyers += 1
+            records.append({
+                'id': c.id if c else 0,
+                'name': c.display_title if c else 'Unknown Customer',
+                'subtitle': c.display_subtitle if c else '',
+                'customer_type': c_type,
+                'phone': c.phone if c else '',
+                'whatsapp': c.whatsapp_number if c else '',
+                'city': c.city if c else '',
+                'state': c.state if c else '',
+                'status': c.status if c else 'lead',
+                'status_label': c.get_status_display() if (c and hasattr(c, 'get_status_display')) else (c.status if c else ''),
+                'last_call_status': cl.call_status,
+                'last_call_remark': cl.remark or '',
+                'activity_reason': f"Scheduled: {cl.follow_up_date.strftime('%I:%M %p') if cl.follow_up_date else ''}",
+                'date': cl.follow_up_date.strftime('%d %b %Y, %I:%M %p') if cl.follow_up_date else '',
+                'url': reverse('customer_detail', args=[c.id]) if c else '#',
+            })
+
+    elif metric == 'pipeline':
+        pipe_filter = {'assigned_to': emp} if emp else {'assigned_to__isnull': False}
+        customers = Customer.objects.filter(**pipe_filter).select_related('assigned_to', 'created_by').order_by('-updated_at')[:250]
+        for c in customers:
+            c_type = c.customer_type or 'buyer'
+            if c_type == 'seller':
+                total_sellers += 1
+            else:
+                total_buyers += 1
+            records.append({
+                'id': c.id,
+                'name': c.display_title,
+                'subtitle': c.display_subtitle or '',
+                'customer_type': c_type,
+                'phone': c.phone or '',
+                'whatsapp': c.whatsapp_number or '',
+                'city': c.city or '',
+                'state': c.state or '',
+                'status': c.status or 'lead',
+                'status_label': c.get_status_display() if hasattr(c, 'get_status_display') else c.status,
+                'last_call_status': '',
+                'last_call_remark': '',
+                'activity_reason': f"Assigned to {c.assigned_to.username if c.assigned_to else 'Unassigned'}",
+                'date': (c.updated_at or c.created_at).strftime('%d %b %Y, %H:%M') if (c.updated_at or c.created_at) else '',
+                'url': reverse('customer_detail', args=[c.id]),
+            })
+
+    metric_titles = {
+        'connected': 'Connected Customers',
+        'created': 'Profiles Created',
+        'updated': 'Profile Updates',
+        'calls': 'Calls Made',
+        'followups': 'Follow-ups Scheduled',
+        'pipeline': 'Assigned Pipeline',
+    }
+
+    title = f"{employee_display} • {metric_titles.get(metric, 'Records')} ({period.title()})"
+
+    return JsonResponse({
+        'success': True,
+        'title': title,
+        'employee_name': employee_display,
+        'metric': metric,
+        'period': period,
+        'total_count': len(records),
+        'buyers_count': total_buyers,
+        'sellers_count': total_sellers,
+        'records': records,
+    })
 
 
 @login_required
@@ -1886,17 +2197,21 @@ def customer_list(request):
         return redirect('customer_list')
 
     # --- STANDARD LIST LOGIC (Search/Pagination) ---
-    from django.db.models import OuterRef, Subquery
+    from django.db.models import OuterRef, Subquery, Count
+    from django.db.models.functions import Coalesce, Greatest
+    from datetime import datetime, timedelta
     last_call_sub = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-created_at')
 
-    qs = Customer.objects.select_related('assigned_to').annotate(
+    # Order recently updated, created, or contacted on top
+    qs = Customer.objects.select_related('assigned_to', 'created_by').annotate(
         last_call_status=Subquery(last_call_sub.values('call_status')[:1]),
         last_call_remark=Subquery(last_call_sub.values('remark')[:1]),
         last_call_time=Subquery(last_call_sub.values('created_at')[:1]),
         last_call_emp_first_name=Subquery(last_call_sub.values('employee__first_name')[:1]),
         last_call_emp_last_name=Subquery(last_call_sub.values('employee__last_name')[:1]),
         last_call_emp_username=Subquery(last_call_sub.values('employee__username')[:1]),
-    ).order_by('-created_at')
+        latest_activity=Greatest(Coalesce('last_call_time', 'updated_at'), 'updated_at', 'created_at')
+    ).order_by('-latest_activity', '-updated_at', '-created_at')
     
     # 1. Search Query
     query = request.GET.get('q', '').strip()
@@ -1946,6 +2261,63 @@ def customer_list(request):
     if pincode_filter:
         qs = qs.filter(pincode__icontains=pincode_filter)
 
+    # Date Filter (Today, This Week, Month, Year, Custom)
+    date_preset = request.GET.get('date_preset', '').strip().lower()
+    start_date_str = request.GET.get('start_date', '').strip()
+    end_date_str = request.GET.get('end_date', '').strip()
+    today_date = timezone.localdate()
+    filter_start = None
+    filter_end = None
+
+    if date_preset == 'today':
+        filter_start = today_date
+        filter_end = today_date
+    elif date_preset == 'week':
+        filter_start = today_date - timedelta(days=today_date.weekday())
+        filter_end = today_date
+    elif date_preset == 'month':
+        filter_start = today_date.replace(day=1)
+        filter_end = today_date
+    elif date_preset == 'year':
+        filter_start = today_date.replace(month=1, day=1)
+        filter_end = today_date
+    elif date_preset == 'custom' or (start_date_str or end_date_str):
+        date_preset = 'custom'
+        if start_date_str:
+            try:
+                filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        if end_date_str:
+            try:
+                filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+    if filter_start and filter_end:
+        qs = qs.filter(latest_activity__date__gte=filter_start, latest_activity__date__lte=filter_end)
+    elif filter_start:
+        qs = qs.filter(latest_activity__date__gte=filter_start)
+    elif filter_end:
+        qs = qs.filter(latest_activity__date__lte=filter_end)
+
+    # Multi-Remark Filter (Using Checkmarks)
+    selected_remarks = [r.strip() for r in request.GET.getlist('remarks') if r.strip()]
+    if not selected_remarks and request.GET.get('remark'):
+        selected_remarks = [r.strip() for r in request.GET.get('remark').split(',') if r.strip()]
+
+    if selected_remarks:
+        rem_q = Q()
+        for rem in selected_remarks:
+            if rem == '__none__' or rem.lower() == 'no remarks logged':
+                rem_q |= (
+                    (Q(last_call_remark__isnull=True) | Q(last_call_remark='')) &
+                    (Q(notes__isnull=True) | Q(notes=''))
+                )
+            elif rem:
+                rem_q |= Q(last_call_remark__icontains=rem) | Q(notes__icontains=rem)
+        qs = qs.filter(rem_q)
+
     # 3. Dynamic Filtered Count
     total_filtered_count = qs.count()
 
@@ -1976,6 +2348,20 @@ def customer_list(request):
     existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
     state_choices = [s for s in existing_states if s and s.strip()]
 
+    # Collect available remarks for checkbox multi-select dropdown
+    raw_remarks = list(
+        CallLog.objects.exclude(remark__isnull=True).exclude(remark='')
+        .values_list('remark', flat=True).distinct()[:80]
+    )
+    available_remarks = []
+    seen_remarks = set()
+    for r in raw_remarks:
+        r_clean = r.strip()
+        if r_clean and r_clean.lower() not in seen_remarks:
+            seen_remarks.add(r_clean.lower())
+            available_remarks.append(r_clean)
+    available_remarks.sort()
+
     context = {
         'customers': page_obj, 
         'modal_form': modal_form,
@@ -2000,6 +2386,11 @@ def customer_list(request):
         'total_assigned_count': total_assigned_count,
         'total_buyers_count': total_buyers_count,
         'total_sellers_count': total_sellers_count,
+        'available_remarks': available_remarks,
+        'selected_remarks': selected_remarks,
+        'selected_date_preset': date_preset,
+        'selected_start_date': start_date_str,
+        'selected_end_date': end_date_str,
     }
 
     if request.headers.get('HX-Request') == 'true' and request.headers.get('HX-Target') == 'customer-table-content':
@@ -2164,7 +2555,7 @@ def territory_analytics(request):
 
 import csv
 import openpyxl
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -3528,7 +3919,7 @@ def api_get_pincodes_for_city(request):
 
 import json
 from datetime import datetime, timezone as dt_timezone
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from .models import Customer, WhatsAppLead, WhatsAppChat, CustomerPreference, WhatsAppMessageStatus
@@ -4679,7 +5070,7 @@ def whatsapp_marketing(request):
 def whatsapp_marketing_sample(request):
     import openpyxl
     from io import BytesIO
-    from django.http import HttpResponse
+    from django.http import HttpResponse, JsonResponse
 
     wb = openpyxl.Workbook()
     sheet = wb.active
@@ -6555,7 +6946,7 @@ def download_shade_card_sample(request):
     """
     import io, openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from django.http import HttpResponse
+    from django.http import HttpResponse, JsonResponse
 
     wb = openpyxl.Workbook()
 

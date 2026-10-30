@@ -20,6 +20,19 @@
         {% elif selected_assignee == 'assigned' %}
         <span class="badge bg-success-subtle text-success fs-10 border"><i class="fas fa-check-circle me-1"></i>Assigned Only</span>
         {% endif %}
+        {% if selected_date_preset %}
+        <span class="badge bg-primary-subtle text-primary fs-10 border">
+            <i class="fas fa-calendar-alt me-1"></i>Date: <strong>{{ selected_date_preset|title }}</strong>
+            {% if selected_date_preset == 'custom' and selected_start_date %}
+                ({{ selected_start_date }}{% if selected_end_date %} to {{ selected_end_date }}{% endif %})
+            {% endif %}
+        </span>
+        {% endif %}
+        {% if selected_remarks %}
+        <span class="badge bg-warning-subtle text-warning fs-10 border">
+            <i class="fas fa-comment-dots me-1"></i>Remarks: <strong>{{ selected_remarks|length }} selected</strong>
+        </span>
+        {% endif %}
     </div>
     <div class="text-body-tertiary fs-10">
         Page <strong>{{ customers.number|default:1 }}</strong> of <strong>{{ customers.paginator.num_pages|default:1 }}</strong> &bull; ({{ selected_per_page }} per page)
@@ -39,7 +52,7 @@
                 <th class="py-3" style="min-width: 140px;">Contact Info</th>
                 <th class="py-3" style="min-width: 150px;">Location Details</th>
                 <th class="py-3" style="min-width: 110px;">Lead Source</th>
-                <th class="py-3" style="min-width: 110px;">Joined Date</th>
+                <th class="py-3" style="min-width: 125px;">Activity / Joined</th>
                 <th class="py-3" style="min-width: 150px;">Assigned To</th>
                 <th class="py-3" style="min-width: 180px;">Last Call & Remark</th>
                 <th class="py-3 text-center" style="min-width: 90px;">Pipeline</th>
@@ -138,8 +151,14 @@
                 </td>
 
                 <td class="text-body-tertiary fs-10">
-                    <div>{{ customer.created_at|date:"d M Y" }}</div>
-                    <div class="fs-11 text-body-quaternary">{{ customer.created_at|date:"H:i" }} IST</div>
+                    <div class="fw-semibold text-body-highlight">{{ customer.latest_activity|default:customer.created_at|date:"d M Y" }}</div>
+                    <div class="fs-11 text-body-quaternary">
+                        {% if customer.updated_at and customer.updated_at > customer.created_at %}
+                            Updated {{ customer.updated_at|timesince }} ago
+                        {% else %}
+                            Created {{ customer.created_at|date:"H:i" }} IST
+                        {% endif %}
+                    </div>
                 </td>
                 
                 <td>

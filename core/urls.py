@@ -8,6 +8,7 @@ from . import mobile_api_views
 
 urlpatterns = [
     path('dashboard/admin/', views.admin_dashboard, name='dashboard_admin'),
+    path('dashboard/admin/figure-details/', views.employee_figure_details, name='employee_figure_details'),
     path('dashboard/admin/scheduled-appointments/', views.scheduled_appointments_list, name='scheduled_appointments_list'),
     path('dashboard/admin/employee-map/', views.employee_map, name='employee_map'),
     path('dashboard/admin/approve-login/<int:request_id>/', views.approve_login_request, name='approve_login_request'),

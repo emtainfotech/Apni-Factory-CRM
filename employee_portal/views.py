@@ -181,10 +181,32 @@ def dashboard(request):
     # Calculate stats for the employee
     assigned_leads = Customer.objects.filter(assigned_to=request.user, status='lead').count()
     active_customers = Customer.objects.filter(assigned_to=request.user, status='customer').count()
-    today_calls = CallLog.objects.filter(employee=request.user, created_at__date=today).count()
     unassigned_leads_count = Customer.objects.filter(assigned_to__isnull=True).count()
 
-    # 1. Today's Scheduled Follow-ups
+    # 1. Calls Analysis for Employee
+    calls_today_qs = CallLog.objects.filter(employee=request.user, created_at__date=today)
+    today_calls = calls_today_qs.count()
+    today_connected_calls = calls_today_qs.filter(call_status='connected').count()
+    today_followup_calls = calls_today_qs.filter(call_status='follow_up').count()
+    today_not_connected_calls = calls_today_qs.filter(call_status__in=['not_connected', 'busy', 'no_answer']).count()
+    connection_rate = round((today_connected_calls / today_calls * 100), 1) if today_calls > 0 else 0
+    
+    total_call_seconds = calls_today_qs.aggregate(s=Sum('call_duration'))['s'] or 0
+    call_talk_minutes = round(total_call_seconds / 60, 1) if total_call_seconds else 0
+
+    week_start = today - timedelta(days=today.weekday())
+    week_calls = CallLog.objects.filter(employee=request.user, created_at__date__gte=week_start).count()
+    month_calls = CallLog.objects.filter(employee=request.user, created_at__year=today.year, created_at__month=today.month).count()
+
+    # Detailed calls today
+    today_call_logs = calls_today_qs.select_related('customer').order_by('-created_at')[:25]
+
+    # Leads assigned to this employee waiting for their first call
+    waiting_first_call_qs = Customer.objects.filter(assigned_to=request.user).annotate(c_count=Count('call_logs')).filter(c_count=0)
+    waiting_first_call_count = waiting_first_call_qs.count()
+    waiting_first_call_leads = waiting_first_call_qs.order_by('-created_at')[:10]
+
+    # 2. Today's Scheduled Follow-ups
     todays_followups = CallLog.objects.filter(
         Q(employee=request.user) | Q(customer__assigned_to=request.user),
         follow_up_date__date=today
@@ -197,7 +219,7 @@ def dashboard(request):
         follow_up_date__isnull=False
     ).count()
 
-    # 2. Customers Connected by Employee (on basis of profile creation and profile changes/updates)
+    # 3. Customers Connected by Employee (on basis of profile creation, profile changes, and calls)
     created_cust_ids_today = set(Customer.objects.filter(
         created_by=request.user,
         created_at__date=today
@@ -208,10 +230,14 @@ def dashboard(request):
         created_at__date=today
     ).values_list('customer_id', flat=True))
 
-    connected_today_cust_ids = created_cust_ids_today.union(updated_cust_ids_today)
+    call_ids_today = set(calls_today_qs.values_list('customer_id', flat=True))
+
+    connected_today_cust_ids = created_cust_ids_today.union(updated_cust_ids_today).union(call_ids_today)
     connected_today_count = len(connected_today_cust_ids)
     connected_today_created = len(created_cust_ids_today)
     connected_today_updated = len(updated_cust_ids_today)
+    connected_today_buyers = Customer.objects.filter(id__in=connected_today_cust_ids, customer_type='buyer').count()
+    connected_today_sellers = Customer.objects.filter(id__in=connected_today_cust_ids, customer_type='seller').count()
 
     # Month figures
     created_cust_ids_month = set(Customer.objects.filter(
@@ -226,13 +252,23 @@ def dashboard(request):
         created_at__month=today.month
     ).values_list('customer_id', flat=True))
 
-    connected_month_count = len(created_cust_ids_month.union(updated_cust_ids_month))
+    call_ids_month = set(CallLog.objects.filter(
+        employee=request.user,
+        created_at__year=today.year,
+        created_at__month=today.month
+    ).values_list('customer_id', flat=True))
+
+    connected_month_cust_ids = created_cust_ids_month.union(updated_cust_ids_month).union(call_ids_month)
+    connected_month_count = len(connected_month_cust_ids)
     connected_month_created = len(created_cust_ids_month)
     connected_month_updated = len(updated_cust_ids_month)
+    connected_month_buyers = Customer.objects.filter(id__in=connected_month_cust_ids, customer_type='buyer').count()
+    connected_month_sellers = Customer.objects.filter(id__in=connected_month_cust_ids, customer_type='seller').count()
 
     created_cust_ids_all = set(Customer.objects.filter(created_by=request.user).values_list('id', flat=True))
     updated_cust_ids_all = set(CustomerActivityLog.objects.filter(employee=request.user).values_list('customer_id', flat=True))
-    connected_all_count = len(created_cust_ids_all.union(updated_cust_ids_all))
+    call_ids_all = set(CallLog.objects.filter(employee=request.user).values_list('customer_id', flat=True))
+    connected_all_count = len(created_cust_ids_all.union(updated_cust_ids_all).union(call_ids_all))
 
     # Recent customer connections / activity stream for this employee (last 6 items)
     recent_connection_logs = CustomerActivityLog.objects.filter(
@@ -259,6 +295,16 @@ def dashboard(request):
         'assigned_leads': assigned_leads,
         'active_customers': active_customers,
         'today_calls': today_calls,
+        'today_connected_calls': today_connected_calls,
+        'today_followup_calls': today_followup_calls,
+        'today_not_connected_calls': today_not_connected_calls,
+        'connection_rate': connection_rate,
+        'call_talk_minutes': call_talk_minutes,
+        'week_calls': week_calls,
+        'month_calls': month_calls,
+        'today_call_logs': today_call_logs,
+        'waiting_first_call_count': waiting_first_call_count,
+        'waiting_first_call_leads': waiting_first_call_leads,
         'unassigned_leads_count': unassigned_leads_count,
         'todays_followups': todays_followups,
         'todays_followups_count': todays_followups_count,
@@ -266,13 +312,17 @@ def dashboard(request):
         'connected_today_count': connected_today_count,
         'connected_today_created': connected_today_created,
         'connected_today_updated': connected_today_updated,
+        'connected_today_buyers': connected_today_buyers,
+        'connected_today_sellers': connected_today_sellers,
         'connected_month_count': connected_month_count,
         'connected_month_created': connected_month_created,
         'connected_month_updated': connected_month_updated,
+        'connected_month_buyers': connected_month_buyers,
+        'connected_month_sellers': connected_month_sellers,
         'connected_all_count': connected_all_count,
         'recent_connection_logs': recent_connection_logs,
         'total_business': total_business,
-        'recent_calls': CallLog.objects.filter(employee=request.user).order_by('-created_at')[:5],
+        'recent_calls': CallLog.objects.filter(employee=request.user).order_by('-created_at')[:10],
         'recent_orders': remote_orders[:5] if remote_orders.exists() else [],
         'create_customer_form': create_customer_form,
         'state_choices': state_choices,
@@ -836,7 +886,9 @@ def customer_list(request):
             return redirect(referer or 'employee_portal:customer_list')
 
     # 2. Assignment Scope Filter
-    from django.db.models import OuterRef, Subquery
+    from django.db.models import OuterRef, Subquery, Count
+    from django.db.models.functions import Coalesce, Greatest
+    from datetime import datetime, timedelta
     last_call_sub = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-created_at')
 
     assigned_filter = request.GET.get('assigned_to', 'my').strip()
@@ -848,6 +900,7 @@ def customer_list(request):
         assigned_filter = 'my'
         qs = Customer.objects.filter(Q(assigned_to=request.user) | Q(created_by=request.user))
 
+    # Order recently updated, created, or contacted on top
     qs = qs.select_related('assigned_to', 'created_by').annotate(
         last_call_status=Subquery(last_call_sub.values('call_status')[:1]),
         last_call_remark=Subquery(last_call_sub.values('remark')[:1]),
@@ -855,7 +908,8 @@ def customer_list(request):
         last_call_emp_first_name=Subquery(last_call_sub.values('employee__first_name')[:1]),
         last_call_emp_last_name=Subquery(last_call_sub.values('employee__last_name')[:1]),
         last_call_emp_username=Subquery(last_call_sub.values('employee__username')[:1]),
-    ).order_by('-created_at')
+        latest_activity=Greatest(Coalesce('last_call_time', 'updated_at'), 'updated_at', 'created_at')
+    ).order_by('-latest_activity', '-updated_at', '-created_at')
 
     # 3. Filters
     customer_type_filter = request.GET.get('customer_type', '').strip()
@@ -867,6 +921,63 @@ def customer_list(request):
     state_filter = request.GET.get('state', '').strip()
     city_filter = request.GET.get('city', '').strip()
     pincode_filter = request.GET.get('pincode', '').strip()
+
+    # Date Range Filter (Today, This Week, Month, Year, Custom)
+    date_preset = request.GET.get('date_preset', '').strip().lower()
+    start_date_str = request.GET.get('start_date', '').strip()
+    end_date_str = request.GET.get('end_date', '').strip()
+    today_date = timezone.localdate()
+    filter_start = None
+    filter_end = None
+
+    if date_preset == 'today':
+        filter_start = today_date
+        filter_end = today_date
+    elif date_preset == 'week':
+        filter_start = today_date - timedelta(days=today_date.weekday())
+        filter_end = today_date
+    elif date_preset == 'month':
+        filter_start = today_date.replace(day=1)
+        filter_end = today_date
+    elif date_preset == 'year':
+        filter_start = today_date.replace(month=1, day=1)
+        filter_end = today_date
+    elif date_preset == 'custom' or (start_date_str or end_date_str):
+        date_preset = 'custom'
+        if start_date_str:
+            try:
+                filter_start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+        if end_date_str:
+            try:
+                filter_end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                pass
+
+    if filter_start and filter_end:
+        qs = qs.filter(latest_activity__date__gte=filter_start, latest_activity__date__lte=filter_end)
+    elif filter_start:
+        qs = qs.filter(latest_activity__date__gte=filter_start)
+    elif filter_end:
+        qs = qs.filter(latest_activity__date__lte=filter_end)
+
+    # Multi-Remark Filter (Using Checkmarks)
+    selected_remarks = [r.strip() for r in request.GET.getlist('remarks') if r.strip()]
+    if not selected_remarks and request.GET.get('remark'):
+        selected_remarks = [r.strip() for r in request.GET.get('remark').split(',') if r.strip()]
+
+    if selected_remarks:
+        rem_q = Q()
+        for rem in selected_remarks:
+            if rem == '__none__' or rem.lower() == 'no remarks logged':
+                rem_q |= (
+                    (Q(last_call_remark__isnull=True) | Q(last_call_remark='')) &
+                    (Q(notes__isnull=True) | Q(notes=''))
+                )
+            elif rem:
+                rem_q |= Q(last_call_remark__icontains=rem) | Q(notes__icontains=rem)
+        qs = qs.filter(rem_q)
 
     if customer_type_filter in ('buyer', 'seller'):
         qs = qs.filter(customer_type=customer_type_filter)
@@ -926,6 +1037,20 @@ def customer_list(request):
     existing_states = list(Customer.objects.exclude(state__isnull=True).exclude(state='').values_list('state', flat=True).distinct().order_by('state'))
     state_choices = [s for s in existing_states if s and s.strip()]
 
+    # Collect available remarks for checkbox multi-select dropdown
+    raw_remarks = list(
+        CallLog.objects.exclude(remark__isnull=True).exclude(remark='')
+        .values_list('remark', flat=True).distinct()[:80]
+    )
+    available_remarks = []
+    seen_remarks = set()
+    for r in raw_remarks:
+        r_clean = r.strip()
+        if r_clean and r_clean.lower() not in seen_remarks:
+            seen_remarks.add(r_clean.lower())
+            available_remarks.append(r_clean)
+    available_remarks.sort()
+
     employees = None
     if request.user.role in ['manager', 'admin'] or request.user.is_superuser:
         employees = User.objects.filter(is_active=True).exclude(is_superuser=True)
@@ -955,6 +1080,11 @@ def customer_list(request):
         'source_choices': source_choices,
         'state_choices': state_choices,
         'employees': employees,
+        'available_remarks': available_remarks,
+        'selected_remarks': selected_remarks,
+        'selected_date_preset': date_preset,
+        'selected_start_date': start_date_str,
+        'selected_end_date': end_date_str,
         'create_customer_form': EmployeeCustomerCreateForm(initial={'country': 'India', 'lead_source': 'manual', 'status': 'lead', 'customer_type': 'seller'}),
     }
     return render(request, 'employee_portal/customer_list.html', context)
