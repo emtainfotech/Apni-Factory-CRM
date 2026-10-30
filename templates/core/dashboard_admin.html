@@ -1280,7 +1280,7 @@
 
                     <!-- Instant Search within Modal -->
                     <div class="search-box position-relative" style="min-width: 260px;">
-                        <input class="form-control form-control-sm search-input" type="search" id="modalSearchInput" placeholder="Filter by customer, phone, city..." onkeyup="filterModalRecordsTable()">
+                        <input class="form-control form-control-sm search-input" type="search" id="modalSearchInput" placeholder="Filter by customer, phone, city..." oninput="handleModalSearchInput(this.value)">
                         <span class="fas fa-search search-box-icon"></span>
                     </div>
                 </div>
@@ -1295,9 +1295,9 @@
 
                 <!-- Table Content Container -->
                 <div id="modalTableContainer" class="d-none">
-                    <div class="table-responsive" style="max-height: 480px;">
+                    <div class="table-responsive" id="modalTableScrollContainer" style="max-height: 520px; overflow-y: auto;">
                         <table class="table table-hover table-striped align-middle fs-9 mb-0">
-                            <thead class="bg-body-tertiary sticky-top">
+                            <thead class="bg-body-tertiary sticky-top" style="z-index: 5;">
                                 <tr>
                                     <th class="ps-4 py-2">Customer / Account</th>
                                     <th class="py-2">Type</th>
@@ -1313,6 +1313,26 @@
                                 <!-- Populated dynamically by JS -->
                             </tbody>
                         </table>
+
+                        <!-- Bottom Spinner for Scroll Loading -->
+                        <div id="modalScrollLoading" class="text-center py-3 d-none">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading more...</span>
+                            </div>
+                            <span class="ms-2 fs-10 text-muted">Loading more records...</span>
+                        </div>
+
+                        <!-- All Records Loaded message -->
+                        <div id="modalScrollEnd" class="text-center py-2 text-muted fs-11 border-top bg-body-subtle d-none">
+                            <i class="fas fa-check-circle text-success me-1"></i>All records loaded
+                        </div>
+
+                        <!-- Manual Load More button fallback -->
+                        <div id="modalManualLoadMore" class="text-center py-2 border-top bg-body-subtle d-none">
+                            <button type="button" class="btn btn-link btn-sm text-decoration-none fs-11" onclick="loadNextFigurePage()">
+                                <i class="fas fa-arrow-down me-1"></i>Load more records
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1336,8 +1356,21 @@
 </div>
 
 <script>
-let currentModalRecords = [];
+let currentEmployeeId = '';
+let currentMetric = '';
+let currentPeriod = 'today';
+let currentStartDate = '';
+let currentEndDate = '';
 let currentTypeFilter = 'all';
+let currentSearchQuery = '';
+
+let currentFigurePage = 1;
+const figurePageSize = 25;
+let figureHasNext = false;
+let isFigureLoading = false;
+let loadedRecordsCount = 0;
+let figureTotalFiltered = 0;
+let figureSearchTimeout = null;
 
 function openFigureModal(employeeId, employeeName, metric, period, startDate, endDate) {
     const modalEl = document.getElementById('figureDetailsModal');
@@ -1345,11 +1378,30 @@ function openFigureModal(employeeId, employeeName, metric, period, startDate, en
     const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
 
+    // Store state
+    currentEmployeeId = employeeId || '';
+    currentMetric = metric || '';
+    currentPeriod = period || 'today';
+    currentStartDate = startDate || '';
+    currentEndDate = endDate || '';
+    currentTypeFilter = 'all';
+    currentSearchQuery = '';
+    currentFigurePage = 1;
+    figureHasNext = false;
+    loadedRecordsCount = 0;
+    figureTotalFiltered = 0;
+
+    // Reset UI
+    document.getElementById('modalSearchInput').value = '';
+    document.getElementById('modalTableBody').innerHTML = '';
     document.getElementById('modalLoadingSpinner').classList.remove('d-none');
     document.getElementById('modalTableContainer').classList.add('d-none');
     document.getElementById('modalEmptyState').classList.add('d-none');
-    document.getElementById('modalSearchInput').value = '';
-    currentTypeFilter = 'all';
+    document.getElementById('modalScrollLoading').classList.add('d-none');
+    document.getElementById('modalScrollEnd').classList.add('d-none');
+    document.getElementById('modalManualLoadMore').classList.add('d-none');
+    document.getElementById('modalFooterStatus').textContent = 'Loading...';
+
     updateModalTypeFilterButtons();
 
     const metricNames = {
@@ -1363,78 +1415,120 @@ function openFigureModal(employeeId, employeeName, metric, period, startDate, en
     document.getElementById('figureModalTitle').innerHTML = `<i class="fas fa-chart-pie text-primary me-2"></i>${employeeName} &bull; ${metricNames[metric] || 'Activity Details'}`;
     document.getElementById('figureModalSubtitle').innerText = `Period: ${period.toUpperCase()}`;
 
-    const url = `{% url 'employee_figure_details' %}?employee_id=${encodeURIComponent(employeeId)}&metric=${encodeURIComponent(metric)}&period=${encodeURIComponent(period)}&start_date=${encodeURIComponent(startDate || '')}&end_date=${encodeURIComponent(endDate || '')}`;
+    // Reset scroll positions to top
+    const scrollContainer = document.getElementById('modalTableScrollContainer');
+    if (scrollContainer) scrollContainer.scrollTop = 0;
+    const modalBody = document.querySelector('#figureDetailsModal .modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+
+    // Fetch page 1
+    fetchFigureData(1, false);
+}
+
+function fetchFigureData(page, append) {
+    if (isFigureLoading) return;
+    isFigureLoading = true;
+
+    if (!append) {
+        document.getElementById('modalLoadingSpinner').classList.remove('d-none');
+        document.getElementById('modalTableContainer').classList.add('d-none');
+        document.getElementById('modalEmptyState').classList.add('d-none');
+        document.getElementById('modalScrollEnd').classList.add('d-none');
+        document.getElementById('modalManualLoadMore').classList.add('d-none');
+    } else {
+        document.getElementById('modalScrollLoading').classList.remove('d-none');
+        document.getElementById('modalManualLoadMore').classList.add('d-none');
+    }
+
+    const params = new URLSearchParams({
+        employee_id: currentEmployeeId,
+        metric: currentMetric,
+        period: currentPeriod,
+        start_date: currentStartDate,
+        end_date: currentEndDate,
+        customer_type: currentTypeFilter,
+        search: currentSearchQuery,
+        page: page,
+        page_size: figurePageSize
+    });
+
+    const url = `{% url 'employee_figure_details' %}?${params.toString()}`;
 
     fetch(url)
         .then(response => response.json())
         .then(data => {
+            isFigureLoading = false;
             document.getElementById('modalLoadingSpinner').classList.add('d-none');
-            if (data.success && data.records) {
-                currentModalRecords = data.records;
-                document.getElementById('modalCountAll').textContent = data.total_count;
-                document.getElementById('modalCountBuyers').textContent = data.buyers_count;
-                document.getElementById('modalCountSellers').textContent = data.sellers_count;
-                renderModalTable();
-            } else {
+            document.getElementById('modalScrollLoading').classList.add('d-none');
+
+            if (!data.success) {
+                if (!append) {
+                    document.getElementById('modalEmptyState').classList.remove('d-none');
+                    document.getElementById('modalFooterStatus').textContent = 'Error loading records';
+                }
+                return;
+            }
+
+            // Update tab badge totals
+            document.getElementById('modalCountAll').textContent = data.total_count;
+            document.getElementById('modalCountBuyers').textContent = data.buyers_count;
+            document.getElementById('modalCountSellers').textContent = data.sellers_count;
+
+            currentFigurePage = data.page;
+            figureHasNext = data.has_next;
+            figureTotalFiltered = data.filtered_total;
+
+            const tbody = document.getElementById('modalTableBody');
+            if (!append) {
+                tbody.innerHTML = '';
+                loadedRecordsCount = 0;
+            }
+
+            if (data.records && data.records.length > 0) {
+                appendFigureRows(data.records);
+                loadedRecordsCount += data.records.length;
+                document.getElementById('modalTableContainer').classList.remove('d-none');
+                document.getElementById('modalEmptyState').classList.add('d-none');
+            } else if (!append) {
+                document.getElementById('modalTableContainer').classList.add('d-none');
                 document.getElementById('modalEmptyState').classList.remove('d-none');
+            }
+
+            // Update footer status text
+            if (figureTotalFiltered === 0) {
+                document.getElementById('modalFooterStatus').textContent = '0 matching records';
+            } else {
+                document.getElementById('modalFooterStatus').textContent = `Showing ${loadedRecordsCount} of ${figureTotalFiltered} records`;
+            }
+
+            // Handle scroll indicators
+            if (figureHasNext) {
+                document.getElementById('modalScrollEnd').classList.add('d-none');
+                document.getElementById('modalManualLoadMore').classList.remove('d-none');
+            } else {
+                document.getElementById('modalManualLoadMore').classList.add('d-none');
+                if (loadedRecordsCount > 0) {
+                    document.getElementById('modalScrollEnd').classList.remove('d-none');
+                } else {
+                    document.getElementById('modalScrollEnd').classList.add('d-none');
+                }
             }
         })
         .catch(err => {
-            console.error('Error fetching figure details:', err);
+            console.error('Error fetching figure records:', err);
+            isFigureLoading = false;
             document.getElementById('modalLoadingSpinner').classList.add('d-none');
-            document.getElementById('modalEmptyState').classList.remove('d-none');
+            document.getElementById('modalScrollLoading').classList.add('d-none');
+            if (!append) {
+                document.getElementById('modalEmptyState').classList.remove('d-none');
+                document.getElementById('modalFooterStatus').textContent = 'Error loading records';
+            }
         });
 }
 
-function setModalTypeFilter(type) {
-    currentTypeFilter = type;
-    updateModalTypeFilterButtons();
-    renderModalTable();
-}
-
-function updateModalTypeFilterButtons() {
-    const btnAll = document.getElementById('btnFilterAll');
-    const btnBuyer = document.getElementById('btnFilterBuyer');
-    const btnSeller = document.getElementById('btnFilterSeller');
-    if (!btnAll || !btnBuyer || !btnSeller) return;
-
-    btnAll.className = (currentTypeFilter === 'all') ? 'btn btn-primary fw-bold' : 'btn btn-phoenix-secondary';
-    btnBuyer.className = (currentTypeFilter === 'buyer') ? 'btn btn-info fw-bold text-white' : 'btn btn-phoenix-info';
-    btnSeller.className = (currentTypeFilter === 'seller') ? 'btn btn-success fw-bold' : 'btn btn-phoenix-success';
-}
-
-function filterModalRecordsTable() {
-    renderModalTable();
-}
-
-function renderModalTable() {
+function appendFigureRows(records) {
     const tbody = document.getElementById('modalTableBody');
-    const searchQuery = (document.getElementById('modalSearchInput').value || '').toLowerCase().trim();
-    tbody.innerHTML = '';
-
-    const filtered = currentModalRecords.filter(rec => {
-        if (currentTypeFilter !== 'all' && rec.customer_type !== currentTypeFilter) {
-            return false;
-        }
-        if (searchQuery) {
-            const haystack = `${rec.name} ${rec.subtitle} ${rec.phone} ${rec.city} ${rec.state} ${rec.status_label} ${rec.last_call_remark} ${rec.activity_reason}`.toLowerCase();
-            if (!haystack.includes(searchQuery)) return false;
-        }
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        document.getElementById('modalTableContainer').classList.add('d-none');
-        document.getElementById('modalEmptyState').classList.remove('d-none');
-        document.getElementById('modalFooterStatus').textContent = '0 matching records';
-        return;
-    }
-
-    document.getElementById('modalEmptyState').classList.add('d-none');
-    document.getElementById('modalTableContainer').classList.remove('d-none');
-    document.getElementById('modalFooterStatus').textContent = `Showing ${filtered.length} of ${currentModalRecords.length} records`;
-
-    filtered.forEach(rec => {
+    records.forEach(rec => {
         const tr = document.createElement('tr');
         tr.className = 'align-middle';
 
@@ -1490,5 +1584,69 @@ function renderModalTable() {
         tbody.appendChild(tr);
     });
 }
+
+function loadNextFigurePage() {
+    if (figureHasNext && !isFigureLoading) {
+        fetchFigureData(currentFigurePage + 1, true);
+    }
+}
+
+function setModalTypeFilter(type) {
+    if (currentTypeFilter === type) return;
+    currentTypeFilter = type;
+    updateModalTypeFilterButtons();
+    const scrollContainer = document.getElementById('modalTableScrollContainer');
+    if (scrollContainer) scrollContainer.scrollTop = 0;
+    const modalBody = document.querySelector('#figureDetailsModal .modal-body');
+    if (modalBody) modalBody.scrollTop = 0;
+    fetchFigureData(1, false);
+}
+
+function updateModalTypeFilterButtons() {
+    const btnAll = document.getElementById('btnFilterAll');
+    const btnBuyer = document.getElementById('btnFilterBuyer');
+    const btnSeller = document.getElementById('btnFilterSeller');
+    if (!btnAll || !btnBuyer || !btnSeller) return;
+
+    btnAll.className = (currentTypeFilter === 'all') ? 'btn btn-primary fw-bold' : 'btn btn-phoenix-secondary';
+    btnBuyer.className = (currentTypeFilter === 'buyer') ? 'btn btn-info fw-bold text-white' : 'btn btn-phoenix-info';
+    btnSeller.className = (currentTypeFilter === 'seller') ? 'btn btn-success fw-bold' : 'btn btn-phoenix-success';
+}
+
+function handleModalSearchInput(val) {
+    clearTimeout(figureSearchTimeout);
+    figureSearchTimeout = setTimeout(() => {
+        currentSearchQuery = (val || '').trim();
+        const scrollContainer = document.getElementById('modalTableScrollContainer');
+        if (scrollContainer) scrollContainer.scrollTop = 0;
+        const modalBody = document.querySelector('#figureDetailsModal .modal-body');
+        if (modalBody) modalBody.scrollTop = 0;
+        fetchFigureData(1, false);
+    }, 300);
+}
+
+function checkAndLoadMoreFigureRecords(el) {
+    if (!figureHasNext || isFigureLoading) return;
+    const threshold = 150;
+    if (el.scrollHeight - el.scrollTop - el.clientHeight <= threshold) {
+        fetchFigureData(currentFigurePage + 1, true);
+    }
+}
+
+// Attach scroll listeners once DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const scrollContainer = document.getElementById('modalTableScrollContainer');
+    if (scrollContainer) {
+        scrollContainer.addEventListener('scroll', function() {
+            checkAndLoadMoreFigureRecords(scrollContainer);
+        });
+    }
+    const modalBody = document.querySelector('#figureDetailsModal .modal-body');
+    if (modalBody) {
+        modalBody.addEventListener('scroll', function() {
+            checkAndLoadMoreFigureRecords(modalBody);
+        });
+    }
+});
 </script>
 {% endblock %}

@@ -365,6 +365,7 @@ def employee_figure_details(request):
     """
     Returns JSON list of customer/call records for the modal popup when an admin clicks
     on an employee performance figure (Connected, Created, Updated, Calls, Followups, Pipeline).
+    Supports scroll-based pagination (page, page_size), customer_type filter, and live keyword search.
     """
     from django.db.models import OuterRef, Subquery
     employee_id = request.GET.get('employee_id', '').strip()
@@ -372,6 +373,23 @@ def employee_figure_details(request):
     period = request.GET.get('period', 'today').strip().lower()
     start_date_str = request.GET.get('start_date', '').strip()
     end_date_str = request.GET.get('end_date', '').strip()
+    customer_type = request.GET.get('customer_type', 'all').strip().lower()
+    search = request.GET.get('search', '').strip()
+
+    page_str = request.GET.get('page', '1').strip()
+    try:
+        page = max(1, int(page_str))
+    except (ValueError, TypeError):
+        page = 1
+
+    page_size_str = request.GET.get('page_size', '25').strip()
+    try:
+        page_size = max(5, min(100, int(page_size_str)))
+    except (ValueError, TypeError):
+        page_size = 25
+
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
 
     today = timezone.localdate()
     start_date = None
@@ -424,8 +442,10 @@ def employee_figure_details(request):
             pass
 
     records = []
+    total_count = 0
     total_buyers = 0
     total_sellers = 0
+    filtered_total = 0
 
     if metric == 'connected':
         created_ids = set(Customer.objects.filter(**emp_filter_cust, **date_filter).values_list('id', flat=True))
@@ -433,20 +453,36 @@ def employee_figure_details(request):
         call_ids = set(CallLog.objects.filter(**emp_filter_call, **date_filter).values_list('customer_id', flat=True))
         all_ids = created_ids.union(updated_ids).union(call_ids)
 
+        base_qs = Customer.objects.filter(id__in=all_ids)
+        total_count = len(all_ids)
+        total_buyers = base_qs.filter(customer_type='buyer').count()
+        total_sellers = base_qs.filter(customer_type='seller').count()
+
+        qs = base_qs
+        if customer_type in ('buyer', 'seller'):
+            qs = qs.filter(customer_type=customer_type)
+
+        if search:
+            qs = qs.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(company_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(city__icontains=search) |
+                Q(state__icontains=search)
+            )
+
+        filtered_total = qs.count()
+
         last_call_sub = CallLog.objects.filter(customer=OuterRef('pk')).order_by('-created_at')
-        customers = Customer.objects.filter(id__in=all_ids).select_related('assigned_to', 'created_by').annotate(
+        customers = qs.select_related('assigned_to', 'created_by').annotate(
             last_call_status=Subquery(last_call_sub.values('call_status')[:1]),
             last_call_remark=Subquery(last_call_sub.values('remark')[:1]),
             last_call_time=Subquery(last_call_sub.values('created_at')[:1]),
-        ).order_by('-updated_at')[:250]
+        ).order_by('-updated_at')[start_idx:end_idx]
 
         for c in customers:
             c_type = c.customer_type or 'buyer'
-            if c_type == 'seller':
-                total_sellers += 1
-            else:
-                total_buyers += 1
-
             reasons = []
             if c.id in created_ids:
                 reasons.append("Created profile")
@@ -475,13 +511,30 @@ def employee_figure_details(request):
             })
 
     elif metric == 'created':
-        customers = Customer.objects.filter(**emp_filter_cust, **date_filter).select_related('assigned_to', 'created_by').order_by('-created_at')[:250]
+        base_qs = Customer.objects.filter(**emp_filter_cust, **date_filter)
+        total_count = base_qs.count()
+        total_buyers = base_qs.filter(customer_type='buyer').count()
+        total_sellers = base_qs.filter(customer_type='seller').count()
+
+        qs = base_qs
+        if customer_type in ('buyer', 'seller'):
+            qs = qs.filter(customer_type=customer_type)
+
+        if search:
+            qs = qs.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(company_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(city__icontains=search) |
+                Q(state__icontains=search)
+            )
+
+        filtered_total = qs.count()
+        customers = qs.select_related('assigned_to', 'created_by').order_by('-created_at')[start_idx:end_idx]
+
         for c in customers:
             c_type = c.customer_type or 'buyer'
-            if c_type == 'seller':
-                total_sellers += 1
-            else:
-                total_buyers += 1
             records.append({
                 'id': c.id,
                 'name': c.display_title,
@@ -501,18 +554,34 @@ def employee_figure_details(request):
             })
 
     elif metric == 'updated':
-        act_logs = CustomerActivityLog.objects.filter(**emp_filter_act, **date_filter).select_related('customer', 'employee').order_by('-created_at')[:250]
-        seen_ids = set()
-        for log in act_logs:
-            c = log.customer
-            if not c or c.id in seen_ids:
-                continue
-            seen_ids.add(c.id)
+        act_logs = CustomerActivityLog.objects.filter(**emp_filter_act, **date_filter)
+        updated_cust_ids = set(act_logs.values_list('customer_id', flat=True))
+
+        base_qs = Customer.objects.filter(id__in=updated_cust_ids)
+        total_count = len(updated_cust_ids)
+        total_buyers = base_qs.filter(customer_type='buyer').count()
+        total_sellers = base_qs.filter(customer_type='seller').count()
+
+        qs = base_qs
+        if customer_type in ('buyer', 'seller'):
+            qs = qs.filter(customer_type=customer_type)
+
+        if search:
+            qs = qs.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(company_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(city__icontains=search) |
+                Q(state__icontains=search)
+            )
+
+        filtered_total = qs.count()
+        customers = qs.select_related('assigned_to', 'created_by').order_by('-updated_at')[start_idx:end_idx]
+
+        for c in customers:
             c_type = c.customer_type or 'buyer'
-            if c_type == 'seller':
-                total_sellers += 1
-            else:
-                total_buyers += 1
+            last_log = act_logs.filter(customer_id=c.id).order_by('-created_at').first()
             records.append({
                 'id': c.id,
                 'name': c.display_title,
@@ -525,21 +594,37 @@ def employee_figure_details(request):
                 'status': c.status or 'lead',
                 'status_label': c.get_status_display() if hasattr(c, 'get_status_display') else c.status,
                 'last_call_status': '',
-                'last_call_remark': log.description or '',
-                'activity_reason': f"Action: {log.action}",
-                'date': log.created_at.strftime('%d %b %Y, %H:%M') if log.created_at else '',
+                'last_call_remark': last_log.description if last_log else '',
+                'activity_reason': f"Action: {last_log.action}" if last_log else "Profile updated",
+                'date': last_log.created_at.strftime('%d %b %Y, %H:%M') if (last_log and last_log.created_at) else '',
                 'url': reverse('customer_detail', args=[c.id]),
             })
 
     elif metric == 'calls':
-        calls = CallLog.objects.filter(**emp_filter_call, **date_filter).select_related('customer', 'employee').order_by('-created_at')[:250]
+        calls_qs = CallLog.objects.filter(**emp_filter_call, **date_filter)
+        total_count = calls_qs.count()
+        total_buyers = calls_qs.filter(customer__customer_type='buyer').count()
+        total_sellers = calls_qs.filter(customer__customer_type='seller').count()
+
+        qs = calls_qs
+        if customer_type in ('buyer', 'seller'):
+            qs = qs.filter(customer__customer_type=customer_type)
+
+        if search:
+            qs = qs.filter(
+                Q(customer__first_name__icontains=search) |
+                Q(customer__last_name__icontains=search) |
+                Q(customer__company_name__icontains=search) |
+                Q(customer__phone__icontains=search) |
+                Q(remark__icontains=search)
+            )
+
+        filtered_total = qs.count()
+        calls = qs.select_related('customer', 'employee').order_by('-created_at')[start_idx:end_idx]
+
         for cl in calls:
             c = cl.customer
             c_type = c.customer_type if c else 'buyer'
-            if c_type == 'seller':
-                total_sellers += 1
-            else:
-                total_buyers += 1
             records.append({
                 'id': c.id if c else 0,
                 'name': c.display_title if c else 'Unknown Customer',
@@ -561,17 +646,33 @@ def employee_figure_details(request):
     elif metric == 'followups':
         if emp:
             f_filter_q = (Q(employee=emp) | Q(customer__assigned_to=emp)) & Q(follow_up_date__date=today)
-            calls = CallLog.objects.filter(f_filter_q).select_related('customer', 'employee').order_by('follow_up_date')[:250]
+            calls_qs = CallLog.objects.filter(f_filter_q)
         else:
-            calls = CallLog.objects.filter(follow_up_date__date=today).select_related('customer', 'employee').order_by('follow_up_date')[:250]
+            calls_qs = CallLog.objects.filter(follow_up_date__date=today)
+
+        total_count = calls_qs.count()
+        total_buyers = calls_qs.filter(customer__customer_type='buyer').count()
+        total_sellers = calls_qs.filter(customer__customer_type='seller').count()
+
+        qs = calls_qs
+        if customer_type in ('buyer', 'seller'):
+            qs = qs.filter(customer__customer_type=customer_type)
+
+        if search:
+            qs = qs.filter(
+                Q(customer__first_name__icontains=search) |
+                Q(customer__last_name__icontains=search) |
+                Q(customer__company_name__icontains=search) |
+                Q(customer__phone__icontains=search) |
+                Q(remark__icontains=search)
+            )
+
+        filtered_total = qs.count()
+        calls = qs.select_related('customer', 'employee').order_by('follow_up_date')[start_idx:end_idx]
 
         for cl in calls:
             c = cl.customer
             c_type = c.customer_type if c else 'buyer'
-            if c_type == 'seller':
-                total_sellers += 1
-            else:
-                total_buyers += 1
             records.append({
                 'id': c.id if c else 0,
                 'name': c.display_title if c else 'Unknown Customer',
@@ -592,13 +693,30 @@ def employee_figure_details(request):
 
     elif metric == 'pipeline':
         pipe_filter = {'assigned_to': emp} if emp else {'assigned_to__isnull': False}
-        customers = Customer.objects.filter(**pipe_filter).select_related('assigned_to', 'created_by').order_by('-updated_at')[:250]
+        base_qs = Customer.objects.filter(**pipe_filter)
+        total_count = base_qs.count()
+        total_buyers = base_qs.filter(customer_type='buyer').count()
+        total_sellers = base_qs.filter(customer_type='seller').count()
+
+        qs = base_qs
+        if customer_type in ('buyer', 'seller'):
+            qs = qs.filter(customer_type=customer_type)
+
+        if search:
+            qs = qs.filter(
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search) |
+                Q(company_name__icontains=search) |
+                Q(phone__icontains=search) |
+                Q(city__icontains=search) |
+                Q(state__icontains=search)
+            )
+
+        filtered_total = qs.count()
+        customers = qs.select_related('assigned_to', 'created_by').order_by('-updated_at')[start_idx:end_idx]
+
         for c in customers:
             c_type = c.customer_type or 'buyer'
-            if c_type == 'seller':
-                total_sellers += 1
-            else:
-                total_buyers += 1
             records.append({
                 'id': c.id,
                 'name': c.display_title,
@@ -627,6 +745,8 @@ def employee_figure_details(request):
     }
 
     title = f"{employee_display} • {metric_titles.get(metric, 'Records')} ({period.title()})"
+    has_next = end_idx < filtered_total
+    total_pages = (filtered_total + page_size - 1) // page_size if filtered_total > 0 else 1
 
     return JsonResponse({
         'success': True,
@@ -634,9 +754,14 @@ def employee_figure_details(request):
         'employee_name': employee_display,
         'metric': metric,
         'period': period,
-        'total_count': len(records),
+        'page': page,
+        'page_size': page_size,
+        'has_next': has_next,
+        'total_pages': total_pages,
+        'total_count': total_count,
         'buyers_count': total_buyers,
         'sellers_count': total_sellers,
+        'filtered_total': filtered_total,
         'records': records,
     })
 
