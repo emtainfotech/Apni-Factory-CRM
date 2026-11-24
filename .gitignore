@@ -159,3 +159,5 @@ cython_debug/
 
 # Scratch & temporary scripts
 scratch/
+
+*.code-workspace

@@ -87,11 +87,39 @@
             <form id="bulkDeleteForm" method="POST" action="{% url 'vendor_network:vendor-delete' %}">
                 {% csrf_token %}
                 <div class="card shadow-sm border-0">
-                    <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-list text-primary me-2"></i> Vendor List</h5>
-                        <button type="button" class="btn btn-danger btn-sm d-none" id="bulkDeleteBtn" onclick="confirmBulkDelete()">
-                            <i class="fas fa-trash me-1"></i> Delete Selected (<span id="selectedCount">0</span>)
-                        </button>
+                    <div class="card-header bg-white border-0 pt-4 pb-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                        <div>
+                            <h5 class="mb-1"><i class="fas fa-list text-primary me-2"></i> Vendor List</h5>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2.5 py-1.5 fs-10">
+                                    <i class="fas fa-store me-1"></i> <strong>{{ filtered_count }}</strong> Vendors {% if is_filtered %}(Filtered from {{ total_db_count }}){% endif %}
+                                </span>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1.5 fs-10">
+                                    <i class="fab fa-whatsapp me-1"></i> <strong>{{ filtered_with_phone_count }}</strong> Reachable via WhatsApp
+                                </span>
+                                {% if is_filtered %}
+                                <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 fs-11">
+                                    <i class="fas fa-filter me-1"></i> Active Filters Applied
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- Send Meta Template to All Filtered Button -->
+                            <button type="button" class="btn btn-success btn-sm shadow-sm" onclick="openSendTemplateModal('filtered')">
+                                <i class="fab fa-whatsapp me-1"></i> Send Meta Template to All ({{ filtered_with_phone_count }})
+                            </button>
+
+                            <!-- Send Meta Template to Selected (shown when checkboxes checked) -->
+                            <button type="button" class="btn btn-outline-success btn-sm shadow-sm d-none" id="sendSelectedMetaBtn" onclick="openSendTemplateModal('selected')">
+                                <i class="fab fa-whatsapp me-1"></i> Send to Selected (<span id="selectedCountMeta">0</span>)
+                            </button>
+
+                            <!-- Bulk Delete Button (shown when checkboxes checked) -->
+                            <button type="button" class="btn btn-danger btn-sm d-none" id="bulkDeleteBtn" onclick="confirmBulkDelete()">
+                                <i class="fas fa-trash me-1"></i> Delete Selected (<span id="selectedCount">0</span>)
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -189,9 +217,16 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteSingleVendor('{{ vendor.id }}', '{{ vendor.store_name|escapejs }}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
+                                            <div class="btn-group btn-group-sm">
+                                                {% if vendor.phone_number or vendor.mobile_number %}
+                                                <button type="button" class="btn btn-outline-success" onclick="openSendTemplateModalForSingle('{{ vendor.id }}', '{{ vendor.store_name|escapejs }}', '{{ vendor.mobile_number|default:vendor.phone_number|escapejs }}')" title="Send WhatsApp Meta Template">
+                                                    <i class="fab fa-whatsapp"></i>
+                                                </button>
+                                                {% endif %}
+                                                <button type="button" class="btn btn-outline-danger" onclick="deleteSingleVendor('{{ vendor.id }}', '{{ vendor.store_name|escapejs }}')" title="Delete Vendor">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% empty %}
@@ -244,6 +279,197 @@
     </div>
 </div>
 
+<!-- Send WhatsApp Meta Template Modal -->
+<div class="modal fade" id="sendMetaTemplateModal" tabindex="-1" aria-labelledby="sendMetaTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content shadow-lg border">
+            <div class="modal-header bg-success text-white px-4 py-3">
+                <h5 class="modal-title fw-bold text-white mb-0" id="sendMetaTemplateModalLabel">
+                    <i class="fab fa-whatsapp me-2"></i>Send WhatsApp Meta Template to Vendors
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <form id="sendMetaTemplateForm" method="POST" action="{% url 'vendor_network:send-meta-template' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="is_ajax" value="1">
+                <input type="hidden" name="target_type" id="modalTargetType" value="filtered">
+                <input type="hidden" name="vendor_ids" id="modalTargetVendorIds" value="">
+
+                <!-- Active Filter Parameters (used when target_type='filtered') -->
+                <input type="hidden" name="store_name" value="{{ filters.store_name }}">
+                <input type="hidden" name="phone_number" value="{{ filters.phone_number }}">
+                <input type="hidden" name="street_address" value="{{ filters.street_address }}">
+                <input type="hidden" name="status" value="{{ filters.status }}">
+                {% for cat in filters.categories %}
+                <input type="hidden" name="categories" value="{{ cat }}">
+                {% endfor %}
+
+                <div class="modal-body p-4">
+                    <!-- Target Audience Summary Card -->
+                    <div class="card bg-body-subtle border-0 mb-4 shadow-sm">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold text-body-highlight fs-9">
+                                    <i class="fas fa-users text-primary me-1"></i> Target Audience & Recipient Count
+                                </span>
+                                <span class="badge bg-success fs-9 px-3 py-1.5" id="modalRecipientCountBadge">
+                                    {{ filtered_with_phone_count }} Vendors
+                                </span>
+                            </div>
+
+                            <!-- Target Type Selection Radios -->
+                            <div class="d-flex gap-4 mt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="target_selector" id="radioTargetFiltered" value="filtered" checked onchange="switchModalTarget('filtered')">
+                                    <label class="form-check-label fs-9" for="radioTargetFiltered">
+                                        <strong>All Filtered Vendors</strong> (<span id="modalCountFilteredNumber">{{ filtered_with_phone_count }}</span> with WhatsApp)
+                                    </label>
+                                </div>
+                                <div class="form-check" id="radioSelectedWrapper">
+                                    <input class="form-check-input" type="radio" name="target_selector" id="radioTargetSelected" value="selected" onchange="switchModalTarget('selected')">
+                                    <label class="form-check-label fs-9" for="radioTargetSelected">
+                                        <strong>Selected Vendors Only</strong> (<span id="modalCountSelectedNumber">0</span> selected)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Filter explanation if filtered -->
+                            <div class="small text-muted mt-2 border-top pt-2" id="modalFilterSummaryText">
+                                {% if is_filtered %}
+                                <i class="fas fa-info-circle text-info me-1"></i>
+                                Matches active filters:
+                                {% if filters.store_name %}Name: "<strong>{{ filters.store_name }}</strong>" &bull; {% endif %}
+                                {% if filters.phone_number %}Phone: "<strong>{{ filters.phone_number }}</strong>" &bull; {% endif %}
+                                {% if filters.street_address %}Address: "<strong>{{ filters.street_address }}</strong>" &bull; {% endif %}
+                                {% if filters.status %}Status: "<strong>{{ filters.status }}</strong>" &bull; {% endif %}
+                                {% if filters.categories %}Categories: <strong>{{ filters.categories|join:", " }}</strong>{% endif %}
+                                {% else %}
+                                <i class="fas fa-info-circle text-info me-1"></i>
+                                Targeting all saved directory vendors with registered phone numbers.
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Template Preset Selector -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-uppercase fs-11 text-muted">Quick Template Preset</label>
+                        <select class="form-select bg-light border" id="quickReplyPresetSelect" onchange="applyQuickReplyPreset(this.value)">
+                            <option value="">-- Choose Quick Reply / Preset (Optional) --</option>
+                            {% for qr in quick_replies %}
+                            <option value="{{ qr.keyword }}" 
+                                    data-meta-name="{{ qr.meta_template_names }}" 
+                                    data-header-url="{{ qr.meta_template_header_media_url }}"
+                                    data-title="{{ qr.title }}">
+                                /{{ qr.keyword }} - {{ qr.title }} {% if qr.meta_template_names %}(Meta: {{ qr.meta_template_names }}){% endif %}
+                            </option>
+                            {% endfor %}
+                            <option value="seller_default" data-meta-name="seller_onboarding_details_template">
+                                Seller Onboarding Details Template (seller_onboarding_details_template)
+                            </option>
+                            <option value="custom">-- Custom Meta Template Name --</option>
+                        </select>
+                        <div class="form-text fs-11">Selecting a preset auto-populates the Meta Template details below.</div>
+                    </div>
+
+                    <!-- Meta Template Name & Language -->
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label fw-bold text-uppercase fs-11 text-muted">
+                                Meta Template Name <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" name="template_name" id="modalTemplateName" list="knownMetaTemplatesList" placeholder="e.g. seller_onboarding_details_template" required>
+                            <datalist id="knownMetaTemplatesList">
+                                <option value="seller_onboarding_details_template">seller_onboarding_details_template (Seller Onboarding)</option>
+                                <option value="apni_factory_paint_buyers_hindi">apni_factory_paint_buyers_hindi (Buyer Welcome Hindi)</option>
+                                <option value="conversation_start_template">conversation_start_template</option>
+                                {% for t in approved_templates %}
+                                <option value="{{ t.name }}">{{ t.name }} ({{ t.language }} - {{ t.category }})</option>
+                                {% endfor %}
+                            </datalist>
+                            <div class="form-text fs-11">Exact name of your approved template in Meta WhatsApp Business Manager.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold text-uppercase fs-11 text-muted">Language Code</label>
+                            <select class="form-select" name="language_code" id="modalLanguageCode">
+                                <option value="en" selected>English (en)</option>
+                                <option value="hi">Hindi (hi)</option>
+                                <option value="en_US">English US (en_US)</option>
+                            </select>
+                            <div class="form-text fs-11">Auto-falls back if translation varies.</div>
+                        </div>
+                    </div>
+
+                    <!-- Optional Media Header (URL & Upload) -->
+                    <div class="card border mb-3">
+                        <div class="card-body p-3 bg-light-subtle">
+                            <label class="form-label fw-bold text-uppercase fs-11 text-muted mb-2">
+                                <i class="fas fa-image text-primary me-1"></i> Template Header Media (Image / Document) <span class="badge bg-secondary-subtle text-secondary fs-11 ms-1">Optional</span>
+                            </label>
+                            <div class="row g-2">
+                                <div class="col-md-7">
+                                    <input type="url" class="form-control form-control-sm" name="header_image_url" id="modalHeaderImageUrl" placeholder="Direct Image / PDF Public URL (https://...)">
+                                    <div class="form-text fs-11">If template header has an image or document placeholder.</div>
+                                </div>
+                                <div class="col-md-5">
+                                    <input type="file" class="form-control form-control-sm" name="header_media_file" id="modalHeaderMediaFile" accept="image/*,application/pdf">
+                                    <div class="form-text fs-11">Or upload image file from your device.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- CRM Integration Options -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="modalAutoRegisterCustomer" name="auto_register_customer" value="true" checked>
+                                <label class="form-check-label fs-9 fw-semibold" for="modalAutoRegisterCustomer">
+                                    Automatically register / link vendor as Customer in CRM & log to WhatsApp Chat Inbox
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="modalMarkContacted" name="mark_contacted" value="true" checked>
+                                <label class="form-check-label fs-9 fw-semibold" for="modalMarkContacted">
+                                    Update vendor status to "Contacted / Pitch Made" and append timestamp note
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Progress State (Hidden initially) -->
+                    <div id="modalSendingProgress" class="d-none mt-3 p-3 bg-light rounded text-center">
+                        <div class="spinner-border text-success mb-2" role="status">
+                            <span class="visually-hidden">Sending...</span>
+                        </div>
+                        <h6 class="fw-bold mb-1" id="modalProgressHeading">Dispatching Meta templates via WhatsApp Cloud API...</h6>
+                        <p class="text-muted fs-10 mb-0">Please do not close this window while messages are being sent.</p>
+                    </div>
+
+                    <!-- Result Status Alert (Hidden initially) -->
+                    <div id="modalResultAlert" class="alert d-none mt-3 mb-0" role="alert">
+                        <div class="d-flex align-items-center mb-1">
+                            <i id="modalResultIcon" class="fas fa-check-circle me-2 fs-5"></i>
+                            <strong id="modalResultTitle">Dispatch Completed</strong>
+                        </div>
+                        <div id="modalResultMessage" class="fs-9"></div>
+                    </div>
+                </div>
+
+                <div class="modal-footer py-2 bg-body-tertiary d-flex justify-content-between align-items-center">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal" id="modalCloseBtn">Cancel</button>
+                    <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow-sm" id="modalSubmitBtn">
+                        <i class="fab fa-whatsapp me-1"></i> Send Meta Template Now
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 // Category Dropdown Search Logic
 const categorySearch = document.getElementById('categorySearch');
@@ -285,47 +511,251 @@ if (categoryDropdownBtn) {
     categoryCheckboxes.forEach(cb => {
         cb.addEventListener('change', updateCategoryDropdownText);
     });
-    // Run once on load
     updateCategoryDropdownText();
 }
 
-// Checkbox logic for Bulk Delete
+// Checkbox logic for Bulk Actions (Delete & WhatsApp Meta Template)
 const selectAllCheckbox = document.getElementById('selectAll');
 const vendorCheckboxes = document.querySelectorAll('.vendor-checkbox');
 const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+const sendSelectedMetaBtn = document.getElementById('sendSelectedMetaBtn');
 const selectedCountSpan = document.getElementById('selectedCount');
+const selectedCountMetaSpan = document.getElementById('selectedCountMeta');
 
-function updateBulkDeleteButton() {
+function updateBulkActionButtons() {
     const checkedCount = document.querySelectorAll('.vendor-checkbox:checked').length;
-    selectedCountSpan.textContent = checkedCount;
+    if (selectedCountSpan) selectedCountSpan.textContent = checkedCount;
+    if (selectedCountMetaSpan) selectedCountMetaSpan.textContent = checkedCount;
+    
+    const countSelectedNumber = document.getElementById('modalCountSelectedNumber');
+    if (countSelectedNumber) countSelectedNumber.textContent = checkedCount;
     
     if (checkedCount > 0) {
-        bulkDeleteBtn.classList.remove('d-none');
+        if (bulkDeleteBtn) bulkDeleteBtn.classList.remove('d-none');
+        if (sendSelectedMetaBtn) sendSelectedMetaBtn.classList.remove('d-none');
+        const selectedRadioWrapper = document.getElementById('radioSelectedWrapper');
+        if (selectedRadioWrapper) selectedRadioWrapper.style.opacity = '1';
     } else {
-        bulkDeleteBtn.classList.add('d-none');
+        if (bulkDeleteBtn) bulkDeleteBtn.classList.add('d-none');
+        if (sendSelectedMetaBtn) sendSelectedMetaBtn.classList.add('d-none');
+        const selectedRadioWrapper = document.getElementById('radioSelectedWrapper');
+        if (selectedRadioWrapper) selectedRadioWrapper.style.opacity = '0.6';
     }
 }
 
 if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', function() {
         vendorCheckboxes.forEach(cb => cb.checked = this.checked);
-        updateBulkDeleteButton();
+        updateBulkActionButtons();
     });
 }
 
 vendorCheckboxes.forEach(cb => {
     cb.addEventListener('change', function() {
-        // Uncheck 'select all' if one is unchecked
-        if (!this.checked) selectAllCheckbox.checked = false;
+        if (!this.checked && selectAllCheckbox) selectAllCheckbox.checked = false;
         
-        // Check 'select all' if all are checked
-        if (document.querySelectorAll('.vendor-checkbox:checked').length === vendorCheckboxes.length) {
+        if (selectAllCheckbox && document.querySelectorAll('.vendor-checkbox:checked').length === vendorCheckboxes.length) {
             selectAllCheckbox.checked = true;
         }
         
-        updateBulkDeleteButton();
+        updateBulkActionButtons();
     });
 });
+
+// Modal Logic for Sending WhatsApp Meta Template
+const TOTAL_FILTERED_PHONE_COUNT = {{ filtered_with_phone_count|default:0 }};
+
+function openSendTemplateModal(targetType) {
+    const modalEl = document.getElementById('sendMetaTemplateModal');
+    if (!modalEl) return;
+
+    resetModalStatusState();
+
+    const checkedBoxes = Array.from(document.querySelectorAll('.vendor-checkbox:checked'));
+    const checkedCount = checkedBoxes.length;
+
+    if (targetType === 'selected') {
+        if (checkedCount === 0) {
+            alert('Please select at least one vendor from the table using checkboxes.');
+            return;
+        }
+        switchModalTarget('selected');
+    } else {
+        switchModalTarget('filtered');
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+function openSendTemplateModalForSingle(vendorId, storeName, phone) {
+    const modalEl = document.getElementById('sendMetaTemplateModal');
+    if (!modalEl) return;
+
+    resetModalStatusState();
+
+    document.getElementById('modalTargetType').value = 'selected';
+    document.getElementById('modalTargetVendorIds').value = vendorId;
+    document.getElementById('radioTargetSelected').checked = true;
+
+    document.getElementById('modalRecipientCountBadge').textContent = `1 Vendor (${storeName})`;
+    document.getElementById('modalSubmitBtn').innerHTML = `<i class="fab fa-whatsapp me-1"></i> Send Meta Template to 1 Vendor`;
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+
+function switchModalTarget(targetType) {
+    const targetTypeInput = document.getElementById('modalTargetType');
+    const targetVendorIdsInput = document.getElementById('modalTargetVendorIds');
+    const countBadge = document.getElementById('modalRecipientCountBadge');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+    const radioFiltered = document.getElementById('radioTargetFiltered');
+    const radioSelected = document.getElementById('radioTargetSelected');
+
+    const checkedBoxes = Array.from(document.querySelectorAll('.vendor-checkbox:checked'));
+    const selectedIds = checkedBoxes.map(cb => cb.value);
+
+    if (targetType === 'selected') {
+        targetTypeInput.value = 'selected';
+        targetVendorIdsInput.value = selectedIds.join(',');
+        radioSelected.checked = true;
+
+        countBadge.textContent = `${selectedIds.length} Selected Vendors`;
+        submitBtn.innerHTML = `<i class="fab fa-whatsapp me-1"></i> Send Meta Template to ${selectedIds.length} Selected`;
+    } else {
+        targetTypeInput.value = 'filtered';
+        targetVendorIdsInput.value = '';
+        radioFiltered.checked = true;
+
+        countBadge.textContent = `${TOTAL_FILTERED_PHONE_COUNT} Vendors`;
+        submitBtn.innerHTML = `<i class="fab fa-whatsapp me-1"></i> Send Meta Template to All (${TOTAL_FILTERED_PHONE_COUNT})`;
+    }
+}
+
+function applyQuickReplyPreset(keyword) {
+    const select = document.getElementById('quickReplyPresetSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const templateInput = document.getElementById('modalTemplateName');
+    const headerUrlInput = document.getElementById('modalHeaderImageUrl');
+    const langSelect = document.getElementById('modalLanguageCode');
+
+    if (!selectedOption || !keyword) return;
+
+    if (keyword === 'custom') {
+        templateInput.value = '';
+        templateInput.focus();
+        return;
+    }
+
+    const metaName = selectedOption.getAttribute('data-meta-name') || '';
+    const headerUrl = selectedOption.getAttribute('data-header-url') || '';
+
+    if (metaName) {
+        templateInput.value = metaName.split(',')[0].trim();
+    } else if (keyword === 'seller_default') {
+        templateInput.value = 'seller_onboarding_details_template';
+    } else {
+        templateInput.value = keyword;
+    }
+
+    if (headerUrl) {
+        headerUrlInput.value = headerUrl;
+    }
+
+    const tLower = (templateInput.value || '').toLowerCase();
+    if (tLower.includes('hindi') || tLower.includes('_hi') || tLower.endsWith('hi')) {
+        langSelect.value = 'hi';
+    } else {
+        langSelect.value = 'en';
+    }
+}
+
+function resetModalStatusState() {
+    const progressEl = document.getElementById('modalSendingProgress');
+    const alertEl = document.getElementById('modalResultAlert');
+    const submitBtn = document.getElementById('modalSubmitBtn');
+    const closeBtn = document.getElementById('modalCloseBtn');
+
+    if (progressEl) progressEl.classList.add('d-none');
+    if (alertEl) alertEl.classList.add('d-none');
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fab fa-whatsapp me-1"></i> Send Meta Template Now`;
+    }
+    if (closeBtn) closeBtn.disabled = false;
+}
+
+// AJAX Form Submit for WhatsApp Dispatch
+const sendMetaTemplateForm = document.getElementById('sendMetaTemplateForm');
+if (sendMetaTemplateForm) {
+    sendMetaTemplateForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const submitBtn = document.getElementById('modalSubmitBtn');
+        const progressEl = document.getElementById('modalSendingProgress');
+        const alertEl = document.getElementById('modalResultAlert');
+        const closeBtn = document.getElementById('modalCloseBtn');
+
+        alertEl.classList.add('d-none');
+        progressEl.classList.remove('d-none');
+        submitBtn.disabled = true;
+        closeBtn.disabled = true;
+
+        const formData = new FormData(this);
+
+        fetch(this.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(res => res.json())
+        .then(data => {
+            progressEl.classList.add('d-none');
+            submitBtn.disabled = false;
+            closeBtn.disabled = false;
+            alertEl.classList.remove('d-none');
+
+            if (data.success) {
+                alertEl.className = 'alert alert-success mt-3 mb-0';
+                document.getElementById('modalResultIcon').className = 'fas fa-check-circle me-2 fs-5 text-success';
+                document.getElementById('modalResultTitle').textContent = 'WhatsApp Dispatch Completed!';
+                document.getElementById('modalResultMessage').innerHTML = `
+                    <div class="fw-bold mb-1">${data.message}</div>
+                    <div class="d-flex gap-2 mt-2">
+                        <span class="badge bg-success">Sent: ${data.sent_count}</span>
+                        <span class="badge bg-danger">Failed: ${data.failed_count}</span>
+                        <span class="badge bg-secondary">Skipped: ${data.skipped_count}</span>
+                    </div>
+                `;
+                submitBtn.innerHTML = '<i class="fas fa-check me-1"></i> Dispatched';
+                setTimeout(() => {
+                    location.reload();
+                }, 2500);
+            } else {
+                alertEl.className = 'alert alert-danger mt-3 mb-0';
+                document.getElementById('modalResultIcon').className = 'fas fa-exclamation-triangle me-2 fs-5 text-danger';
+                document.getElementById('modalResultTitle').textContent = 'Dispatch Failed';
+                document.getElementById('modalResultMessage').textContent = data.message || 'An error occurred while sending Meta templates.';
+                submitBtn.innerHTML = '<i class="fab fa-whatsapp me-1"></i> Retry Send';
+            }
+        })
+        .catch(err => {
+            console.error('Error dispatching template:', err);
+            progressEl.classList.add('d-none');
+            submitBtn.disabled = false;
+            closeBtn.disabled = false;
+            alertEl.classList.remove('d-none');
+            alertEl.className = 'alert alert-danger mt-3 mb-0';
+            document.getElementById('modalResultIcon').className = 'fas fa-times-circle me-2 fs-5 text-danger';
+            document.getElementById('modalResultTitle').textContent = 'Request Failed';
+            document.getElementById('modalResultMessage').textContent = 'Server or network error. Please try again.';
+            submitBtn.innerHTML = '<i class="fab fa-whatsapp me-1"></i> Retry Send';
+        });
+    });
+}
 
 function confirmBulkDelete() {
     const count = document.querySelectorAll('.vendor-checkbox:checked').length;

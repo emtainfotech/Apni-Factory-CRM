@@ -9,4 +9,5 @@ urlpatterns = [
     path('api/vendors/sync-osm/', api_views.SyncOSMVendorsAPIView.as_view(), name='sync-osm'),
     path('directory/', views.VendorDirectoryView.as_view(), name='vendor-directory'),
     path('delete/', views.VendorDeleteView.as_view(), name='vendor-delete'),
+    path('send-meta-template/', views.SendVendorMetaTemplateView.as_view(), name='send-meta-template'),
 ]
