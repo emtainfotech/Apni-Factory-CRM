@@ -22,7 +22,7 @@ def fetch_and_save_google_places(query: str, user=None, party_type: str = 'SELLE
             from .osm_fetcher import search_and_sync_osm
             return search_and_sync_osm(query=query, user=user, party_type=party_type)
         except Exception as e:
-            return {"status": "error", "message": f"Google Places API key is not configured and OSM fallback failed: {e}", "synced_count": 0}
+            return {"status": "error", "message": f"Google Places API key is not configured and OSM fallback failed: {e}", "synced_count": 0, "vendor_ids": []}
 
     search_url = "https://places.googleapis.com/v1/places:searchText"
     headers = {
@@ -33,6 +33,7 @@ def fetch_and_save_google_places(query: str, user=None, party_type: str = 'SELLE
 
     synced_count = 0
     results_found = 0
+    synced_ids = []
     payload = {
         'textQuery': query,
         'pageSize': 20
@@ -49,7 +50,7 @@ def fetch_and_save_google_places(query: str, user=None, party_type: str = 'SELLE
             from .osm_fetcher import search_and_sync_osm
             return search_and_sync_osm(query=query, user=user, party_type=party_type)
         except Exception:
-            return {"status": "error", "message": str(e), "synced_count": synced_count}
+            return {"status": "error", "message": str(e), "synced_count": synced_count, "vendor_ids": []}
 
     results = data.get('places', [])
     results_found += len(results)
@@ -99,6 +100,8 @@ def fetch_and_save_google_places(query: str, user=None, party_type: str = 'SELLE
                         existing.assigned_to = user
                         existing.party_type = party_type
                         existing.save()
+                    if existing.id not in synced_ids:
+                        synced_ids.append(existing.id)
                     continue
 
             # Update or create
@@ -124,5 +127,7 @@ def fetch_and_save_google_places(query: str, user=None, party_type: str = 'SELLE
                 }
             )
             synced_count += 1
+            if vendor_obj.id not in synced_ids:
+                synced_ids.append(vendor_obj.id)
 
-    return {"status": "success", "synced_count": synced_count, "results_found": results_found}
+    return {"status": "success", "synced_count": synced_count, "results_found": results_found, "vendor_ids": synced_ids}

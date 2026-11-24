@@ -39,6 +39,7 @@ def fetch_and_sync_osm_vendors(city_name: str = "Indore", user=None, party_type:
 
     elements = data.get('elements', [])
     synced_count = 0
+    synced_ids = []
     
     with transaction.atomic():
         for element in elements:
@@ -66,7 +67,7 @@ def fetch_and_sync_osm_vendors(city_name: str = "Indore", user=None, party_type:
             pincode = tags.get('addr:postcode', '')
             full_address = f"{street_address}, {city}".strip(', ')
             
-            VendorProfile.objects.update_or_create(
+            vendor_obj, _ = VendorProfile.objects.update_or_create(
                 place_id=place_id,
                 defaults={
                     'store_name': store_name,
@@ -87,8 +88,10 @@ def fetch_and_sync_osm_vendors(city_name: str = "Indore", user=None, party_type:
                 }
             )
             synced_count += 1
+            if vendor_obj.id not in synced_ids:
+                synced_ids.append(vendor_obj.id)
         
-    return {"status": "success", "synced_count": synced_count}
+    return {"status": "success", "synced_count": synced_count, "vendor_ids": synced_ids}
 
 
 def search_and_sync_osm(query: str, user=None, party_type: str = 'SELLER') -> Dict[str, Any]:
@@ -113,9 +116,10 @@ def search_and_sync_osm(query: str, user=None, party_type: str = 'SELLER') -> Di
         places = response.json()
     except Exception as e:
         logger.error(f"Failed to fetch from Nominatim: {e}")
-        return {"status": "error", "message": str(e), "synced_count": 0}
+        return {"status": "error", "message": str(e), "synced_count": 0, "vendor_ids": []}
 
     synced_count = 0
+    synced_ids = []
     with transaction.atomic():
         for place in places:
             place_id = str(place.get('place_id', ''))
@@ -133,7 +137,7 @@ def search_and_sync_osm(query: str, user=None, party_type: str = 'SELLER') -> Di
             state = address.get('state', '')
             pincode = address.get('postcode', '')
 
-            VendorProfile.objects.update_or_create(
+            vendor_obj, created = VendorProfile.objects.update_or_create(
                 place_id=f"osm_{place_id}",
                 defaults={
                     'store_name': name,
@@ -150,5 +154,7 @@ def search_and_sync_osm(query: str, user=None, party_type: str = 'SELLER') -> Di
                 }
             )
             synced_count += 1
+            if vendor_obj.id not in synced_ids:
+                synced_ids.append(vendor_obj.id)
 
-    return {"status": "success", "synced_count": synced_count, "results_found": len(places)}
+    return {"status": "success", "synced_count": synced_count, "results_found": len(places), "vendor_ids": synced_ids}

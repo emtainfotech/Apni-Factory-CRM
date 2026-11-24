@@ -17,10 +17,15 @@
                     <form method="POST" action="{% url 'vendor_network:vendor-search' %}">
                         {% csrf_token %}
                         <div class="input-group input-group-lg">
-                            <input type="text" class="form-control" name="search_query" placeholder="e.g. Hardware stores in Indore" required>
+                            <input type="text" class="form-control" name="search_query" value="{{ search_query|default:'' }}" placeholder="e.g. Hardware stores in Indore" required>
                             <button class="btn btn-primary px-4" type="submit">
                                 <i class="fas fa-search me-2"></i> Search & Sync
                             </button>
+                            {% if search_query or vendors %}
+                            <a href="{% url 'vendor_network:vendor-search' %}?clear=1" class="btn btn-outline-secondary" title="Clear Search">
+                                <i class="fas fa-times"></i>
+                            </a>
+                            {% endif %}
                         </div>
                     </form>
                 </div>
@@ -45,8 +50,35 @@
     <div class="row">
         <div class="col-12">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white border-0 pt-4 pb-0">
-                    <h5 class="mb-0"><i class="fas fa-database text-primary me-2"></i> Currently Saved Vendors (Last 100)</h5>
+                <div class="card-header bg-white border-0 pt-4 pb-0 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        {% if has_searched and vendors %}
+                        <h5 class="mb-0 text-success fw-bold">
+                            <i class="fas fa-check-circle me-2"></i> Currently Fetched Vendors {% if search_query %}for "{{ search_query }}"{% endif %} ({{ vendors|length }} Results)
+                        </h5>
+                        <p class="text-muted small mb-0">Showing only data fetched from your current search. Saved to your database.</p>
+                        {% elif has_searched and not vendors %}
+                        <h5 class="mb-0 text-muted fw-bold">
+                            <i class="fas fa-search me-2"></i> No Vendors Returned {% if search_query %}for "{{ search_query }}"{% endif %}
+                        </h5>
+                        <p class="text-muted small mb-0">Try searching with a broader query or a different city name.</p>
+                        {% else %}
+                        <h5 class="mb-0 text-dark fw-bold">
+                            <i class="fas fa-map-marked-alt text-primary me-2"></i> Currently Fetched Vendors
+                        </h5>
+                        <p class="text-muted small mb-0">Search Google Places above to fetch and view live vendors.</p>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if has_searched %}
+                        <a href="{% url 'vendor_network:vendor-search' %}?clear=1" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-redo me-1"></i> New Search
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'vendor_network:vendor-directory' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-address-book me-1"></i> View All Saved Vendors in Directory
+                        </a>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -93,7 +125,18 @@
                                         {% endif %}
                                     </td>
                                     <td>
-                                        <small class="text-muted" title="{{ vendor.street_address }}"><i class="fas fa-map-marker-alt me-1"></i>{{ vendor.street_address|truncatechars:35 }}</small>
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <small class="text-muted" title="{{ vendor.street_address }}"><i class="fas fa-map-marker-alt me-1 text-danger"></i>{{ vendor.street_address|truncatechars:35 }}</small>
+                                            {% if vendor.place_id and not vendor.place_id|slice:":4" == "osm_" %}
+                                            <a href="https://www.google.com/maps/place/?q=place_id:{{ vendor.place_id }}" target="_blank" class="btn btn-sm btn-link text-primary p-0 ms-2" title="View on Google Maps">
+                                                <i class="fas fa-external-link-alt fs-11"></i>
+                                            </a>
+                                            {% elif vendor.latitude and vendor.longitude %}
+                                            <a href="https://www.google.com/maps/search/?api=1&query={{ vendor.latitude }},{{ vendor.longitude }}" target="_blank" class="btn btn-sm btn-link text-primary p-0 ms-2" title="View on Google Maps">
+                                                <i class="fas fa-external-link-alt fs-11"></i>
+                                            </a>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                     <td>
                                         {% if vendor.enrichment_status == 'PENDING' %}
@@ -107,9 +150,23 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="6" class="text-center py-4 text-muted">
-                                        <i class="fas fa-folder-open fs-1 mb-3 text-light"></i><br>
-                                        No vendors in the database yet. Try running a search above!
+                                    <td colspan="6" class="text-center py-5 text-muted">
+                                        <div class="py-4">
+                                            <i class="fas fa-search-location fs-1 mb-3 text-secondary d-block opacity-50"></i>
+                                            {% if has_searched %}
+                                            <h6 class="fw-bold text-dark">No vendors were returned for this search query.</h6>
+                                            <p class="small text-muted mb-3">Try searching with a broader query (e.g. <em>Hardware store in Indore</em> or <em>Paint manufacturers</em>).</p>
+                                            <a href="{% url 'vendor_network:vendor-search' %}?clear=1" class="btn btn-outline-secondary btn-sm">
+                                                <i class="fas fa-redo me-1"></i> Try Another Search
+                                            </a>
+                                            {% else %}
+                                            <h6 class="fw-bold text-dark">No search performed yet.</h6>
+                                            <p class="small text-muted mb-3">Enter a search query in the search box above and click <strong>Search & Sync</strong>.<br>Only the live data fetched from that search will be shown here.</p>
+                                            <a href="{% url 'vendor_network:vendor-directory' %}" class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-database me-1"></i> Browse Existing Saved Vendors in Directory
+                                            </a>
+                                            {% endif %}
+                                        </div>
                                     </td>
                                 </tr>
                                 {% endfor %}

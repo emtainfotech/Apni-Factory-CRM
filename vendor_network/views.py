@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Case, When
 from django.contrib import messages
 from django.http import JsonResponse
 from django.utils import timezone
@@ -60,30 +60,61 @@ class VendorSearchView(LoginRequiredMixin, View):
     template_name = 'vendor_network/vendor_search.html'
 
     def get(self, request):
-        vendors = VendorProfile.objects.all().order_by('-id')[:100]
+        if request.GET.get('clear') == '1':
+            request.session.pop('last_fetched_vendor_ids', None)
+            request.session.pop('last_search_query', None)
+            return redirect('vendor_network:vendor-search')
+
+        last_fetched_ids = request.session.get('last_fetched_vendor_ids', [])
+        search_query = request.session.get('last_search_query', '')
+
+        vendors = []
+        if last_fetched_ids:
+            preserved_order = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(last_fetched_ids)])
+            vendors = VendorProfile.objects.filter(id__in=last_fetched_ids).order_by(preserved_order)
+
         context = {
             'vendors': vendors,
-            'synced_count': None,
+            'search_query': search_query,
+            'has_searched': bool(last_fetched_ids or search_query),
+            'synced_count': len(vendors) if vendors else None,
             'message': None,
             'status': None
         }
         return render(request, self.template_name, context)
 
     def post(self, request):
-        query = request.POST.get('search_query')
+        query = request.POST.get('search_query', '').strip()
+        party_type = request.POST.get('party_type', 'SELLER')
         context = {
-            'vendors': VendorProfile.objects.all().order_by('-id')[:100],
+            'vendors': [],
             'synced_count': 0,
+            'search_query': query,
+            'has_searched': True,
             'message': '',
             'status': ''
         }
 
         if query:
-            result = fetch_and_save_google_places(query)
-            context['status'] = result.get('status')
-            context['message'] = result.get('message', f"Successfully synced {result.get('synced_count')} vendors.")
-            context['synced_count'] = result.get('synced_count')
-            context['vendors'] = VendorProfile.objects.all().order_by('-id')[:100]
+            result = fetch_and_save_google_places(query, user=request.user, party_type=party_type)
+            status = result.get('status')
+            synced_count = result.get('synced_count', 0)
+            vendor_ids = result.get('vendor_ids', [])
+
+            context['status'] = status
+            context['synced_count'] = synced_count
+            context['message'] = result.get('message', f"Successfully synced {synced_count} vendors for '{query}'.")
+
+            if vendor_ids:
+                preserved_order = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(vendor_ids)])
+                vendors = VendorProfile.objects.filter(id__in=vendor_ids).order_by(preserved_order)
+                context['vendors'] = vendors
+                request.session['last_fetched_vendor_ids'] = vendor_ids
+                request.session['last_search_query'] = query
+            else:
+                context['vendors'] = []
+                request.session['last_fetched_vendor_ids'] = []
+                request.session['last_search_query'] = query
         else:
             context['status'] = 'error'
             context['message'] = 'Please enter a search query.'
